@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <mujoco/mujoco.h>
 
-namespace robot::mujoco_sim_interface {
+namespace motorium::mujoco {
 
 struct Metrics {
   /// FPS of Simulation::step
@@ -52,10 +52,10 @@ struct Metrics {
 };
 
 struct MjState {
-  explicit MjState(const mjModel* mujocoModel_);
+  explicit MjState(const mjModel *mujocoModel_);
 
   int64_t timestamp{0};
-  mjData* data;
+  mjData *data;
   Metrics metrics;
 };
-}  // namespace robot::mujoco_sim_interface
+} // namespace motorium::mujoco

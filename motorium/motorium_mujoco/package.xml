@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="3">
-  <name>mujoco_sim_interface</name>
+  <name>motorium_mujoco</name>
   <version>0.0.0</version>
   <description>Mujoco simulator interface</description>
 

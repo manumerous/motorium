@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(mujoco_sim_interface)
+project(motorium_mujoco)
 
 if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_compile_options(-Wall -Wextra -Wpedantic -Werror=return-type)

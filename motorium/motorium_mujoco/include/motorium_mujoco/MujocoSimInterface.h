@@ -47,11 +47,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "motorium_core/FPSTracker.h"
 #include "motorium_core/Types.h"
 #include "motorium_model/RobotHWInterfaceBase.h"
-#include "mujoco_sim_interface/MujocoRenderer.h"
-#include "mujoco_sim_interface/MujocoUtils.h"
+#include "motorium_mujoco/MujocoRenderer.h"
+#include "motorium_mujoco/MujocoUtils.h"
 #include <motorium_model/RobotState.h>
 
-namespace robot::mujoco_sim_interface {
+namespace motorium::mujoco {
 
 struct MujocoSimConfig {
   std::string scenePath;
@@ -144,4 +144,4 @@ private:
   size_t left_foot_touch_sensor_addr_;
 };
 
-} // namespace robot::mujoco_sim_interface
+} // namespace motorium::mujoco

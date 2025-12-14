@@ -40,9 +40,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 
 #include "motorium_core/FPSTracker.h"
-#include "mujoco_sim_interface/MujocoUtils.h"
+#include "motorium_mujoco/MujocoUtils.h"
 
-namespace robot::mujoco_sim_interface {
+namespace motorium::mujoco {
 
 class MujocoSimInterface;
 
@@ -128,4 +128,4 @@ private:
   FPSTracker rendererFps_{"renderer"};
 };
 
-} // namespace robot::mujoco_sim_interface
+} // namespace motorium::mujoco
