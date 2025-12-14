@@ -1,7 +1,7 @@
 #pragma once
 #include <motorium_core/Types.h>
-#include <robot_model/JointIDMap.h>
-#include <robot_model/RobotDescription.h>
+#include <motorium_model/JointIDMap.h>
+#include <motorium_model/RobotDescription.h>
 
 namespace motorium::model {
 

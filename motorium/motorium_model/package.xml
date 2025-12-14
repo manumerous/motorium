@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="3">
-  <name>robot_model</name>
+  <name>motorium_model</name>
   <version>0.0.0</version>
   <description>Data structures and a general robot model for flexible and consistent realtime robot data access.</description>
 

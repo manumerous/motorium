@@ -46,10 +46,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "motorium_core/FPSTracker.h"
 #include "motorium_core/Types.h"
+#include "motorium_model/RobotHWInterfaceBase.h"
 #include "mujoco_sim_interface/MujocoRenderer.h"
 #include "mujoco_sim_interface/MujocoUtils.h"
-#include "robot_model/RobotHWInterfaceBase.h"
-#include <robot_model/RobotState.h>
+#include <motorium_model/RobotState.h>
 
 namespace robot::mujoco_sim_interface {
 

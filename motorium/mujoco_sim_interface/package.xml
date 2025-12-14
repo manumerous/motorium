@@ -11,7 +11,7 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>mujoco_vendor</depend>
-  <depend>robot_model</depend>
+  <depend>motorium_model</depend>
   <depend>motorium_core</depend>
 
   <test_depend>ament_cmake_gtest</test_depend>

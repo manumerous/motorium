@@ -11,7 +11,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(ament_cmake REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(mujoco_vendor REQUIRED)
-find_package(robot_model REQUIRED)
+find_package(motorium_model REQUIRED)
 find_package(motorium_core REQUIRED)
 
 
@@ -53,7 +53,7 @@ set(dependencies
   ament_index_cpp
   mujoco_vendor
   motorium_core
-  robot_model
+  motorium_model
   absl
 )
 

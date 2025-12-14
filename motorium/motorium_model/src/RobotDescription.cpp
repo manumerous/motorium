@@ -1,5 +1,5 @@
 
-#include "robot_model/RobotDescription.h"
+#include "motorium_model/RobotDescription.h"
 // #include <pugixml.hpp>
 
 #include <urdfdom/urdf_parser/urdf_parser.h>
@@ -11,7 +11,8 @@
 namespace motorium::model {
 
 // Constructor
-RobotDescription::RobotDescription(const std::string& urdfPath) : urdf_path_(urdfPath) {
+RobotDescription::RobotDescription(const std::string &urdfPath)
+    : urdf_path_(urdfPath) {
   // Validate URDF file exists
   if (!std::filesystem::exists(urdfPath)) {
     throw std::runtime_error("URDF file not found: " + urdfPath);
@@ -19,7 +20,8 @@ RobotDescription::RobotDescription(const std::string& urdfPath) : urdf_path_(urd
 
   // Read URDF file content
   std::ifstream urdfFile(urdfPath);
-  std::string urdfContent((std::istreambuf_iterator<char>(urdfFile)), std::istreambuf_iterator<char>());
+  std::string urdfContent((std::istreambuf_iterator<char>(urdfFile)),
+                          std::istreambuf_iterator<char>());
   urdfFile.close();
 
   // Parse URDF
@@ -30,13 +32,14 @@ RobotDescription::RobotDescription(const std::string& urdfPath) : urdf_path_(urd
 
   // Process all joints from the URDF
   int32_t jointId = 0;
-  for (const auto& jointPair : urdfModel->joints_) {
-    const std::string& jointName = jointPair.first;
-    const urdf::JointSharedPtr& joint = jointPair.second;
+  for (const auto &jointPair : urdfModel->joints_) {
+    const std::string &jointName = jointPair.first;
+    const urdf::JointSharedPtr &joint = jointPair.second;
 
     // Skip fixed joints, continuous joints, and other non-controllable
     // types
-    if (joint->type != urdf::Joint::REVOLUTE && joint->type != urdf::Joint::PRISMATIC) {
+    if (joint->type != urdf::Joint::REVOLUTE &&
+        joint->type != urdf::Joint::PRISMATIC) {
       continue;
     }
 
@@ -67,17 +70,18 @@ RobotDescription::RobotDescription(const std::string& urdfPath) : urdf_path_(urd
   joint_indices.reserve(joint_id_name_map_.size());
   joint_names.reserve(joint_id_name_map_.size());
 
-  for (const auto& [index, name] : joint_id_name_map_) {
+  for (const auto &[index, name] : joint_id_name_map_) {
     joint_indices.push_back(index);
     joint_names.push_back(name);
   }
 }
 
-bool RobotDescription::containsJoint(const std::string& jointName) const {
+bool RobotDescription::containsJoint(const std::string &jointName) const {
   return joint_name_description_map_.contains(jointName);
 }
 
-std::vector<joint_index_t> RobotDescription::getJointIndices(const std::vector<std::string>& jointNames) const {
+std::vector<joint_index_t> RobotDescription::getJointIndices(
+    const std::vector<std::string> &jointNames) const {
   std::vector<joint_index_t> jointIndices;
   jointIndices.reserve(jointNames.size());
   for (std::string jointName : jointNames) {
@@ -96,17 +100,19 @@ const std::string RobotDescription::getURDFName() const {
   return urdf_path_.substr(lastSlashPos + 1);
 }
 
-std::ostream& operator<<(std::ostream& os, const JointDescription& joint) {
-  os << "JointDescription { " << "id: " << joint.id << ", min_angle: " << joint.min_angle << ", max_angle: " << joint.max_angle
-     << ", max_velocity: " << joint.max_velocity << ", max_effort: " << joint.max_effort << " }";
+std::ostream &operator<<(std::ostream &os, const JointDescription &joint) {
+  os << "JointDescription { " << "id: " << joint.id
+     << ", min_angle: " << joint.min_angle << ", max_angle: " << joint.max_angle
+     << ", max_velocity: " << joint.max_velocity
+     << ", max_effort: " << joint.max_effort << " }";
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const RobotDescription& robot) {
+std::ostream &operator<<(std::ostream &os, const RobotDescription &robot) {
   os << "RobotDescription {" << std::endl;
   os << "Generated from URDF: " << robot.getURDFPath() << std::endl;
   os << " Joint names and descriptions:" << std::endl;
-  for (const auto& joint : robot.joint_name_description_map_) {
+  for (const auto &joint : robot.joint_name_description_map_) {
     os << "  {" << joint.first << ": " << joint.second << " }" << std::endl;
   }
 
@@ -114,4 +120,4 @@ std::ostream& operator<<(std::ostream& os, const RobotDescription& robot) {
   return os;
 }
 
-}  // namespace motorium::model
+} // namespace motorium::model

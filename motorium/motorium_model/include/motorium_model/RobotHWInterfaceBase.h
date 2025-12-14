@@ -1,10 +1,10 @@
 #pragma once
 
 #include <motorium_core/ThreadSafe.h>
-#include <robot_model/RobotJointAction.h>
-#include <robot_model/RobotState.h>
+#include <motorium_model/RobotJointAction.h>
+#include <motorium_model/RobotState.h>
 
-#include "robot_model/RobotDescription.h"
+#include "motorium_model/RobotDescription.h"
 
 namespace motorium::model {
 
