@@ -358,7 +358,7 @@ void MujocoSimInterface::simulationStep() {
   threadSafeRobotJointAction_.copy_value(robotJointActionInternal_);
   for (size_t i = 0; i < nActuators_; ++i) {
     joint_index_t idx = activeRobotActuatorIndices_[i];
-    const robot::model::JointAction& jointAction = robotJointActionInternal_.at(idx).value();
+    const motorium::model::JointAction& jointAction = robotJointActionInternal_.at(idx).value();
     mujocoData_->ctrl[i] =
         jointAction.getTotalFeedbackTorque(robotStateInternal_.getJointPosition(idx), robotStateInternal_.getJointVelocity(idx));
   }

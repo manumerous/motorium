@@ -1,6 +1,6 @@
 #include <robot_model/RobotState.h>
 
-namespace robot::model {
+namespace motorium::model {
 
 RobotState::RobotState(const RobotDescription& robotDescription, size_t contactSize)
     : jointStateMap_(robotDescription),
@@ -69,4 +69,4 @@ void RobotState::setConfigurationToZero() {
   std::fill(contactFlags_.begin(), contactFlags_.end(), true);  // Assume robot is in contact
 }
 
-}  // namespace robot::model
+}  // namespace motorium::model

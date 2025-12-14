@@ -3,7 +3,7 @@
 #include <robot_model/RobotJointAction.h>
 #include <robot_model/RobotState.h>
 
-namespace robot::model {
+namespace motorium::model {
 
 class ControlBase {
  public:
@@ -13,8 +13,8 @@ class ControlBase {
 
   // Computes [commands] given [joints] states and configs.
   virtual void computeJointControlAction(scalar_t time,
-                                         const ::robot::model::RobotState& robotState,
-                                         ::robot::model::RobotJointAction& robotJointAction) = 0;
+                                         const ::motorium::model::RobotState& robotState,
+                                         ::motorium::model::RobotJointAction& robotJointAction) = 0;
 };
 
-}  // namespace robot::model
+}  // namespace motorium::model

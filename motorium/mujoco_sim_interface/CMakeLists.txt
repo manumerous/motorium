@@ -12,7 +12,7 @@ find_package(ament_cmake REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(mujoco_vendor REQUIRED)
 find_package(robot_model REQUIRED)
-find_package(robot_core REQUIRED)
+find_package(motorium_core REQUIRED)
 
 
 find_package(GTest REQUIRED)
@@ -52,7 +52,7 @@ set(dependencies
   ament_cmake
   ament_index_cpp
   mujoco_vendor
-  robot_core
+  motorium_core
   robot_model
   absl
 )

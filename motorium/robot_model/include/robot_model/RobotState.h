@@ -1,9 +1,9 @@
 #pragma once
-#include <robot_core/Types.h>
+#include <motorium_core/Types.h>
 #include <robot_model/JointIDMap.h>
 #include <robot_model/RobotDescription.h>
 
-namespace robot::model {
+namespace motorium::model {
 
 struct JointState {
   scalar_t position = 0.0;
@@ -74,4 +74,4 @@ class RobotState {
   std::vector<bool> contactFlags_;
 };
 
-}  // namespace robot::model
+}  // namespace motorium::model

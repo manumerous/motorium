@@ -10,7 +10,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "robot_model/RobotDescription.h"
 
-namespace robot::model {
+namespace motorium::model {
 namespace testing {
 
 class RobotDescriptionTest : public ::testing::Test {
@@ -212,7 +212,7 @@ TEST_F(RobotDescriptionTest, RobotDescriptionStreamOperator) {
 }
 
 }  // namespace testing
-}  // namespace robot::model
+}  // namespace motorium::model
 
 // Main function that runs all tests
 int main(int argc, char** argv) {

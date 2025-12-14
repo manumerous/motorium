@@ -1,6 +1,6 @@
 #include <mutex>
 
-namespace robot {
+namespace motorium {
 
 template <typename T>
 class ThreadSafe {

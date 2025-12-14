@@ -8,7 +8,7 @@
 #include <fstream>
 // #include <stdexcept>
 
-namespace robot::model {
+namespace motorium::model {
 
 // Constructor
 RobotDescription::RobotDescription(const std::string& urdfPath) : urdf_path_(urdfPath) {
@@ -114,4 +114,4 @@ std::ostream& operator<<(std::ostream& os, const RobotDescription& robot) {
   return os;
 }
 
-}  // namespace robot::model
+}  // namespace motorium::model

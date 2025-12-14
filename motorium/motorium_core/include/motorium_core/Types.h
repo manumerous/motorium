@@ -3,7 +3,7 @@
 #include <Eigen/Dense>
 #include <Eigen/StdVector>
 
-namespace robot {
+namespace motorium {
 
 using joint_index_t = size_t;
 

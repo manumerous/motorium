@@ -10,7 +10,7 @@
 #include <stdexcept>
 #include <vector>
 
-namespace robot::model {
+namespace motorium::model {
 
 // Creating a custom map container that maps ids to elements. It allocates a
 // continuous space in memory with one element for each value between min_id and
@@ -167,4 +167,4 @@ class IDMapBase {
   std::vector<std::optional<T>> map_elements_;
 };
 
-}  // namespace robot::model
+}  // namespace motorium::model

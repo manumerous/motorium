@@ -27,7 +27,7 @@ int main(int argc, char* argv[]) {
     throw std::runtime_error("Failed to get package share directory: g1_description. Error: " + std::string(e.what()));
   }
 
-  robot::model::RobotState initState(robot::model::RobotDescription(urdfFile), 2);
+  motorium::model::RobotState initState(motorium::model::RobotDescription(urdfFile), 2);
   initState.setConfigurationToZero();
   initState.setRootPositionInWorldFrame(robot::vector3_t(0.0, 0.0, 0.85));
 

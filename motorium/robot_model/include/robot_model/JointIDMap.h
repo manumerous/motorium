@@ -6,7 +6,7 @@
 #include <functional>
 #include <vector>
 
-namespace robot::model {
+namespace motorium::model {
 
 template <typename T>
 class JointIdMap : public IDMapBase<T> {
@@ -25,4 +25,4 @@ class JointIdMap : public IDMapBase<T> {
  private:
 };
 
-}  // namespace robot::model
+}  // namespace motorium::model
