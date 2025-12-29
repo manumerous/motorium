@@ -2,11 +2,13 @@
 <package format="3">
   <name>motorium_core</name>
   <version>0.0.0</version>
-  <description>Core utils for the robot runtime</description>
+  <description>Core utils for the motorium</description>
 
   <maintainer email="manuel.galliker@gmx.ch">Manuel Yves Galliker</maintainer>
 
   <license>BSD</license>
+
+  <build_depend>absl_vendor</build_depend>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 

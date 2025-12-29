@@ -13,6 +13,8 @@ find_package(ament_index_cpp REQUIRED)
 
 find_package(GTest REQUIRED)
 
+find_package(absl CONFIG REQUIRED)
+
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
 ###########

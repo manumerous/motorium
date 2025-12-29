@@ -11,8 +11,7 @@
 namespace motorium::model {
 
 // Constructor
-RobotDescription::RobotDescription(const std::string &urdfPath)
-    : urdf_path_(urdfPath) {
+RobotDescription::RobotDescription(const std::string& urdfPath) : urdf_path_(urdfPath) {
   // Validate URDF file exists
   if (!std::filesystem::exists(urdfPath)) {
     throw std::runtime_error("URDF file not found: " + urdfPath);
@@ -20,8 +19,7 @@ RobotDescription::RobotDescription(const std::string &urdfPath)
 
   // Read URDF file content
   std::ifstream urdfFile(urdfPath);
-  std::string urdfContent((std::istreambuf_iterator<char>(urdfFile)),
-                          std::istreambuf_iterator<char>());
+  std::string urdfContent((std::istreambuf_iterator<char>(urdfFile)), std::istreambuf_iterator<char>());
   urdfFile.close();
 
   // Parse URDF
@@ -29,65 +27,87 @@ RobotDescription::RobotDescription(const std::string &urdfPath)
   if (!urdfModel) {
     throw std::runtime_error("Failed to parse URDF file: " + urdfPath);
   }
+  joint_indices_.reserve(urdfModel->joints_.size());
+  joint_names_.reserve(urdfModel->joints_.size());
 
   // Process all joints from the URDF
-  int32_t jointId = 0;
-  for (const auto &jointPair : urdfModel->joints_) {
-    const std::string &jointName = jointPair.first;
-    const urdf::JointSharedPtr &joint = jointPair.second;
+  int32_t joint_id = 0;
+  for (const auto& jointPair : urdfModel->joints_) {
+    const std::string& joint_name = jointPair.first;
+    const urdf::JointSharedPtr& joint = jointPair.second;
 
     // Skip fixed joints, continuous joints, and other non-controllable
     // types
-    if (joint->type != urdf::Joint::REVOLUTE &&
-        joint->type != urdf::Joint::PRISMATIC) {
+    if (joint->type != urdf::Joint::REVOLUTE && joint->type != urdf::Joint::PRISMATIC) {
       continue;
     }
 
     // Create joint description
-    JointDescription jointDesc;
-    jointDesc.id = jointId;
+    JointDescription joint_desc;
+    joint_desc.name = joint_name;
 
     // Get joint limits
     if (joint->limits) {
-      jointDesc.min_angle = joint->limits->lower;
-      jointDesc.max_angle = joint->limits->upper;
-      jointDesc.max_velocity = joint->limits->velocity;
-      jointDesc.max_effort = joint->limits->effort;
+      joint_desc.position_bounds.min = joint->limits->lower;
+      joint_desc.position_bounds.max = joint->limits->upper;
+      joint_desc.velocity_bounds.min = -joint->limits->velocity;
+      joint_desc.velocity_bounds.max = joint->limits->velocity;
+      joint_desc.torque_bounds.min = -joint->limits->effort;
+      joint_desc.torque_bounds.max = joint->limits->effort;  // Fixed this line
     }
 
     // Add joint to maps
-    joint_name_description_map_[jointName] = jointDesc;
-    joint_id_name_map_[jointId] = jointName;
-
-    jointId++;
+    joint_name_description_map_[joint_name] = std::make_pair(joint_id, joint_desc);
+    joint_indices_.push_back(joint_id);
+    joint_names_.push_back(joint_name);
+    joint_id++;
   }
 
   // Validate that we found at least one joint
   if (joint_name_description_map_.empty()) {
-    throw std::runtime_error("No valid joints found in URDF: " + urdfPath);
-  }
-
-  joint_indices.reserve(joint_id_name_map_.size());
-  joint_names.reserve(joint_id_name_map_.size());
-
-  for (const auto &[index, name] : joint_id_name_map_) {
-    joint_indices.push_back(index);
-    joint_names.push_back(name);
+    throw std::runtime_error("No valid joints found in URDF: " + urdf_path_);
   }
 }
 
-bool RobotDescription::containsJoint(const std::string &jointName) const {
+RobotDescription::RobotDescription(const std::vector<JointDescription>& joint_descriptions) : urdf_path_("") {
+  // Reserve space for efficiency
+  joint_indices_.reserve(joint_descriptions.size());
+  joint_names_.reserve(joint_descriptions.size());
+
+  // Process each joint description
+  size_t joint_id = 0;
+  for (const auto& joint_desc : joint_descriptions) {
+    // Validate the joint description
+    joint_desc.validate();
+
+    // Check for duplicate joint names
+    if (joint_name_description_map_.contains(joint_desc.name)) {
+      throw std::invalid_argument("Duplicate joint name: " + joint_desc.name);
+    }
+
+    // Add to maps
+    joint_name_description_map_[joint_desc.name] = std::make_pair(joint_id, joint_desc);
+
+    // Add to vectors
+    joint_indices_.push_back(joint_id);
+    joint_names_.push_back(joint_desc.name);
+    joint_id++;
+  }
+}
+
+bool RobotDescription::containsJoint(const std::string& jointName) const {
   return joint_name_description_map_.contains(jointName);
 }
 
-std::vector<joint_index_t> RobotDescription::getJointIndices(
-    const std::vector<std::string> &jointNames) const {
-  std::vector<joint_index_t> jointIndices;
-  jointIndices.reserve(jointNames.size());
-  for (std::string jointName : jointNames) {
-    jointIndices.emplace_back(getJointIndex(jointName));
+std::vector<joint_index_t> RobotDescription::getJointIndices(std::span<const std::string> joint_names) const {
+  std::vector<joint_index_t> indices;
+  indices.reserve(joint_names.size());
+
+  for (const std::string& joint_name : joint_names) {
+    indices.push_back(joint_name_description_map_.at(joint_name).first);
   }
-  return jointIndices;
+
+  return indices;
 }
 
 const std::string RobotDescription::getURDFName() const {
@@ -100,24 +120,33 @@ const std::string RobotDescription::getURDFName() const {
   return urdf_path_.substr(lastSlashPos + 1);
 }
 
-std::ostream &operator<<(std::ostream &os, const JointDescription &joint) {
-  os << "JointDescription { " << "id: " << joint.id
-     << ", min_angle: " << joint.min_angle << ", max_angle: " << joint.max_angle
-     << ", max_velocity: " << joint.max_velocity
-     << ", max_effort: " << joint.max_effort << " }";
+std::ostream& operator<<(std::ostream& os, const JointDescription& joint) {
+  os << "JointDescription { " << "name: " << joint.name << ", Position " << joint.position_bounds << ", Velocity " << joint.velocity_bounds
+     << ", Torque " << joint.torque_bounds << " }";
   return os;
 }
 
-std::ostream &operator<<(std::ostream &os, const RobotDescription &robot) {
+std::ostream& operator<<(std::ostream& os, const RobotDescription& robot) {
   os << "RobotDescription {" << std::endl;
   os << "Generated from URDF: " << robot.getURDFPath() << std::endl;
   os << " Joint names and descriptions:" << std::endl;
-  for (const auto &joint : robot.joint_name_description_map_) {
-    os << "  {" << joint.first << ": " << joint.second << " }" << std::endl;
+  for (const auto& joint : robot.joint_name_description_map_) {
+    os << "  {" << ", id " << joint.second.first << ": " << joint.second.second << " }" << std::endl;
   }
 
   os << "}";
   return os;
 }
 
-} // namespace motorium::model
+void JointDescription::validate() const {
+  auto validate = [](const Bounds& bounds) {
+    if (bounds.min > bounds.max) {
+      throw std::invalid_argument("min > max");
+    }
+  };
+  validate(position_bounds);
+  validate(velocity_bounds);
+  validate(torque_bounds);
+}
+
+}  // namespace motorium::model
