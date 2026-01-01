@@ -4,6 +4,7 @@
 #include <limits>
 #include <ostream>
 
+#include <motorium_core/Check.h>
 #include <motorium_core/Types.h>
 
 namespace motorium {
