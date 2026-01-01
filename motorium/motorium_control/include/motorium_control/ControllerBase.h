@@ -7,10 +7,10 @@
 
 namespace motorium::control {
 
-class ControlBase {
+class ControllerBase {
  public:
-  explicit ControlBase([[maybe_unused]] const model::RobotDescription& robotDescription){};
-  virtual ~ControlBase() = default;
+  explicit ControllerBase([[maybe_unused]] const model::RobotDescription& robotDescription){};
+  virtual ~ControllerBase() = default;
 
   virtual bool ready() const = 0;
 
