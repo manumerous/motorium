@@ -44,12 +44,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <Eigen/Dense>
 
+#include <motorium_model/RobotState.h>
 #include "motorium_core/FPSTracker.h"
 #include "motorium_core/Types.h"
-#include "motorium_model/RobotHWInterfaceBase.h"
+#include "motorium_hal/DriverBase.h"
 #include "motorium_mujoco/MujocoRenderer.h"
 #include "motorium_mujoco/MujocoUtils.h"
-#include <motorium_model/RobotState.h>
 
 namespace motorium::mujoco {
 
@@ -62,39 +62,44 @@ struct MujocoSimConfig {
   bool verbose{false};
 };
 
-class MujocoSimInterface : public motorium::model::RobotHWInterfaceBase {
-public:
-  MujocoSimInterface(const MujocoSimConfig &config,
-                     const std::string &urdfPath);
+class MujocoSimInterface : public hal::DriverBase {
+ public:
+  MujocoSimInterface(const MujocoSimConfig& config, const model::RobotDescription& robotDescription);
 
   /** Destructor */
   ~MujocoSimInterface();
 
   void initSim();
 
-  void startSim();
+  void start() override;
+
+  void stop() override;
+
+  void updateRobotState(model::RobotState& robotState) override;
+
+  void setJointAction(const model::RobotJointAction& action) override;
 
   void simulationStep();
 
   // Todo Manu also reset environment
-  void reset();
+  void reset() override;
 
   // Allows the renderer to make a thread safe copy of the state at it's own
   // frequency.
-  void copyMjState(MjState &state) const;
+  void copyMjState(MjState& state) const;
 
-  const mjModel *getModel() const { return mujocoModel_; }
+  const mjModel* getModel() const { return mujocoModel_; }
 
-  const MujocoSimConfig &getConfig() const { return config_; }
+  const MujocoSimConfig& getConfig() const { return config_; }
 
-private:
-  void setupJointIndexMaps();
+ private:
+  void setupJointIndexMaps(const model::RobotDescription& robotDescription);
 
-  void setSimState(const model::RobotState &robotState);
+  void setSimState(const model::RobotState& robotState);
 
   void updateThreadSafeRobotState();
 
-  void simulationLoop();
+  void simulationLoop(std::stop_token st);
 
   void printModelInfo();
 
@@ -102,11 +107,10 @@ private:
 
   MujocoSimConfig config_;
 
-  model::RobotState robotStateInternal_;
-  mjtNum
-      *qpos_init_; // position                                         (nq x 1)
-  mjtNum *qvel_init_;
-  model::RobotJointAction robotJointActionInternal_;
+  mjtNum* qpos_init_;  // position                                         (nq x 1)
+  mjtNum* qvel_init_;
+  model::RobotJointAction actionInternal_;
+  mutable std::mutex actionMutex_;
 
   size_t timeStepMicro_;
   double simStart_;
@@ -117,20 +121,19 @@ private:
   std::vector<joint_index_t> activeRobotJointStateIndices_;
   std::vector<joint_index_t> activeRobotActuatorIndices_;
 
-  mjModel *mujocoModel_ = NULL;
-  mjData *mujocoData_ = NULL;
-  mjContact *mujocoContact_ = NULL;
+  mjModel* mujocoModel_ = NULL;
+  mjData* mujocoData_ = NULL;
+  mjContact* mujocoContact_ = NULL;
   // mjfSensor mujocoSenor_;
 
   bool simInit_;
   const bool headless_;
   const bool verbose_;
-  std::atomic<bool> terminate_{false};
   std::atomic<bool> guiInitialized_{false};
 
-  mutable std::mutex mujocoMutex_; // Used to access mujoco model and data
-                                   // accross simulation and render threads.
-  std::thread simulate_thread_;
+  mutable std::mutex mujocoMutex_;  // Used to access mujoco model and data
+                                    // accross simulation and render threads.
+  std::jthread simulate_thread_;
   std::unique_ptr<MujocoRenderer> renderer_;
 
   FPSTracker simFps_{"mujoco_sim"};
@@ -144,4 +147,4 @@ private:
   size_t left_foot_touch_sensor_addr_;
 };
 
-} // namespace motorium::mujoco
+}  // namespace motorium::mujoco

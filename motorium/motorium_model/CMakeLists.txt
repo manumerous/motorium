@@ -13,8 +13,7 @@ find_package(ament_index_cpp REQUIRED)
 find_package(motorium_core REQUIRED)
 
 find_package(GTest REQUIRED)
-
-
+find_package(absl CONFIG REQUIRED)
 
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
@@ -26,17 +25,10 @@ find_package(absl REQUIRED)
 ## Build ##
 ###########
 
-set(CMAKE_CXX_STANDARD 20)
-
-set(FLAGS ${OCS2_CXX_FLAGS} -Wno-invalid-partial-specialization)
-
 include_directories(
         include
-        test
-        ${catkin_INCLUDE_DIRS}
         ${EIGEN3_INCLUDE_DIRS}
         ${GTEST_INCLUDE_DIRS}
-        ${urdf_INCLUDE_DIRS}
 )
 
 set(dependencies

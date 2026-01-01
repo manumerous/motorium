@@ -13,6 +13,7 @@
   <depend>mujoco_vendor</depend>
   <depend>motorium_model</depend>
   <depend>motorium_core</depend>
+  <depend>motorium_hal</depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_cmake_clang_format</test_depend>

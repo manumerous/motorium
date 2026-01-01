@@ -1,0 +1,2 @@
+# prepend this vendor's prefix so CMake can find abslConfig.cmake
+ament_prepend_unique_value CMAKE_PREFIX_PATH "$AMENT_CURRENT_PREFIX"

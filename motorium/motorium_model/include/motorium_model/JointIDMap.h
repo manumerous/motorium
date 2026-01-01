@@ -1,6 +1,6 @@
 #pragma once
 
-#include <motorium_model/IDMapBase.h>
+#include <motorium_model/FixedIDArray.h>
 #include <motorium_model/RobotDescription.h>
 
 #include <functional>
@@ -8,23 +8,20 @@
 
 namespace motorium::model {
 
-template <typename T> class JointIdMap : public IDMapBase<T> {
-public:
-  explicit JointIdMap(const RobotDescription &robotDescription)
-      : IDMapBase<T>(robotDescription.getNumJoints()) {}
+template <typename T>
+class JointIdMap : public FixedIDArray<T> {
+ public:
+  explicit JointIdMap(const RobotDescription& robotDescription) : FixedIDArray<T>(robotDescription.getNumJoints()) {}
 
   JointIdMap() = delete;
 
-  //  Get a vector of joint properties given a vector of joint IDs
-  vector_t toVector(std::vector<joint_index_t> jointIds,
-                    IDMapExtractor<T, scalar_t> auto valueExtractor,
-                    scalar_t defaultValue =
-                        std::numeric_limits<scalar_t>::quiet_NaN()) const {
-    return this->toEigenVector(jointIds.begin(), jointIds.end(), valueExtractor,
-                               defaultValue);
+  vector_t toVector(std::span<const joint_index_t> joint_ids,
+                    IDMapExtractor<T, scalar_t> auto value_extractor,
+                    scalar_t default_value = std::numeric_limits<scalar_t>::quiet_NaN()) const {
+    return this->toEigenVector(joint_ids, value_extractor, default_value);
   }
 
-private:
+ private:
 };
 
-} // namespace motorium::model
+}  // namespace motorium::model

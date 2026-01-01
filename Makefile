@@ -54,7 +54,7 @@ BUILD_TYPE ?= Release
 BUILD_TESTING ?= ON
 BUILD_WITH_NINJA ?= ON
 PARALLEL_JOBS ?= 6
-CPP_VERSION ?= -std=c++20
+CPP_VERSION ?= -std=c++23
 
 ############################################################
 # Set flags based on configuration 

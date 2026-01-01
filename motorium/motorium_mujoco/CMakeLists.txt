@@ -13,6 +13,7 @@ find_package(ament_index_cpp REQUIRED)
 find_package(mujoco_vendor REQUIRED)
 find_package(motorium_model REQUIRED)
 find_package(motorium_core REQUIRED)
+find_package(motorium_hal REQUIRED)
 
 
 find_package(GTest REQUIRED)
@@ -38,8 +39,6 @@ find_package(GLEW REQUIRED)
 ## Build ##
 ###########
 
-set(CMAKE_CXX_STANDARD 20)
-
 include_directories(
   include
   test
@@ -54,6 +53,7 @@ set(dependencies
   mujoco_vendor
   motorium_core
   motorium_model
+  motorium_hal
   absl
 )
 
@@ -75,20 +75,6 @@ target_link_libraries(${PROJECT_NAME}
   glfw
   GLEW
 )
-
-
-add_executable(mujoco_sim_no_torques
-  exe/mujocoSimNoTorques.cpp
-)
-ament_target_dependencies(mujoco_sim_no_torques
-  ${dependencies}
-)
-target_link_libraries(mujoco_sim_no_torques
-  ${PROJECT_NAME}
-  ${Boost_LIBRARIES}
-  glfw
-)
-
 
 # ############
 # # Testing ##
@@ -113,7 +99,6 @@ install(TARGETS
 )
 
 install(TARGETS 
-  mujoco_sim_no_torques 
   DESTINATION lib/${PROJECT_NAME}
 )
 
