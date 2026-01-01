@@ -18,33 +18,30 @@ namespace motorium::model {
 // Define an extractor that gets a scalar value out of T for eigen vectorization
 // when T is itself a composite type (e.g. struct).
 template <typename E, typename T, typename ScalarType>
-concept IDMapExtractor = requires(E e, const T &val) {
+concept IDMapExtractor = requires(E e, const T& val) {
   { e(val) } -> std::same_as<ScalarType>;
 };
 
-template <typename T> class FixedIDArray {
-public:
+template <typename T>
+class FixedIDArray {
+ public:
   explicit FixedIDArray(size_t size)
-      : map_elements_(new T[size]), map_view_(map_elements_.get(), size),
-        const_map_view_(map_elements_.get(), size) {
+      : map_elements_(new T[size]), map_view_(map_elements_.get(), size), const_map_view_(map_elements_.get(), size) {
     // Limit map size
-    MT_CHECK(size <= 255)
-        << "Too many elements in ID map. max supported size is 255";
+    MT_CHECK(size <= 255) << "Too many elements in ID map. max supported size is 255";
 
     MT_CHECK(size != 0) << "Cannot initialize empty map!";
   }
   FixedIDArray() = delete;
 
-  FixedIDArray(const FixedIDArray<T> &other) = delete;
-  FixedIDArray(FixedIDArray<T> &&other) = delete;
-  FixedIDArray &operator=(FixedIDArray<T> &&other) =
-      delete; // Disabled for now. Needs extra care with spans.
-  FixedIDArray &operator=(const FixedIDArray<T> &other) {
+  FixedIDArray(const FixedIDArray<T>& other) = delete;
+  FixedIDArray(FixedIDArray<T>&& other) = delete;
+  FixedIDArray& operator=(FixedIDArray<T>&& other) = delete;  // Disabled for now. Needs extra care with spans.
+  FixedIDArray& operator=(const FixedIDArray<T>& other) {
     // "same type" is enforced by the signature (FixedIDArray<T>).
     // Still check length to ensure maps are compatible.
-    MT_CHECK(this->size() == other.size()) << std::format(
-        "FixedIDArray::assign size mismatch: this.size()={}, other.size()={}",
-        this->size(), other.size());
+    MT_CHECK(this->size() == other.size()) << std::format("FixedIDArray::assign size mismatch: this.size()={}, other.size()={}",
+                                                          this->size(), other.size());
 
     const size_t n = this->size();
     for (size_t i = 0; i < n; ++i) {
@@ -57,7 +54,7 @@ public:
 
   size_t size() const { return map_view_.size(); }
 
-  T &at(size_t element_id) {
+  T& at(size_t element_id) {
     MT_CHECK(this->contains(element_id)) << std::format(
         "Element with ID {} not found in IDMap (Max ID for this map is: "
         "{})",
@@ -66,7 +63,7 @@ public:
     return map_elements_[element_id];
   }
 
-  const T &at(size_t element_id) const {
+  const T& at(size_t element_id) const {
     MT_CHECK(this->contains(element_id)) << std::format(
         "Element with ID {} not found in IDMap (Max ID for this map is: "
         "{})",
@@ -75,22 +72,20 @@ public:
     return map_elements_[element_id];
   }
 
-  T &operator[](size_t element_id) { return at(element_id); }
+  T& operator[](size_t element_id) { return at(element_id); }
 
-  const T &operator[](size_t element_id) const { return at(element_id); }
+  const T& operator[](size_t element_id) const { return at(element_id); }
 
   // Uses a default value in case T is a std::optional that is a nullopt.
   template <typename Range, typename ScalarType>
-  Eigen::Matrix<ScalarType, Eigen::Dynamic, 1>
-  toEigenVector(const Range &range,
-                IDMapExtractor<T, ScalarType> auto extractor,
-                ScalarType default_value = ScalarType{}) const {
-    Eigen::Matrix<ScalarType, Eigen::Dynamic, 1> vector(
-        std::ranges::size(range));
+  Eigen::Matrix<ScalarType, Eigen::Dynamic, 1> toEigenVector(const Range& range,
+                                                             IDMapExtractor<T, ScalarType> auto extractor,
+                                                             ScalarType default_value = ScalarType{}) const {
+    Eigen::Matrix<ScalarType, Eigen::Dynamic, 1> vector(std::ranges::size(range));
 
     size_t index = 0;
-    for (const auto &id : range) {
-      const T &val = this->at(id);
+    for (const auto& id : range) {
+      const T& val = this->at(id);
       if constexpr (requires { val.has_value(); }) {
         // T is optional-like (has has_value method)
         if (val.has_value()) {
@@ -124,10 +119,10 @@ public:
   const_reverse_iterator rbegin() const { return const_map_view_.rbegin(); }
   const_reverse_iterator rend() const { return const_map_view_.rend(); }
 
-private:
+ private:
   std::unique_ptr<T[]> map_elements_;
   const std::span<T> map_view_;
   const std::span<const T> const_map_view_;
 };
 
-} // namespace motorium::model
+}  // namespace motorium::model

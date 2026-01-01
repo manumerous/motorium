@@ -43,4 +43,4 @@ class ThreadSafe {
   T value_;
 };
 
-}  // namespace robot
+}  // namespace motorium

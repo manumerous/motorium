@@ -84,4 +84,4 @@ class FPSTracker {
 
   std::string name_;
 };
-}  // namespace robot
+}  // namespace motorium

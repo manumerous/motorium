@@ -52,10 +52,10 @@ struct Metrics {
 };
 
 struct MjState {
-  explicit MjState(const mjModel *mujocoModel_);
+  explicit MjState(const mjModel* mujocoModel_);
 
   int64_t timestamp{0};
-  mjData *data;
+  mjData* data;
   Metrics metrics;
 };
-} // namespace motorium::mujoco
+}  // namespace motorium::mujoco
