@@ -4,6 +4,7 @@ build-essential
 libeigen3-dev
 libglpk-dev
 libglfw3-dev
+libglew-dev
 liburdfdom-dev
 ninja-build
 ccache
