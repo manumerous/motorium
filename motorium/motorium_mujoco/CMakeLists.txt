@@ -39,8 +39,6 @@ find_package(GLEW REQUIRED)
 ## Build ##
 ###########
 
-set(CMAKE_CXX_STANDARD 20)
-
 include_directories(
   include
   test
