@@ -26,8 +26,6 @@ find_package(urdf REQUIRED)
 
 find_package(glfw3 REQUIRED)
 
-find_package(GLEW REQUIRED)
-
 ###########
 ## Build ##
 ###########
@@ -64,7 +62,6 @@ target_link_libraries(${PROJECT_NAME}
   ${urdf_LIBRARIES}
   absl::flat_hash_map
   glfw
-  GLEW
 )
 
 # ############
