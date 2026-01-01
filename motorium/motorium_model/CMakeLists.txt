@@ -27,11 +27,8 @@ find_package(absl REQUIRED)
 
 include_directories(
         include
-        test
-        ${catkin_INCLUDE_DIRS}
         ${EIGEN3_INCLUDE_DIRS}
         ${GTEST_INCLUDE_DIRS}
-        ${urdf_INCLUDE_DIRS}
 )
 
 set(dependencies
