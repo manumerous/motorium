@@ -1,5 +1,6 @@
 #pragma once
 
+#include <motorium_core/Types.h>
 #include <motorium_model/RobotDescription.h>
 #include <motorium_model/RobotJointAction.h>
 #include <motorium_model/RobotState.h>

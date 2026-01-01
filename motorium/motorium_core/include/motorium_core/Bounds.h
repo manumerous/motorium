@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <ostream>
 
 #include <motorium_core/Types.h>
 

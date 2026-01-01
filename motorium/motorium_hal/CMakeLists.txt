@@ -10,7 +10,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(ament_cmake REQUIRED)
 find_package(ament_index_cpp REQUIRED)
-find_package(motorium_model)
+find_package(motorium_model REQUIRED)
 
 find_package(GTest REQUIRED)
 
@@ -31,20 +31,6 @@ set(dependencies
         ament_index_cpp
         motorium_model
 )
-
-#############
-## Library ##
-#############
-
-
-# ############
-# # Testing ##
-# ############
-
-if (BUILD_TESTING)
-        find_package(ament_cmake_gtest REQUIRED)
-
-endif ()
 
 #############
 ## Install ##

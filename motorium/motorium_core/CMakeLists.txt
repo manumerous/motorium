@@ -30,6 +30,7 @@ include_directories(
 set(dependencies
         ament_cmake
         ament_index_cpp
+        absl
 )
 
 #############

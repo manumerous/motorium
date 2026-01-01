@@ -5,12 +5,11 @@ if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_compile_options(-Wall -Wextra -Wpedantic -Werror=return-type)
 endif ()
 
-# Generate compile_commands.json for clang tools
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(ament_cmake REQUIRED)
 find_package(ament_index_cpp REQUIRED)
-find_package(motorium_model)
+find_package(motorium_model REQUIRED)
 
 find_package(GTest REQUIRED)
 
@@ -33,38 +32,13 @@ set(dependencies
 )
 
 #############
-## Library ##
-#############
-
-
-# ############
-# # Testing ##
-# ############
-
-if (BUILD_TESTING)
-        find_package(ament_cmake_gtest REQUIRED)
-
-endif ()
-
-#############
 ## Install ##
 #############
-
-# install(TARGETS ${PROJECT_NAME}
-#         ARCHIVE DESTINATION lib
-#         LIBRARY DESTINATION lib
-#         RUNTIME DESTINATION bin
-# )
 
 install(DIRECTORY include/${PROJECT_NAME}
         DESTINATION include/
 )
 
-# install(DIRECTORY launch rviz
-#   DESTINATION share/${PROJECT_NAME}
-# )
-
 ament_export_include_directories(include)
-# ament_export_libraries(${PROJECT_NAME})
 ament_export_dependencies(${dependencies})
 ament_package()

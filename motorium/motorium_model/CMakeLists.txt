@@ -51,8 +51,6 @@ ament_target_dependencies(${PROJECT_NAME}
 )
 target_link_libraries(${PROJECT_NAME}
         ${urdf_LIBRARIES}
-        absl::log
-        absl::check
         absl::flat_hash_map
 )
 target_include_directories(${PROJECT_NAME}

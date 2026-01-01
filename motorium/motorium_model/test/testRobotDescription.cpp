@@ -13,7 +13,7 @@ class RobotDescriptionTest : public ::testing::Test {
  protected:
   // Create a temporary URDF file for testing
   void SetUp() override {
-    tempDir_ = std::filesystem::temp_directory_path() / "robot_model_test";
+    tempDir_ = std::filesystem::temp_directory_path() / "robot_description_test";
     std::filesystem::create_directories(tempDir_);
     urdf_path_ = tempDir_ / "test_robot.urdf";
 

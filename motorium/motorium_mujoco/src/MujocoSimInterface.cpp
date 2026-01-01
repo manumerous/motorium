@@ -389,10 +389,9 @@ void MujocoSimInterface::simulationStep() {
       simFps_.reset();
       metrics_.reset();
       updateMetrics();
+      // Sleep to let controller update and adjust;
+      std::this_thread::sleep_until(std::chrono::steady_clock::now() + std::chrono::microseconds(1000000));
     }
-
-    // Sleep to let controller update and adjust;
-    std::this_thread::sleep_until(std::chrono::steady_clock::now() + std::chrono::microseconds(1000000));
   }
 }
 
@@ -429,12 +428,19 @@ void MujocoSimInterface::initSim() {
 
 void MujocoSimInterface::start() {
   if (!simInit_) initSim();
+  if (simulate_thread_.joinable()) {
+    std::cerr << "WARNING: Tried to start simulation thread, but it is already running." << std::endl;
+    return;
+  }
   simulate_thread_ = std::jthread([this](std::stop_token st) { this->simulationLoop(st); });
 }
 
 void MujocoSimInterface::stop() {
   if (simulate_thread_.joinable()) {
-    simulate_thread_.request_stop();  // cooperative cancellation
+    simulate_thread_.request_stop();
+    if (simulate_thread_.get_id() != std::this_thread::get_id()) {
+      simulate_thread_.join();
+    }
   }
 }
 
