@@ -11,8 +11,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(ament_cmake REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 
-find_package(GTest REQUIRED)
-
 find_package(absl CONFIG REQUIRED)
 
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
@@ -24,7 +22,6 @@ find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 include_directories(
         include
         ${EIGEN3_INCLUDE_DIRS}
-        ${GTEST_INCLUDE_DIRS}
 )
 
 set(dependencies

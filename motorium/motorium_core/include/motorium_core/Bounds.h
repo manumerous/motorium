@@ -10,7 +10,9 @@ namespace motorium {
 
 struct Bounds {
   Bounds(scalar_t minimum, scalar_t maximum) : min(minimum), max(maximum){};
-  Bounds() : min(-std::numeric_limits<scalar_t>::infinity()), max(std::numeric_limits<scalar_t>::infinity()){};
+  Bounds() : min(-std::numeric_limits<scalar_t>::infinity()), max(std::numeric_limits<scalar_t>::infinity()) {
+    MT_CHECK(min <= max) << "Invalid Bounds initialization: min > max";
+  };
   scalar_t min;
   scalar_t max;
 

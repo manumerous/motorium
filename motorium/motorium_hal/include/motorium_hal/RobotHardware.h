@@ -48,13 +48,13 @@ class RobotHardware {
   // Consider moving this to the constructor.
   void addDriver(std::shared_ptr<hal::DriverBase> driver) { drivers_.push_back(driver); }
 
-  void updateRobotState(RobotState& robotState) const {
+  void updateRobotState(model::RobotState& robotState) const {
     for (const auto& driver : drivers_) {
       driver->updateRobotState(robotState);
     }
   }
 
-  void setJointAction(const RobotJointAction& action) {
+  void setJointAction(const model::RobotJointAction& action) {
     for (const auto& driver : drivers_) {
       driver->setJointAction(action);
     }
@@ -73,7 +73,7 @@ class RobotHardware {
   }
 
  private:
-  const RobotDescription robotDescription_;
+  const model::RobotDescription robotDescription_;
   std::vector<std::shared_ptr<hal::DriverBase>> drivers_;
 };
 

@@ -22,7 +22,6 @@ find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 include_directories(
         include
         ${EIGEN3_INCLUDE_DIRS}
-        ${GTEST_INCLUDE_DIRS}
 )
 
 set(dependencies

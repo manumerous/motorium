@@ -167,6 +167,7 @@ TEST_F(RobotDescriptionTest, GetJointName) {
 
 TEST_F(RobotDescriptionTest, JointDescriptionStreamOperator) {
   JointDescription jointDesc;
+  jointDesc.name = "test_joint";
   jointDesc.position_bounds = Bounds(-1.5, 1.5);
   jointDesc.velocity_bounds = Bounds(-2.0, 2.0);
   jointDesc.torque_bounds = Bounds(-100.0, 100.0);
