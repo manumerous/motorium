@@ -372,24 +372,25 @@ void MujocoSimInterface::simulationStep() {
       mujocoData_->ctrl[i] = jointAction.getTotalFeedbackTorque(mujocoData_->qpos[i + 7], mujocoData_->qvel[i + 6]);
     }
   }
-
-  std::lock_guard<std::mutex> lock(mujocoMutex_);
-  mj_step(mujocoModel_, mujocoData_);
-  updateThreadSafeRobotState();
-  updateMetrics();
-
-  // Auto reset logic.
-  if (mujocoData_->qpos[2] < 0.2) {
-    reset();
-    for (size_t i = 0; i < nActuators_; ++i) {
-      mujocoData_->ctrl[i] = 0.0;
-    }
+  {
+    std::lock_guard<std::mutex> lock(mujocoMutex_);
     mj_step(mujocoModel_, mujocoData_);
     updateThreadSafeRobotState();
-    simFps_.reset();
-    metrics_.reset();
     updateMetrics();
-    mujocoMutex_.unlock();
+
+    // Auto reset logic.
+    if (mujocoData_->qpos[2] < 0.2) {
+      reset();
+      for (size_t i = 0; i < nActuators_; ++i) {
+        mujocoData_->ctrl[i] = 0.0;
+      }
+      mj_step(mujocoModel_, mujocoData_);
+      updateThreadSafeRobotState();
+      simFps_.reset();
+      metrics_.reset();
+      updateMetrics();
+    }
+
     // Sleep to let controller update and adjust;
     std::this_thread::sleep_until(std::chrono::steady_clock::now() + std::chrono::microseconds(1000000));
   }
