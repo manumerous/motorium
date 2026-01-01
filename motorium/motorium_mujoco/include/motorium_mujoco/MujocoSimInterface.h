@@ -59,7 +59,13 @@ struct MujocoSimConfig {
   double dt{0.0005};
   double renderFrequencyHz{60.0};
   bool headless{false};
-  bool verbose{false};
+  /**
+ * Enable verbose diagnostic output from the simulator.
+ *
+ * If `true`, the simulator emits additional logging and diagnostic information
+ * useful for debugging; if `false`, output is kept minimal.
+ */
+bool verbose{false};
 };
 
 class MujocoSimInterface : public hal::DriverBase {
@@ -71,6 +77,41 @@ class MujocoSimInterface : public hal::DriverBase {
 
   void initSim();
 
+  /**
+   * Start the simulation loop and initialize runtime resources required for stepping and (optionally) rendering.
+   */
+  
+  /**
+   * Stop the simulation loop and release or join runtime resources started by start().
+   */
+  
+  /**
+   * Update the provided RobotState with the current simulation state.
+   * @param robotState RobotState to be populated with joint positions, velocities, and relevant sensor readings from the simulator.
+   */
+  
+  /**
+   * Set the joint action to be applied on the next simulation step.
+   * @param action Joint action values (e.g., target positions/torques) to apply to the simulated actuators.
+   */
+  
+  /**
+   * Advance the simulation by a single internal timestep.
+   */
+  
+  /**
+   * Reset the simulation to the configured initial state.
+   */
+  
+  /**
+   * Make a thread-safe copy of the current MuJoCo state for use by external renderers or readers.
+   * @param state Destination MjState structure that will receive the copied state.
+   */
+  
+  /**
+   * Access the underlying MuJoCo model.
+   * @returns Pointer to the underlying `mjModel`, or NULL if no model is loaded.
+   */
   void start() override;
 
   void stop() override;

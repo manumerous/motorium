@@ -11,7 +11,15 @@ namespace testing {
 
 class RobotDescriptionTest : public ::testing::Test {
  protected:
-  // Create a temporary URDF file for testing
+  /**
+   * @brief Prepare a temporary test environment and write a sample URDF file.
+   *
+   * Creates a temporary directory (stored in `tempDir_`) and writes a simple URDF
+   * to `urdf_path_`. The URDF defines five links (base_link, shoulder_link,
+   * elbow_link, wrist_link, hand_link) and four joints: three revolute joints
+   * (shoulder_joint, elbow_joint, wrist_joint) with limits, and one fixed joint
+   * (fixed_joint).
+   */
   void SetUp() override {
     tempDir_ = std::filesystem::temp_directory_path() / "robot_model_test";
     std::filesystem::create_directories(tempDir_);
@@ -200,7 +208,11 @@ TEST_F(RobotDescriptionTest, RobotDescriptionStreamOperator) {
 }  // namespace testing
 }  // namespace motorium::model
 
-// Main function that runs all tests
+/**
+ * @brief Initializes Google Test and executes all registered tests.
+ *
+ * @returns Exit code produced by the test runner (zero on success, non-zero on failure).
+ */
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

@@ -7,6 +7,45 @@
 
 #include <motorium_core/Check.h>
 
+/**
+ * Fixed-size, contiguous container indexed by dense zero-based IDs optimized for
+ * realtime use: provides bounds-checked access, no dynamic reallocation after
+ * construction, standard iteration, and efficient extraction to Eigen vectors.
+ *
+ * @tparam T Element type stored for each ID.
+ */
+
+/**
+ * Construct a FixedIDArray with the given number of elements.
+ *
+ * The container allocates storage for exactly `size` elements and exposes them
+ * via contiguous iteration views.
+ *
+ * @param size Number of elements to allocate; must be greater than 0 and at most 255.
+ */
+
+/**
+ * Access the element for the given ID with bounds checking.
+ *
+ * @param element_id Zero-based ID of the element to access.
+ * @returns Reference to the element associated with `element_id`.
+ */
+
+/**
+ * Convert a sequence of IDs into an Eigen dynamic column vector using an extractor.
+ *
+ * The extractor is invoked for each stored element referenced by the IDs in
+ * `range` to produce a scalar of type `ScalarType`. If `T` provides a
+ * `has_value()` method (optional-like) and an element is empty, `default_value`
+ * is used for that position.
+ *
+ * @tparam Range Any range of integer IDs (e.g., container or view).
+ * @tparam ScalarType Scalar type of the resulting Eigen vector.
+ * @param range Range of IDs to read, iteration order determines vector order.
+ * @param extractor Callable that maps a `const T&` (or `const T::value_type&` when optional-like) to `ScalarType`.
+ * @param default_value Value to use when an optional-like element is not present; defaults to `ScalarType{}`.
+ * @returns Eigen::Matrix<ScalarType, Eigen::Dynamic, 1> Column vector with one entry per ID in `range`.
+ */
 namespace motorium::model {
 
 // The FixedIDArray is a lightweight data container indexed by dense, zero-based

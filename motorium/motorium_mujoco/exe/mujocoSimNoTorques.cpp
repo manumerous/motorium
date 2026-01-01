@@ -2,6 +2,16 @@
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
+/**
+ * @brief Initializes a Mujoco simulation for the g1 robot and runs a continuous controller loop.
+ *
+ * Attempts to resolve URDF and MJX files from the specified package (defaults to "g1_description"),
+ * configures and starts the MujocoSimInterface, and enters an infinite loop that updates the interface
+ * state and applies fixed joint action gains.
+ *
+ * @throws std::runtime_error If the package share directory for the specified model folder cannot be resolved.
+ * @returns int 0 on successful termination (normally unreachable because the function enters an infinite loop).
+ */
 int main(int argc, char* argv[]) {
   // Default value in case no argument is provided
   std::string model_folder = "g1_description";

@@ -35,7 +35,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "motorium_model/RobotDescription.h"
 
-namespace motorium::hal {
+/**
+   * Update the provided RobotState by querying all registered drivers.
+   *
+   * @param robotState RobotState instance to be updated in-place by drivers.
+   * @returns Reference to the updated RobotState.
+   */
+  namespace motorium::hal {
 
 // Unified interface to interact with real/simulated robot hardware.
 
@@ -53,18 +59,33 @@ class RobotHardware {
     }
   }
 
+  /**
+   * Propagates a joint action to all registered hardware drivers.
+   *
+   * @param action Joint command describing target positions, velocities, or efforts to apply.
+   */
   void setJointAction(const RobotJointAction& action) {
     for (const auto& driver : drivers_) {
       driver->setJointAction(action);
     }
   }
 
+  /**
+   * Start all registered hardware drivers.
+   *
+   * Iterates through the internal driver list and invokes each driver's start method, initiating any driver-specific hardware or simulation routines.
+   */
   void startDrivers() {
     for (const auto& driver : drivers_) {
       driver->start();
     }
   }
 
+  /**
+   * Stop all registered hardware drivers.
+   *
+   * Invokes `stop()` on each driver held in the internal drivers collection.
+   */
   void stopDrivers() {
     for (const auto& driver : drivers_) {
       driver->stop();

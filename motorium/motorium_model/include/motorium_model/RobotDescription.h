@@ -8,6 +8,99 @@
 
 #include "absl/container/flat_hash_map.h"
 
+/**
+ * Describes a single joint including its name and allowable position, velocity, and torque bounds.
+ */
+
+/**
+ * Validate that the joint description is well-formed (e.g., name and bounds are consistent).
+ */
+
+/**
+ * Write a human-readable representation of `joint` to `os`.
+ * @param os Output stream to write to.
+ * @param joint JointDescription to format.
+ * @returns Reference to the provided output stream.
+ */
+
+/**
+ * Construct a RobotDescription from a URDF file path.
+ * @param urdfPath Filesystem path to a URDF describing the robot.
+ */
+
+/**
+ * Construct a RobotDescription from an explicit list of joint descriptions.
+ * @param jointDescriptions Vector of joint descriptions defining the robot's joints and ordering.
+ */
+
+/**
+ * Return the indices corresponding to `joint_names` in the same order.
+ * @param joint_names Ordered span of joint names to look up.
+ * @returns Vector of joint indices matching the requested names.
+ */
+
+/**
+ * Return the set of joint names in index order.
+ * @returns Const reference to the vector of joint names.
+ */
+
+/**
+ * Check whether a joint with the given name exists in this description.
+ * @param jointName Name of the joint to check.
+ * @returns `true` if the joint exists, `false` otherwise.
+ */
+
+/**
+ * Return the JointDescription for the joint with the given name.
+ * @param joint_name Name of the joint to retrieve.
+ * @returns Const reference to the JointDescription for `joint_name`.
+ */
+
+/**
+ * Return the JointDescription for the joint at the given index.
+ * @param joint_index Index of the joint to retrieve.
+ * @returns Const reference to the JointDescription at `joint_index`.
+ */
+
+/**
+ * Return the number of joints described by this RobotDescription.
+ * @returns Number of joints.
+ */
+
+/**
+ * Return the original URDF file path used to construct this RobotDescription.
+ * @returns Const reference to the URDF file path string.
+ */
+
+/**
+ * Return the base name of the URDF file used to construct this RobotDescription.
+ * @returns URDF file name (not the full path).
+ */
+
+/**
+ * Return the joint index for the joint with the given name.
+ * @param joint_name Name of the joint to look up.
+ * @returns Index of the joint.
+ */
+
+/**
+ * Return the joint indices for the provided vector of joint names in the same order.
+ * @param jointNames Vector of joint names to look up.
+ * @returns Vector of joint indices matching `jointNames`.
+ */
+
+/**
+ * Return the joint name for the given joint index.
+ * @param jointIndex Index of the joint.
+ * @returns Name of the joint at `jointIndex`.
+ */
+
+/**
+ * Write a human-readable representation of `robot` to `os`.
+ * @param os Output stream to write to.
+ * @param robot RobotDescription to format.
+ * @returns Reference to the provided output stream.
+ */
 namespace motorium::model {
 
 struct JointDescription {

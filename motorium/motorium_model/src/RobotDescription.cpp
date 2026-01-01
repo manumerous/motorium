@@ -1,4 +1,3 @@
-
 #include "motorium_model/RobotDescription.h"
 // #include <pugixml.hpp>
 
@@ -10,7 +9,18 @@
 
 namespace motorium::model {
 
-// Constructor
+/**
+ * @brief Construct a RobotDescription by loading and processing a URDF file.
+ *
+ * Parses the URDF at the given filesystem path, extracts controllable joints
+ * (REVOLUTE and PRISMATIC), and populates internal joint indices, names, and
+ * per-joint bounds (position, velocity, torque). Joint indices start at zero
+ * and are assigned in the order encountered in the URDF.
+ *
+ * @param urdfPath Filesystem path to the URDF file to load.
+ * @throws std::runtime_error if the URDF file does not exist, if parsing fails,
+ *         or if no valid controllable joints are found in the URDF.
+ */
 RobotDescription::RobotDescription(const std::string& urdfPath) : urdf_path_(urdfPath) {
   // Validate URDF file exists
   if (!std::filesystem::exists(urdfPath)) {
@@ -69,6 +79,18 @@ RobotDescription::RobotDescription(const std::string& urdfPath) : urdf_path_(urd
   }
 }
 
+/**
+ * @brief Constructs a RobotDescription from an explicit list of joint descriptions.
+ *
+ * Initializes the robot description with an empty URDF path and populates internal
+ * joint indices, names, and the name→(id, JointDescription) map from the provided
+ * vector in input order.
+ *
+ * @param joint_descriptions Vector of joint descriptions to populate the RobotDescription.
+ *
+ * @throws std::invalid_argument If any JointDescription::validate() fails or if a duplicate
+ *         joint name is encountered in the input.
+ */
 RobotDescription::RobotDescription(const std::vector<JointDescription>& joint_descriptions) : urdf_path_("") {
   // Reserve space for efficiency
   joint_indices_.reserve(joint_descriptions.size());
@@ -95,10 +117,22 @@ RobotDescription::RobotDescription(const std::vector<JointDescription>& joint_de
   }
 }
 
+/**
+ * @brief Check whether a joint with the given name exists in the description.
+ *
+ * @returns `true` if a joint with `jointName` is present, `false` otherwise.
+ */
 bool RobotDescription::containsJoint(const std::string& jointName) const {
   return joint_name_description_map_.contains(jointName);
 }
 
+/**
+ * @brief Map a sequence of joint names to their corresponding joint indices.
+ *
+ * @param joint_names Span of joint names to resolve; order is preserved.
+ * @return std::vector<joint_index_t> Vector of joint indices corresponding to each input name.
+ * @throws std::out_of_range if any provided joint name is not present in the robot description.
+ */
 std::vector<joint_index_t> RobotDescription::getJointIndices(std::span<const std::string> joint_names) const {
   std::vector<joint_index_t> indices;
   indices.reserve(joint_names.size());
@@ -110,6 +144,12 @@ std::vector<joint_index_t> RobotDescription::getJointIndices(std::span<const std
   return indices;
 }
 
+/**
+ * @brief Get the URDF file's basename from the stored path.
+ *
+ * @return std::string The portion of `urdf_path_` after the last '/' character.
+ * If `urdf_path_` contains no '/', returns `urdf_path_` unchanged.
+ */
 const std::string RobotDescription::getURDFName() const {
   std::size_t lastSlashPos = urdf_path_.find_last_of("/");
   if (lastSlashPos == std::string::npos) {
@@ -120,12 +160,26 @@ const std::string RobotDescription::getURDFName() const {
   return urdf_path_.substr(lastSlashPos + 1);
 }
 
+/**
+ * @brief Writes a human-readable representation of a JointDescription to an output stream.
+ *
+ * @param os Stream to write into.
+ * @param joint JointDescription to format.
+ * @return std::ostream& Reference to the same output stream.
+ */
 std::ostream& operator<<(std::ostream& os, const JointDescription& joint) {
   os << "JointDescription { " << "name: " << joint.name << ", Position " << joint.position_bounds << ", Velocity " << joint.velocity_bounds
      << ", Torque " << joint.torque_bounds << " }";
   return os;
 }
 
+/**
+ * @brief Format a RobotDescription into a human-readable textual representation and write it to an output stream.
+ *
+ * The emitted text includes the source URDF path followed by each joint's id and corresponding JointDescription.
+ *
+ * @return std::ostream& Reference to the output stream `os` after writing the formatted RobotDescription.
+ */
 std::ostream& operator<<(std::ostream& os, const RobotDescription& robot) {
   os << "RobotDescription {" << std::endl;
   os << "Generated from URDF: " << robot.getURDFPath() << std::endl;
@@ -138,6 +192,14 @@ std::ostream& operator<<(std::ostream& os, const RobotDescription& robot) {
   return os;
 }
 
+/**
+ * @brief Validates that the joint's position, velocity, and torque bounds are well-formed.
+ *
+ * Checks that for each bounds set (position_bounds, velocity_bounds, torque_bounds) the
+ * minimum value is less than or equal to the maximum value.
+ *
+ * @throws std::invalid_argument if any bounds have min > max.
+ */
 void JointDescription::validate() const {
   auto validate = [](const Bounds& bounds) {
     if (bounds.min > bounds.max) {

@@ -6,6 +6,18 @@
 #include <functional>
 #include <vector>
 
+/**
+ * Convert a sequence of joint indices into an Eigen vector of scalar values.
+ *
+ * Builds a vector whose i-th element is the scalar extracted from this map for
+ * the joint index at joint_ids[i]. If a joint does not have a usable value,
+ * the corresponding element is set to default_value.
+ *
+ * @param joint_ids Span of joint indices to include, in the desired output order.
+ * @param value_extractor Callable that extracts a `scalar_t` from a stored `T` value.
+ * @param default_value Value to use for output entries when a joint has no usable value.
+ * @returns `vector_t` whose size equals `joint_ids.size()` and whose elements are the extracted or defaulted scalar values.
+ */
 namespace motorium::model {
 
 template <typename T>

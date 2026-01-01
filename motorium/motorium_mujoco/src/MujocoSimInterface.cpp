@@ -35,11 +35,30 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace motorium::mujoco {
 
+/**
+ * @brief Construct an MjState by allocating MuJoCo simulation data for a model.
+ *
+ * Allocates a new `mjData` using `mj_makeData` for the given MuJoCo model and stores it
+ * in the `data` member.
+ *
+ * @param mujocoModel_ Pointer to the MuJoCo model used to create the simulation data.
+ */
 MjState::MjState(const mjModel* mujocoModel_) : data(mj_makeData(mujocoModel_)) {}
 
 /******************************************************************************************************/
 /******************************************************************************************************/
-/******************************************************************************************************/
+/**
+ * @brief Constructs and initializes the MuJoCo simulation and synchronizes it with the given robot description.
+ *
+ * Initializes MuJoCo by loading the scene file, creating MuJoCo data, seeding the RNG, setting simulation timestep,
+ * mapping robot joints/actuators, applying an initial RobotState to the simulator, applying default joint damping,
+ * locating named sensors (foot touch and force sensors), and allocating safe reset buffers for qpos and qvel.
+ *
+ * @param config Configuration for the MuJoCo simulation (scene path, timestep, headless/verbose flags, optional initial state).
+ * @param robotDescription RobotDescription used to map joints and actuators between the robot model and the MuJoCo model.
+ *
+ * @throws std::runtime_error If the MuJoCo model cannot be loaded from the configured scene path.
+ */
 
 MujocoSimInterface::MujocoSimInterface(const MujocoSimConfig& config, const model::RobotDescription& robotDescription)
     : DriverBase(robotDescription, "mujoco_sim"),
@@ -124,7 +143,12 @@ MujocoSimInterface::MujocoSimInterface(const MujocoSimConfig& config, const mode
 
 /******************************************************************************************************/
 /******************************************************************************************************/
-/******************************************************************************************************/
+/**
+ * @brief Cleanly shuts down the simulator and frees all allocated MuJoCo resources.
+ *
+ * Stops the simulation thread if running, deletes the MuJoCo data and model objects,
+ * and releases the internal qpos/qvel buffers allocated for reset state.
+ */
 
 MujocoSimInterface::~MujocoSimInterface() {
   stop();
@@ -145,7 +169,13 @@ void MujocoSimInterface::reset() {
 
 /******************************************************************************************************/
 /******************************************************************************************************/
-/******************************************************************************************************/
+/**
+ * @brief Populate the provided MjState with a thread-safe snapshot of the current MuJoCo state.
+ *
+ * Copies the simulator time, duplicates the internal MuJoCo data into `state.data`, and copies the current metrics into `state.metrics` as an atomic snapshot.
+ *
+ * @param[out] state Destination MjState to receive the snapshot (timestamp, copied mjData, and metrics).
+ */
 
 void MujocoSimInterface::copyMjState(MjState& state) const {
   {
@@ -160,7 +190,15 @@ void MujocoSimInterface::copyMjState(MjState& state) const {
 
 /******************************************************************************************************/
 /******************************************************************************************************/
-/******************************************************************************************************/
+/**
+ * @brief Builds mappings between MuJoCo joints/actuators and the provided robot description.
+ *
+ * Populates internal lists of active MuJoCo joint and actuator names, computes corresponding
+ * robot-side joint indices, and updates counts of active joints and actuators.
+ *
+ * @param robotDescription Robot description used to determine which MuJoCo joints and actuators
+ *                         are exposed/commandable through the robot interface.
+ */
 
 void MujocoSimInterface::setupJointIndexMaps(const model::RobotDescription& robotDescription) {
   // Mujoco to Robot joints
@@ -203,7 +241,15 @@ void MujocoSimInterface::setupJointIndexMaps(const model::RobotDescription& robo
 
 /******************************************************************************************************/
 /******************************************************************************************************/
-/******************************************************************************************************/
+/**
+ * @brief Prints a human-readable summary of the currently loaded MuJoCo model to stderr.
+ *
+ * The printed summary includes the simulation timestep in microseconds, key model dimensions
+ * (number of joints, generalized coordinates, generalized velocities, and actuators),
+ * per-body name with world-space position and orientation quaternion, root joint name with
+ * root position and velocity components, per-joint name with position and velocity, and
+ * the total mass of the MuJoCo model.
+ */
 
 void MujocoSimInterface::printModelInfo() {
   std::cerr << "timeStepMicro_: " << timeStepMicro_ << std::endl;
@@ -264,7 +310,19 @@ void MujocoSimInterface::printModelInfo() {
 
 /******************************************************************************************************/
 /******************************************************************************************************/
-/******************************************************************************************************/
+/**
+ * @brief Apply a RobotState to the MuJoCo simulation state.
+ *
+ * Updates the underlying MuJoCo qpos and qvel arrays to reflect the provided
+ * RobotState: sets the root position and orientation, sets the root linear
+ * velocity in the world frame (computed from the RobotState's local linear
+ * velocity), sets the root angular velocity in the local frame, and writes
+ * joint positions and velocities for all active joints using the stored
+ * active joint index mapping.
+ *
+ * @param robotState Source robot state whose pose, velocities, and joint
+ *                   values are written into the MuJoCo data structure.
+ */
 
 void MujocoSimInterface::setSimState(const model::RobotState& robotState) {
   // Root Pose
@@ -300,7 +358,18 @@ void MujocoSimInterface::setSimState(const model::RobotState& robotState) {
 
 /******************************************************************************************************/
 /******************************************************************************************************/
-/******************************************************************************************************/
+/**
+ * @brief Populate a RobotState with the current MuJoCo simulation state.
+ *
+ * Updates joint positions and velocities for all active joints, root position and orientation,
+ * root linear and angular velocities (root linear velocity is stored in the root/local frame),
+ * foot contact flags, and the state's timestamp from the MuJoCo simulation.
+ *
+ * This function acquires the internal MuJoCo mutex while reading simulation arrays to ensure
+ * a consistent snapshot.
+ *
+ * @param[out] robotState Destination RobotState that will be overwritten with the current simulation state.
+ */
 
 void MujocoSimInterface::updateRobotState(model::RobotState& robotState) {
   std::lock_guard<std::mutex> lock(mujocoMutex_);
@@ -336,7 +405,13 @@ void MujocoSimInterface::updateRobotState(model::RobotState& robotState) {
 
 /******************************************************************************************************/
 /******************************************************************************************************/
-/******************************************************************************************************/
+/**
+ * @brief Update simulation timing and performance metrics.
+ *
+ * Updates the stored frames-per-second estimate and computes timing metrics based on the elapsed
+ * real time since the previous call: per-step drift, cumulative drift, and the real-time factor.
+ * Also advances the internal reference time used for subsequent calculations.
+ */
 
 void MujocoSimInterface::updateMetrics() {
   simFps_.tick();
@@ -355,13 +430,28 @@ void MujocoSimInterface::updateMetrics() {
 
 /******************************************************************************************************/
 /******************************************************************************************************/
-/******************************************************************************************************/
+/**
+ * @brief Stores a joint action for the simulator to apply.
+ *
+ * Stores the provided joint-level action so the simulation thread will use it on the next step in a thread-safe manner.
+ *
+ * @param action Joint-level commands to apply at the next simulation step.
+ */
 
 void MujocoSimInterface::setJointAction(const model::RobotJointAction& action) {
   std::lock_guard<std::mutex> lock(actionMutex_);
   actionInternal_ = action;
 }
 
+/**
+ * @brief Applies the current joint actions, advances the MuJoCo simulation one step, and updates simulator state and metrics.
+ *
+ * Applies stored actuator commands as torques, performs a simulation step, and updates the thread-safe robot state and internal timing metrics.
+ * If the simulated root height drops below 0.2 meters, the method performs an automatic reset of positions/velocities, clears actuator commands,
+ * advances the simulation once more, refreshes metrics, and then blocks the calling thread for one second to allow external controllers to react.
+ *
+ * @note This routine mutates MuJoCo state (controls, qpos, qvel), updates metrics and the shared RobotState, and may sleep for ~1s when an auto-reset occurs.
+ */
 void MujocoSimInterface::simulationStep() {
   {
     std::lock_guard<std::mutex> lock(actionMutex_);
@@ -397,7 +487,14 @@ void MujocoSimInterface::simulationStep() {
 
 /******************************************************************************************************/
 /******************************************************************************************************/
-/******************************************************************************************************/
+/**
+ * @brief Runs the main simulation loop until cooperative cancellation is requested.
+ *
+ * This repeatedly advances the simulator by a single step and sleeps to maintain the configured timestep cadence.
+ * On entry it resets the simulation FPS estimator and accumulated metrics.
+ *
+ * @param st Stop token used for cooperative cancellation; the loop exits when a stop is requested.
+ */
 
 void MujocoSimInterface::simulationLoop(std::stop_token st) {
   simFps_.reset();
@@ -414,7 +511,13 @@ void MujocoSimInterface::simulationLoop(std::stop_token st) {
 
 /******************************************************************************************************/
 /******************************************************************************************************/
-/******************************************************************************************************/
+/**
+ * @brief Perform simulator initialization and start rendering if enabled.
+ *
+ * Executes a single simulation step to initialize internal state, marks the simulator
+ * as initialized, and, when not running in headless mode, creates and launches the
+ * renderer's render thread.
+ */
 
 void MujocoSimInterface::initSim() {
   simulationStep();
@@ -426,11 +529,22 @@ void MujocoSimInterface::initSim() {
   }
 }
 
+/**
+ * @brief Ensure the simulator is initialized and start the simulation loop in a background thread.
+ *
+ * This triggers simulator initialization if it has not already run, then launches the main
+ * simulationLoop in a new std::jthread so the simulation runs concurrently.
+ */
 void MujocoSimInterface::start() {
   if (!simInit_) initSim();
   simulate_thread_ = std::jthread(&MujocoSimInterface::simulationLoop, this);
 }
 
+/**
+ * @brief Requests cooperative shutdown of the simulation thread.
+ *
+ * If the simulation thread is joinable, requests it to stop using cooperative cancellation.
+ */
 void MujocoSimInterface::stop() {
   if (simulate_thread_.joinable()) {
     simulate_thread_.request_stop();  // cooperative cancellation
