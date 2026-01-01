@@ -26,6 +26,108 @@ struct RootState {
     angular_velocity_.setZero();
   }
 };
+/**
+ * Construct a RobotState for the given robot description and number of contact points.
+ * @param robot_description Description of the robot used to size and initialize internal state.
+ * @param contactSize Number of contact flags to allocate.
+ */
+/**
+ * Get the root orientation that rotates vectors from the local (root) frame to the world frame.
+ * @returns The root orientation as a quaternion representing local-to-world rotation.
+ */
+/**
+ * Get the root position expressed in the world frame.
+ * @returns The root position vector in world coordinates.
+ */
+/**
+ * Get the root linear velocity expressed in the local (root) frame.
+ * @returns The root linear velocity vector in the local frame.
+ */
+/**
+ * Get the root angular velocity expressed in the local (root) frame.
+ * @returns The root angular velocity vector in the local frame.
+ */
+/**
+ * Set the root orientation that rotates vectors from the local (root) frame to the world frame.
+ * @param orientation Quaternion representing the local-to-world rotation to store as the root orientation.
+ */
+/**
+ * Set the root position expressed in the world frame.
+ * @param position Root position vector in world coordinates to store.
+ */
+/**
+ * Set the root linear velocity expressed in the local (root) frame.
+ * @param linear_velocity Linear velocity vector in the local frame to store.
+ */
+/**
+ * Set the root angular velocity expressed in the local (root) frame.
+ * @param angular_velocity Angular velocity vector in the local frame to store.
+ */
+/**
+ * Set the position of a single joint.
+ * @param joint_id Index of the joint to update.
+ * @param joint_position Position value to assign to the joint.
+ */
+/**
+ * Get the position of a single joint.
+ * @param joint_id Index of the joint to query.
+ * @returns The joint position value.
+ */
+/**
+ * Set the velocity of a single joint.
+ * @param joint_id Index of the joint to update.
+ * @param jointVelocity Velocity value to assign to the joint.
+ */
+/**
+ * Get the velocity of a single joint.
+ * @param joint_id Index of the joint to query.
+ * @returns The joint velocity value.
+ */
+/**
+ * Get a vector of joint positions for the specified joint IDs.
+ * @param joint_ids Vector of joint indices to collect positions for.
+ * @returns A vector_t containing the positions of the requested joints in the same order as joint_ids.
+ */
+/**
+ * Get a vector of joint velocities for the specified joint IDs.
+ * @param joint_ids Vector of joint indices to collect velocities for.
+ * @returns A vector_t containing the velocities of the requested joints in the same order as joint_ids.
+ */
+/**
+ * Replace the stored JointState for a specific joint.
+ * @param joint_id Index of the joint to update.
+ * @param joint_state JointState to assign to the joint.
+ */
+/**
+ * Get the JointState for a specific joint.
+ * @param joint_id Index of the joint to retrieve.
+ * @returns The JointState stored for the specified joint.
+ */
+/**
+ * Get the contact flag at the given index.
+ * @param index Index of the contact flag to query.
+ * @returns `true` if contact is active at the index, `false` otherwise.
+ */
+/**
+ * Set the contact flag at the given index.
+ * @param index Index of the contact flag to set.
+ * @param contactFlag Boolean value to assign to the contact flag.
+ */
+/**
+ * Get all contact flags.
+ * @returns A copy of the vector of contact flags.
+ */
+/**
+ * Get the stored time stamp.
+ * @returns The current time value stored in the state.
+ */
+/**
+ * Set the stored time stamp.
+ * @param time Time value to store in the state.
+ */
+/**
+ * Reset the root pose, root velocities, all joint states, contact flags, and time to their zero/default values.
+ */
 class RobotState {
  public:
   RobotState(const RobotDescription& robot_description, size_t contactSize = 1);

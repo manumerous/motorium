@@ -12,9 +12,24 @@ struct JointAction {
   scalar_t kd = 0;
   scalar_t feed_forward_effort = 0;
 
-  scalar_t getTotalFeedbackTorque(scalar_t q, scalar_t qd) const { return (kp * (q_des - q) + kd * (qd_des - qd) + feed_forward_effort); }
+  /**
+ * Compute the total feedback torque for the joint.
+ *
+ * @param q Current joint position.
+ * @param qd Current joint velocity.
+ * @returns Total torque as the sum of proportional, derivative, and feed-forward contributions.
+ */
+scalar_t getTotalFeedbackTorque(scalar_t q, scalar_t qd) const { return (kp * (q_des - q) + kd * (qd_des - qd) + feed_forward_effort); }
 };
 
+/**
+ * Constructs a RobotJointAction for the given robot description.
+ *
+ * Initializes the joint-action container according to the provided RobotDescription so
+ * each joint in the robot has an associated JointAction entry.
+ *
+ * @param robotDescription Description of the robot used to size and map joint actions.
+ */
 class RobotJointAction : public JointIdMap<JointAction> {
  public:
   explicit RobotJointAction(const RobotDescription& robotDescription) : JointIdMap(robotDescription) {}
