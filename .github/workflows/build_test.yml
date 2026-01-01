@@ -1,0 +1,68 @@
+name: Full Install & Build Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches: 
+      - '**'
+    types: [opened, synchronize, reopened]
+  merge_group:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      matrix:
+        container:
+          - "ros:jazzy"
+    container: ${{ matrix.container }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Cache APT packages
+        uses: actions/cache@v3
+        with:
+          path: /var/cache/apt
+          key: ${{ runner.os }}-apt-${{ hashFiles('dependencies.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-
+
+      - name: Install Base Dependencies
+        run: |
+          sudo apt-get update && sudo apt-get upgrade -y
+          sudo apt-get update && apt-get install -y --no-install-recommends \
+          curl gnupg2 lsb-release software-properties-common \
+          locales \
+          git \
+          x11-apps \
+          mesa-utils \
+          gettext-base 
+
+      - name: Install Project Dependencies
+        run: |
+          envsubst < dependencies.txt | xargs sudo apt-get install -y --no-install-recommends
+
+      - name: Initialize submodules
+        run: |
+          git config --global --add safe.directory $GITHUB_WORKSPACE
+          git submodule update --init --recursive
+
+      - name: Cache Build Artifacts
+        uses: actions/cache@v3
+        with:
+          path: build/
+          key: ${{ runner.os }}-build-${{ hashFiles('**/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-build-
+
+      - name: Build All
+        run: |
+          export PARALLEL_JOBS=1
+          make build-all

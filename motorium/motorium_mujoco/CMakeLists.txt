@@ -18,13 +18,6 @@ find_package(motorium_hal REQUIRED)
 
 find_package(GTest REQUIRED)
 
-find_package(Boost REQUIRED COMPONENTS
-  system
-  filesystem
-  log
-  log_setup
-)
-
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
 find_package(absl REQUIRED)
@@ -41,7 +34,6 @@ find_package(GLEW REQUIRED)
 
 include_directories(
   include
-  test
   ${catkin_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
   ${GTEST_INCLUDE_DIRS}
@@ -69,7 +61,6 @@ ament_target_dependencies(${PROJECT_NAME}
   ${dependencies}
 ) 
 target_link_libraries(${PROJECT_NAME}
-  ${Boost_LIBRARIES}
   ${urdf_LIBRARIES}
   absl::flat_hash_map
   glfw

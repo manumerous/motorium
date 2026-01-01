@@ -43,4 +43,4 @@ using matrix4_t = MATRIX4_T<scalar_t>;
 using matrix6_t = MATRIX6_T<scalar_t>;
 using quaternion_t = QUATERNION_T<scalar_t>;
 
-}  // namespace robot
+}  // namespace motorium
