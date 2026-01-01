@@ -79,17 +79,17 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 
-# add_executable(mujoco_sim_no_torques
-#   exe/mujocoSimNoTorques.cpp
-# )
-# ament_target_dependencies(mujoco_sim_no_torques
-#   ${dependencies}
-# )
-# target_link_libraries(mujoco_sim_no_torques
-#   ${PROJECT_NAME}
-#   ${Boost_LIBRARIES}
-#   glfw
-# )
+add_executable(mujoco_sim_no_torques
+  exe/mujocoSimNoTorques.cpp
+)
+ament_target_dependencies(mujoco_sim_no_torques
+  ${dependencies}
+)
+target_link_libraries(mujoco_sim_no_torques
+  ${PROJECT_NAME}
+  ${Boost_LIBRARIES}
+  glfw
+)
 
 
 # ############
@@ -115,7 +115,7 @@ install(TARGETS
 )
 
 install(TARGETS 
-  # mujoco_sim_no_torques 
+  mujoco_sim_no_torques 
   DESTINATION lib/${PROJECT_NAME}
 )
 

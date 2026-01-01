@@ -27,8 +27,6 @@ find_package(absl REQUIRED)
 
 set(CMAKE_CXX_STANDARD 20)
 
-set(FLAGS ${OCS2_CXX_FLAGS} -Wno-invalid-partial-specialization)
-
 include_directories(
         include
         test
