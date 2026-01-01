@@ -1,0 +1,10 @@
+clang-format
+make
+build-essential
+libeigen3-dev
+libglpk-dev
+libglfw3-dev
+liburdfdom-dev
+ninja-build
+ccache
+black

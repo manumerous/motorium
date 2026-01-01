@@ -26,6 +26,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Cache APT packages
+        uses: actions/cache@v3
+        with:
+          path: /var/cache/apt
+          key: ${{ runner.os }}-apt-${{ hashFiles('dependencies.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-
+
       - name: Install Base Dependencies
         run: |
           sudo apt-get update && sudo apt-get upgrade -y
@@ -36,6 +44,10 @@ jobs:
           x11-apps \
           mesa-utils \
           gettext-base 
+
+      - name: Install Project Dependencies
+        run: |
+          envsubst < dependencies.txt | xargs sudo apt-get install -y --no-install-recommends
 
       - name: Initialize submodules
         run: |
