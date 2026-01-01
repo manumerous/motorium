@@ -1,25 +1,21 @@
 <?xml version="1.0"?>
 <package format="3">
-  <name>motorium_mujoco</name>
+  <name>motorium_hal</name>
   <version>0.0.0</version>
-  <description>Mujoco simulator interface</description>
+  <description>Contains the Motorium Controllers</description>
 
   <maintainer email="manuel.galliker@gmx.ch">Manuel Yves Galliker</maintainer>
 
-  <license>TODO</license>
+  <license>BSD</license>
+
+  <build_depend>motorium_model</build_depend>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-
-  <depend>mujoco_vendor</depend>
-  <depend>motorium_model</depend>
-  <depend>motorium_core</depend>
-  <depend>motorium_hal</depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_cmake_clang_format</test_depend>
   <test_depend>ament_cmake_clang_tidy</test_depend>
   <test_depend>ament_cmake_cppcheck</test_depend>
-
 
   <export>
     <build_type>ament_cmake</build_type>

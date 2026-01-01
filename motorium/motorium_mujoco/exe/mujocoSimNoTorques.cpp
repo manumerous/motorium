@@ -2,7 +2,7 @@
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   // Default value in case no argument is provided
   std::string model_folder = "g1_description";
 
@@ -10,32 +10,24 @@ int main(int argc, char *argv[]) {
   if (argc > 1) {
     model_folder = argv[1];
   } else {
-    std::cerr << "Warning: No model folder specified. Using default: "
-              << model_folder << std::endl;
+    std::cerr << "Warning: No model folder specified. Using default: " << model_folder << std::endl;
   }
 
   std::string urdfFile;
   try {
-    urdfFile = ament_index_cpp::get_package_share_directory(model_folder) +
-               "/urdf/g1_29dof.urdf";
-  } catch (const std::exception &e) {
-    throw std::runtime_error(
-        "Failed to get package share directory: g1_description. Error: " +
-        std::string(e.what()));
+    urdfFile = ament_index_cpp::get_package_share_directory(model_folder) + "/urdf/g1_29dof.urdf";
+  } catch (const std::exception& e) {
+    throw std::runtime_error("Failed to get package share directory: g1_description. Error: " + std::string(e.what()));
   }
 
   std::string mjxFile;
   try {
-    mjxFile = ament_index_cpp::get_package_share_directory(model_folder) +
-              "/urdf/g1_29dof.xml";
-  } catch (const std::exception &e) {
-    throw std::runtime_error(
-        "Failed to get package share directory: g1_description. Error: " +
-        std::string(e.what()));
+    mjxFile = ament_index_cpp::get_package_share_directory(model_folder) + "/urdf/g1_29dof.xml";
+  } catch (const std::exception& e) {
+    throw std::runtime_error("Failed to get package share directory: g1_description. Error: " + std::string(e.what()));
   }
 
-  motorium::model::RobotState initState(
-      motorium::model::RobotDescription(urdfFile), 2);
+  motorium::model::RobotState initState(motorium::model::RobotDescription(urdfFile), 2);
   initState.setConfigurationToZero();
   initState.setRootPositionInWorldFrame(motorium::vector3_t(0.0, 0.0, 0.85));
 
@@ -46,7 +38,7 @@ int main(int argc, char *argv[]) {
   config.verbose = true;
 
   motorium::mujoco::MujocoSimInterface robotInterface(config, urdfFile);
-  robotInterface.startSim();
+  robotInterface.start();
 
   // Simulated controller loop;
   while (true) {

@@ -41,11 +41,10 @@ MjState::MjState(const mjModel* mujocoModel_) : data(mj_makeData(mujocoModel_)) 
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-MujocoSimInterface::MujocoSimInterface(const MujocoSimConfig& config, const std::string& urdfPath)
-    : RobotHWInterfaceBase(urdfPath),
+MujocoSimInterface::MujocoSimInterface(const MujocoSimConfig& config, const model::RobotDescription& robotDescription)
+    : DriverBase(robotDescription, "mujoco_sim"),
       config_(config),
-      robotStateInternal_(model::RobotState(this->getRobotDescription())),
-      robotJointActionInternal_(model::RobotJointAction(this->getRobotDescription())),
+      actionInternal_(robotDescription),
       headless_(config.headless),
       verbose_(config.verbose) {
   lastRealTime_ = std::chrono::high_resolution_clock::now();
@@ -77,9 +76,9 @@ MujocoSimInterface::MujocoSimInterface(const MujocoSimConfig& config, const std:
 
   if (verbose_) printModelInfo();
 
-  setupJointIndexMaps();
+  setupJointIndexMaps(robotDescription);
 
-  model::RobotState initRobotState(getRobotDescription(), 2);
+  model::RobotState initRobotState(robotDescription, 2);
 
   if (config_.initStatePtr_ != nullptr) {
     initRobotState = *config.initStatePtr_;
@@ -121,10 +120,6 @@ MujocoSimInterface::MujocoSimInterface(const MujocoSimConfig& config, const std:
   // Safe init state for resets
   memcpy(qpos_init_, mujocoData_->qpos, mujocoModel_->nq * sizeof(mjtNum));
   memcpy(qvel_init_, mujocoData_->qvel, mujocoModel_->nv * sizeof(mjtNum));
-
-  // Make sure the init state is propagated throughout the RobotInterface.
-  updateThreadSafeRobotState();
-  updateInterfaceStateFromRobot();
 }
 
 /******************************************************************************************************/
@@ -132,8 +127,11 @@ MujocoSimInterface::MujocoSimInterface(const MujocoSimConfig& config, const std:
 /******************************************************************************************************/
 
 MujocoSimInterface::~MujocoSimInterface() {
-  terminate_.store(true);
-  if (simulate_thread_.joinable()) simulate_thread_.join();
+  stop();
+  mj_deleteData(mujocoData_);
+  mj_deleteModel(mujocoModel_);
+  delete[] qpos_init_;
+  delete[] qvel_init_;
 }
 
 /******************************************************************************************************/
@@ -164,12 +162,12 @@ void MujocoSimInterface::copyMjState(MjState& state) const {
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoSimInterface::setupJointIndexMaps() {
+void MujocoSimInterface::setupJointIndexMaps(const model::RobotDescription& robotDescription) {
   // Mujoco to Robot joints
   for (int i = 1; i < mujocoModel_->njnt; ++i) {
     // Get the joint name
     const std::string jointName(&mujocoModel_->names[mujocoModel_->name_jntadr[i]]);
-    if (getRobotDescription().containsJoint(jointName)) {
+    if (robotDescription.containsJoint(jointName)) {
       activeMuJoCoJointNames_.emplace_back(jointName);
     } else {
       std::cerr << "WARNING: Joint contained in mujoco xml not exposed to "
@@ -178,13 +176,13 @@ void MujocoSimInterface::setupJointIndexMaps() {
     }
   }
 
-  activeRobotJointStateIndices_ = getRobotDescription().getJointIndices(activeMuJoCoJointNames_);
+  activeRobotJointStateIndices_ = robotDescription.getJointIndices(activeMuJoCoJointNames_);
 
   // Mujoco to robot actuators
   for (int i = 0; i < mujocoModel_->nu; ++i) {
     const std::string actuator_name = mj_id2name(mujocoModel_, mjOBJ_ACTUATOR, i);
 
-    if (getRobotDescription().containsJoint(actuator_name)) {
+    if (robotDescription.containsJoint(actuator_name)) {
       activeMuJoCoActuatorNames_.emplace_back(actuator_name);
     } else {
       std::cerr << "WARNING: Actuator contained in mujoco xml not be commanded "
@@ -193,7 +191,7 @@ void MujocoSimInterface::setupJointIndexMaps() {
     }
   }
 
-  activeRobotActuatorIndices_ = getRobotDescription().getJointIndices(activeMuJoCoActuatorNames_);
+  activeRobotActuatorIndices_ = robotDescription.getJointIndices(activeMuJoCoActuatorNames_);
 
   nActiveJoints_ = activeRobotJointStateIndices_.size();
   nActuators_ = activeRobotActuatorIndices_.size();
@@ -295,8 +293,8 @@ void MujocoSimInterface::setSimState(const model::RobotState& robotState) {
 
   // Joint State
   for (size_t i = 0; i < nActiveJoints_; ++i) {
-    mujocoData_->qpos[i + 7] = robotStateInternal_.getJointPosition(activeRobotJointStateIndices_[i]);
-    mujocoData_->qvel[i + 6] = robotStateInternal_.getJointVelocity(activeRobotJointStateIndices_[i]);
+    mujocoData_->qpos[i + 7] = robotState.getJointPosition(activeRobotJointStateIndices_[i]);
+    mujocoData_->qvel[i + 6] = robotState.getJointVelocity(activeRobotJointStateIndices_[i]);
   }
 }
 
@@ -304,11 +302,12 @@ void MujocoSimInterface::setSimState(const model::RobotState& robotState) {
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoSimInterface::updateThreadSafeRobotState() {
+void MujocoSimInterface::updateRobotState(model::RobotState& robotState) {
+  std::lock_guard<std::mutex> lock(mujocoMutex_);
   // Update mujoco joint angles
   for (size_t i = 0; i < nActiveJoints_; ++i) {
-    robotStateInternal_.setJointPosition(activeRobotJointStateIndices_[i], mujocoData_->qpos[i + 7]);
-    robotStateInternal_.setJointVelocity(activeRobotJointStateIndices_[i], mujocoData_->qvel[i + 6]);
+    robotState.setJointPosition(activeRobotJointStateIndices_[i], mujocoData_->qpos[i + 7]);
+    robotState.setJointVelocity(activeRobotJointStateIndices_[i], mujocoData_->qvel[i + 6]);
   }
 
   // Initialize in order w, x,y ,z
@@ -323,18 +322,16 @@ void MujocoSimInterface::updateThreadSafeRobotState() {
   bool leftFootContact = true;
   bool rightFootContact = true;
 
-  robotStateInternal_.setRootPositionInWorldFrame(vector3_t(mujocoData_->qpos[0], mujocoData_->qpos[1], mujocoData_->qpos[2]));
-  robotStateInternal_.setRootRotationLocalToWorldFrame(quat_l_to_w);
+  robotState.setRootPositionInWorldFrame(vector3_t(mujocoData_->qpos[0], mujocoData_->qpos[1], mujocoData_->qpos[2]));
+  robotState.setRootRotationLocalToWorldFrame(quat_l_to_w);
   // Rotate the angular velocity from world frame to local frame.
-  robotStateInternal_.setRootLinearVelocityInLocalFrame(quat_l_to_w.inverse() *
-                                                        vector3_t(mujocoData_->qvel[0], mujocoData_->qvel[1], mujocoData_->qvel[2]));
-  robotStateInternal_.setRootAngularVelocityInLocalFrame(pelvisAngularVelLocal);
-  robotStateInternal_.setContactFlag(0, leftFootContact);
-  robotStateInternal_.setContactFlag(1, rightFootContact);
+  robotState.setRootLinearVelocityInLocalFrame(quat_l_to_w.inverse() *
+                                               vector3_t(mujocoData_->qvel[0], mujocoData_->qvel[1], mujocoData_->qvel[2]));
+  robotState.setRootAngularVelocityInLocalFrame(pelvisAngularVelLocal);
+  robotState.setContactFlag(0, leftFootContact);
+  robotState.setContactFlag(1, rightFootContact);
 
-  robotStateInternal_.setTime(mujocoData_->time);  // Todo Manu: should mujoco be the source of time?
-
-  threadSafeRobotState_.set(robotStateInternal_);
+  robotState.setTime(mujocoData_->time);  // Todo: should mujoco be the source of time?
 }
 
 /******************************************************************************************************/
@@ -360,16 +357,23 @@ void MujocoSimInterface::updateMetrics() {
 /******************************************************************************************************/
 /******************************************************************************************************/
 
+void MujocoSimInterface::setJointAction(const model::RobotJointAction& action) {
+  std::lock_guard<std::mutex> lock(actionMutex_);
+  actionInternal_ = action;
+}
+
 void MujocoSimInterface::simulationStep() {
-  threadSafeRobotJointAction_.copy_value(robotJointActionInternal_);
-  for (size_t i = 0; i < nActuators_; ++i) {
-    joint_index_t idx = activeRobotActuatorIndices_[i];
-    const motorium::model::JointAction& jointAction = robotJointActionInternal_.at(idx);
-    mujocoData_->ctrl[i] =
-        jointAction.getTotalFeedbackTorque(robotStateInternal_.getJointPosition(idx), robotStateInternal_.getJointVelocity(idx));
+  {
+    std::lock_guard<std::mutex> lock(actionMutex_);
+
+    for (size_t i = 0; i < nActuators_; ++i) {
+      joint_index_t idx = activeRobotActuatorIndices_[i];
+      const motorium::model::JointAction& jointAction = actionInternal_.at(idx);
+      mujocoData_->ctrl[i] = jointAction.getTotalFeedbackTorque(mujocoData_->qpos[i + 7], mujocoData_->qvel[i + 6]);
+    }
   }
 
-  mujocoMutex_.lock();
+  std::lock_guard<std::mutex> lock(mujocoMutex_);
   mj_step(mujocoModel_, mujocoData_);
   updateThreadSafeRobotState();
   updateMetrics();
@@ -389,18 +393,17 @@ void MujocoSimInterface::simulationStep() {
     // Sleep to let controller update and adjust;
     std::this_thread::sleep_until(std::chrono::steady_clock::now() + std::chrono::microseconds(1000000));
   }
-  mujocoMutex_.unlock();
 }
 
 /******************************************************************************************************/
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoSimInterface::simulationLoop() {
+void MujocoSimInterface::simulationLoop(std::stop_token st) {
   simFps_.reset();
   metrics_.reset();
   auto nextWakeup = std::chrono::steady_clock::now();
-  while (!terminate_.load()) {
+  while (!st.stop_requested()) {
     simulationStep();
 
     // Sleep in case sim loop is faster than specified sim rate.
@@ -423,10 +426,15 @@ void MujocoSimInterface::initSim() {
   }
 }
 
-void MujocoSimInterface::startSim() {
+void MujocoSimInterface::start() {
   if (!simInit_) initSim();
-  // Simulate in simulate_thread thread while rendering in this thread
-  simulate_thread_ = std::thread(&MujocoSimInterface::simulationLoop, this);
+  simulate_thread_ = std::jthread(&MujocoSimInterface::simulationLoop, this);
+}
+
+void MujocoSimInterface::stop() {
+  if (simulate_thread_.joinable()) {
+    simulate_thread_.request_stop();  // cooperative cancellation
+  }
 }
 
 }  // namespace motorium::mujoco
