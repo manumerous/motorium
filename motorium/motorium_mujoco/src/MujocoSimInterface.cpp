@@ -428,7 +428,7 @@ void MujocoSimInterface::initSim() {
 
 void MujocoSimInterface::start() {
   if (!simInit_) initSim();
-  simulate_thread_ = std::jthread(&MujocoSimInterface::simulationLoop, this);
+  simulate_thread_ = std::jthread([this](std::stop_token st) { this->simulationLoop(st); });
 }
 
 void MujocoSimInterface::stop() {
