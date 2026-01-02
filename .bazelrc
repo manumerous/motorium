@@ -1,0 +1,3 @@
+common --enable_bzlmod
+build --output_filter=^//
+build --cxxopt=-std=c++23

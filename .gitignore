@@ -39,3 +39,7 @@
 
 # debug information files
 *.dwo
+
+# bazel
+bazel-*
+.bazelrc.user
