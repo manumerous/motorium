@@ -1,4 +1,4 @@
-name: Colcon Build & Test
+name: Colcon Build
 
 on:
   push:

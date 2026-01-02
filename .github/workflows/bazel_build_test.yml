@@ -1,4 +1,4 @@
-name: Bazel Build & Test
+name: Bazel Build
 
 on:
   push:
