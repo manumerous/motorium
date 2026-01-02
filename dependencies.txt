@@ -6,6 +6,7 @@ libglpk-dev
 libglfw3-dev
 libglew-dev
 liburdfdom-dev
+libglu1-mesa-dev
 ninja-build
 ccache
 black
