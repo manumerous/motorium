@@ -9,7 +9,6 @@ endif ()
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(ament_cmake REQUIRED)
-find_package(ament_index_cpp REQUIRED)
 find_package(mujoco_vendor REQUIRED)
 find_package(motorium_model REQUIRED)
 find_package(motorium_core REQUIRED)
@@ -22,7 +21,8 @@ find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
 find_package(absl REQUIRED)
 
-find_package(urdf REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(URDFDOM REQUIRED urdfdom)
 
 find_package(glfw3 REQUIRED)
 
@@ -41,7 +41,6 @@ include_directories(
 
 set(dependencies
   ament_cmake
-  ament_index_cpp
   mujoco_vendor
   motorium_core
   motorium_model
@@ -61,7 +60,7 @@ ament_target_dependencies(${PROJECT_NAME}
   ${dependencies}
 ) 
 target_link_libraries(${PROJECT_NAME}
-  ${urdf_LIBRARIES}
+  ${URDFDOM_LIBRARIES}
   absl::flat_hash_map
   glfw
   GLEW

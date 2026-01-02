@@ -1,4 +1,4 @@
-name: Full Install & Build Tests
+name: Colcon Build
 
 on:
   push:
@@ -24,10 +24,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Cache APT packages
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: /var/cache/apt
           key: ${{ runner.os }}-apt-${{ hashFiles('dependencies.txt') }}
@@ -40,14 +40,11 @@ jobs:
           sudo apt-get update && apt-get install -y --no-install-recommends \
           curl gnupg2 lsb-release software-properties-common \
           locales \
-          git \
-          x11-apps \
-          mesa-utils \
-          gettext-base 
+          git
 
       - name: Install Project Dependencies
         run: |
-          envsubst < dependencies.txt | xargs sudo apt-get install -y --no-install-recommends
+          sudo apt-get install -y --no-install-recommends $(cat dependencies.txt)
 
       - name: Initialize submodules
         run: |
@@ -66,3 +63,9 @@ jobs:
         run: |
           export PARALLEL_JOBS=1
           make build-all
+
+      - name: Run Tests
+        run: |
+          make test-all
+
+  

@@ -1,5 +1,9 @@
 # Motorium
 
+![Bazel Build](https://github.com/manumerous/motorium/actions/workflows/bazel_build_test.yml/badge.svg)
+![Colcon Build](https://github.com/manumerous/motorium/actions/workflows/colcon_build_test.yml/badge.svg)
+![Style Check](https://github.com/manumerous/motorium/actions/workflows/format_test.yml/badge.svg)
+
 Motorium is a high-performance, realtime-safe framework for robot control, designed to allow rapid prototyping of robot controllers across hardware and simulators. It prioritizes deterministic execution, cache locality, and type safety.
 
 ## Key Design Principles

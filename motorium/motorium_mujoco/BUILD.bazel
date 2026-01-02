@@ -1,0 +1,21 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+cc_library(
+    name = "motorium_mujoco",
+    srcs = [
+        "src/MujocoSimInterface.cpp",
+        "src/MujocoRenderer.cpp",
+    ],
+    hdrs = glob(["include/**/*.h"]),
+    includes = ["include"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//motorium/motorium_core",
+        "//motorium/motorium_model",
+        "//motorium/motorium_hal",
+        "//:urdfdom",
+        "@glfw//:glfw",
+        "@glew//:glew_static",
+        "@mujoco//:mujoco",
+    ],
+)

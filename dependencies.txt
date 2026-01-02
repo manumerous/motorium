@@ -2,10 +2,14 @@ clang-format
 make
 build-essential
 libeigen3-dev
-libglpk-dev
 libglfw3-dev
 libglew-dev
 liburdfdom-dev
+libx11-dev
+libxrandr-dev
+libxinerama-dev
+libxcursor-dev
+libxi-dev
 ninja-build
 ccache
 black

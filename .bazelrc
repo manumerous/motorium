@@ -1,0 +1,4 @@
+common --enable_bzlmod
+build --output_filter=^//
+build --copt=-DGLEW_NO_GLU
+build --cxxopt=-std=c++23
