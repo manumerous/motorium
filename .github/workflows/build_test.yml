@@ -40,12 +40,11 @@ jobs:
           sudo apt-get update && apt-get install -y --no-install-recommends \
           curl gnupg2 lsb-release software-properties-common \
           locales \
-          gettext-base \
           git
 
       - name: Install Project Dependencies
         run: |
-          envsubst < dependencies.txt | xargs sudo apt-get install -y --no-install-recommends
+          sudo apt-get install -y --no-install-recommends $(cat dependencies.txt)
 
       - name: Initialize submodules
         run: |
@@ -93,7 +92,7 @@ jobs:
 
       - name: Install Project Dependencies
         run: |
-          envsubst < dependencies.txt | xargs sudo apt-get install -y --no-install-recommends
+          sudo apt-get install -y --no-install-recommends $(cat dependencies.txt)
 
       - name: Install Bazel (Bazelisk)
         run: |
