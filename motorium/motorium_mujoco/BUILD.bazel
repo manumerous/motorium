@@ -17,6 +17,5 @@ cc_library(
         "@glfw//:glfw",
         "@glew//:glew_static",
         "@mujoco//:mujoco",
-        "@com_google_absl//absl/container:flat_hash_map",
     ],
 )
