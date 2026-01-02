@@ -1,0 +1,69 @@
+name: Coverage
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches: 
+      - '**'
+  merge_group:
+    branches:
+      - main
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    container: linuxmintd/mint22-amd64:latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Cache Bazel Disk Cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/bazel
+          key: ${{ runner.os }}-bazel-coverage-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-bazel-coverage-
+            ${{ runner.os }}-bazel-
+
+      - name: Cache APT packages
+        uses: actions/cache@v3
+        with:
+          path: /var/cache/apt
+          key: ${{ runner.os }}-apt-${{ hashFiles('dependencies.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-
+
+      - name: Install Base Dependencies
+        run: |
+          sudo apt-get update && sudo apt-get upgrade -y
+          sudo apt-get update && apt-get install -y --no-install-recommends \
+          curl gnupg2 lsb-release software-properties-common \
+          locales \
+          git \
+          wget \
+          lcov
+
+      - name: Install Project Dependencies
+        run: |
+          sudo apt-get install -y --no-install-recommends $(cat dependencies.txt)
+
+      - name: Install Bazel (Bazelisk)
+        run: |
+          wget https://github.com/bazelbuild/bazelisk/releases/download/v1.19.0/bazelisk-linux-amd64
+          chmod +x bazelisk-linux-amd64
+          sudo mv bazelisk-linux-amd64 /usr/local/bin/bazel
+
+      - name: Run Coverage
+        run: |
+          bazel coverage //motorium/... --combined_report=lcov
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: bazel-out/_coverage/_coverage_report.dat
+          fail_ci_if_error: false
