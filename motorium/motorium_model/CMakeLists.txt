@@ -72,6 +72,11 @@ if (BUILD_TESTING)
         ${dependencies}
 )
 
+        ament_add_gtest(test_fixed_id_array test/testFixedIDArray.cpp)
+        target_link_libraries(test_fixed_id_array
+            ${PROJECT_NAME}
+        )
+
 endif ()
 
 #############
