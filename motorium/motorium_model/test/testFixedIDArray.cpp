@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include "motorium_model/FixedIDArray.h"
 #include <optional>
+#include "motorium_model/FixedIDArray.h"
 
 using namespace motorium::model;
 
@@ -13,7 +13,7 @@ struct TestStruct {
   bool operator==(const TestStruct& other) const { return value == other.value; }
 };
 
-} // namespace
+}  // namespace
 
 class FixedIDArrayTest : public ::testing::Test {};
 
@@ -48,7 +48,7 @@ TEST_F(FixedIDArrayTest, AccessFailsForOutOfBounds) {
 TEST_F(FixedIDArrayTest, ConstAccessWorks) {
   FixedIDArray<int> array(5);
   array[2] = 7;
-  
+
   const FixedIDArray<int>& const_array = array;
   EXPECT_EQ(const_array[2], 7);
   EXPECT_EQ(const_array.at(2), 7);
@@ -56,7 +56,9 @@ TEST_F(FixedIDArrayTest, ConstAccessWorks) {
 
 TEST_F(FixedIDArrayTest, AssignmentWorksIdeally) {
   FixedIDArray<int> arr1(3);
-  arr1[0] = 1; arr1[1] = 2; arr1[2] = 3;
+  arr1[0] = 1;
+  arr1[1] = 2;
+  arr1[2] = 3;
 
   FixedIDArray<int> arr2(3);
   arr2 = arr1;
@@ -74,7 +76,9 @@ TEST_F(FixedIDArrayTest, AssignmentFailsForSizeMismatch) {
 
 TEST_F(FixedIDArrayTest, IterationWorks) {
   FixedIDArray<int> array(3);
-  array[0] = 10; array[1] = 20; array[2] = 30;
+  array[0] = 10;
+  array[1] = 20;
+  array[2] = 30;
 
   int sum = 0;
   for (const auto& val : array) {
@@ -85,13 +89,15 @@ TEST_F(FixedIDArrayTest, IterationWorks) {
 
 TEST_F(FixedIDArrayTest, ToEigenVectorWorksForSimpleType) {
   FixedIDArray<double> array(3);
-  array[0] = 1.1; array[1] = 2.2; array[2] = 3.3;
+  array[0] = 1.1;
+  array[1] = 2.2;
+  array[2] = 3.3;
 
   std::vector<size_t> indices = {0, 2};
   auto extractor = [](double v) { return v; };
-  
+
   auto vec = array.toEigenVector<std::vector<size_t>, double>(indices, extractor);
-  
+
   ASSERT_EQ(vec.size(), 2);
   EXPECT_DOUBLE_EQ(vec(0), 1.1);
   EXPECT_DOUBLE_EQ(vec(1), 3.3);
@@ -105,8 +111,8 @@ TEST_F(FixedIDArrayTest, ToEigenVectorWorksWithOptional) {
 
   std::vector<size_t> indices = {0, 1, 2};
   auto extractor = [](double v) { return v; };
-  
-  auto vec = array.toEigenVector<std::vector<size_t>, double>(indices, extractor, -1.0); // Default -1.0 for nullopt
+
+  auto vec = array.toEigenVector<std::vector<size_t>, double>(indices, extractor, -1.0);  // Default -1.0 for nullopt
 
   ASSERT_EQ(vec.size(), 3);
   EXPECT_DOUBLE_EQ(vec(0), 1.0);
@@ -136,10 +142,9 @@ TEST_F(FixedIDArrayTest, ToEigenVectorWorksWithStructAndOptional) {
   std::vector<size_t> indices = {0, 1};
   auto extractor = [](const TestStruct& s) { return s.value; };
 
-  auto vec = array.toEigenVector<std::vector<size_t>, double>(indices, extractor, -1.0); // Default -1.0 for nullopt
+  auto vec = array.toEigenVector<std::vector<size_t>, double>(indices, extractor, -1.0);  // Default -1.0 for nullopt
 
   ASSERT_EQ(vec.size(), 2);
   EXPECT_DOUBLE_EQ(vec(0), 5.5);
   EXPECT_DOUBLE_EQ(vec(1), -1.0);
 }
-
