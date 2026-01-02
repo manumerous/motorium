@@ -6,7 +6,7 @@ cc_library(
         "src/RobotDescription.cpp",
         "src/RobotState.cpp",
     ],
-    hdrs = glob(["include/**/*.h", "include/**/*.hpp"], allow_empty = True),
+    hdrs = glob(["include/**/*.h"]),
     includes = ["include"],
     visibility = ["//visibility:public"],
     deps = [
