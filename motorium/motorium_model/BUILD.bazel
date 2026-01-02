@@ -11,7 +11,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//motorium/motorium_core",
-        "//:ros_urdf",
+        "//:urdfdom",
         "@eigen//:eigen",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/strings",

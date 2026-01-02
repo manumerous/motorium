@@ -1,13 +1,8 @@
 package(default_visibility = ["//visibility:public"])
 
 cc_library(
-    name = "ros_urdf",
-    copts = ["-I/opt/ros/jazzy/include"],
+    name = "urdfdom",
     linkopts = [
-        "-L/opt/ros/jazzy/lib",
-        "-Wl,--disable-new-dtags",
-        "-Wl,-rpath,/opt/ros/jazzy/lib",
-        "-lurdf",
         "-lurdfdom_model",
         "-lurdfdom_world",
     ],

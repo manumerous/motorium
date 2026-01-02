@@ -16,7 +16,7 @@ jobs:
   bazel-build:
     runs-on: ubuntu-latest
     timeout-minutes: 180
-    container: ros:jazzy
+    container: vcatechnology/linux-mint:latest
 
     steps:
       - name: Checkout repository
