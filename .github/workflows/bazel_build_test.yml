@@ -16,7 +16,7 @@ jobs:
   bazel-build:
     runs-on: ubuntu-latest
     timeout-minutes: 180
-    container: vcatechnology/linux-mint:xia
+    container: linuxmintd/mint22-amd64:latest
 
     steps:
       - name: Checkout repository
