@@ -4,7 +4,7 @@
 ![Colcon Build](https://github.com/manumerous/motorium/actions/workflows/colcon_build_test.yml/badge.svg)
 ![Style Check](https://github.com/manumerous/motorium/actions/workflows/format_test.yml/badge.svg)
 
-Motorium is a high-performance, realtime-safe framework for robot control, designed to allow rapid prototyping of robot controllers across hardware and simulators. It prioritizes deterministic execution, cache locality, and type safety.
+Motorium is a high-performance, realtime-safe framework for robot control, designed to allows the rapid development, testing and deployment of controllers (including RL, IL, Model Based, ect.) across hardware and simulators. It prioritizes deterministic execution, cache locality, and type safety.
 
 ## Key Design Principles
 Robot data must often be accessed in different subsets, orders, and formats across a robotics stack to satisfy the requirements of various components and libraries (controllers, simulators, drivers etc.). Motorium addresses this by storing robot data in a centralized, real-time–safe structure and exposing it through uniquely assigned integer IDs (e.g., for joints and sensors) for seamless integration across simulation and hardware.
