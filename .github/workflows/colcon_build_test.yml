@@ -1,4 +1,4 @@
-name: Colcon Build
+name: Colcon
 
 on:
   push:
@@ -13,7 +13,7 @@ on:
       - main
 
 jobs:
-  build:
+  build-test:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     strategy:
