@@ -115,9 +115,8 @@ jobs:
 
       - name: Download Build Artifacts
         uses: actions/download-artifact@v4
-with:
-  name: colcon-build-${{ matrix.name }}
-
+        with:
+          name: colcon-build-${{ matrix.name }}
 
       - name: Run Tests
         run: |
