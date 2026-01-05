@@ -13,7 +13,7 @@ bazel_dep(name = "glew", version = "2.2.0")
 non_module_deps = use_extension("//:extensions.bzl", "non_module_deps")
 use_repo(non_module_deps, "mujoco")
 
-bazel_dep(name = "rules_python", version = "0.40.0")
+bazel_dep(name = "rules_python", version = "1.7.0")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(

@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <numeric>
 
 #include <optional>
 #include "motorium_model/FixedIDArray.h"
@@ -80,10 +81,7 @@ TEST_F(FixedIDArrayTest, IterationWorks) {
   array[1] = 20;
   array[2] = 30;
 
-  int sum = 0;
-  for (const auto& val : array) {
-    sum += val;
-  }
+  int sum = std::accumulate(array.begin(), array.end(), 0);
   EXPECT_EQ(sum, 60);
 }
 

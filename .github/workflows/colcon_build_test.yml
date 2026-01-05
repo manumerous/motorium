@@ -52,7 +52,7 @@ jobs:
           git submodule update --init --recursive
 
       - name: Cache Build Artifacts
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: build/
           key: ${{ runner.os }}-build-${{ hashFiles('**/CMakeLists.txt') }}
