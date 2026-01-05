@@ -1,4 +1,4 @@
-name: Colcon Build
+name: Coverage
 
 on:
   push:
@@ -13,18 +13,23 @@ on:
       - main
 
 jobs:
-  build:
+  coverage:
     runs-on: ubuntu-latest
     timeout-minutes: 180
-    strategy:
-      matrix:
-        container:
-          - "ros:jazzy"
-    container: ${{ matrix.container }}
+    container: linuxmintd/mint22-amd64:latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Cache Bazel Disk Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/bazel
+          key: ${{ runner.os }}-bazel-coverage-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-bazel-coverage-
+            ${{ runner.os }}-bazel-
 
       - name: Cache APT packages
         uses: actions/cache@v4
@@ -40,32 +45,27 @@ jobs:
           sudo apt-get update && apt-get install -y --no-install-recommends \
           curl gnupg2 lsb-release software-properties-common \
           locales \
-          git
+          git \
+          wget \
+          lcov
 
       - name: Install Project Dependencies
         run: |
           sudo apt-get install -y --no-install-recommends $(cat dependencies.txt)
 
-      - name: Initialize submodules
+      - name: Install Bazel (Bazelisk)
         run: |
-          git config --global --add safe.directory $GITHUB_WORKSPACE
-          git submodule update --init --recursive
+          wget https://github.com/bazelbuild/bazelisk/releases/download/v1.27.0/bazelisk-linux-amd64
+          chmod +x bazelisk-linux-amd64
+          sudo mv bazelisk-linux-amd64 /usr/local/bin/bazel
 
-      - name: Cache Build Artifacts
-        uses: actions/cache@v4
+      - name: Run Coverage
+        run: |
+          bazel coverage //motorium/... --combined_report=lcov
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
         with:
-          path: build/
-          key: ${{ runner.os }}-build-${{ hashFiles('**/CMakeLists.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-build-
-
-      - name: Build All
-        run: |
-          export PARALLEL_JOBS=1
-          make build-all
-
-      - name: Run Tests
-        run: |
-          make test-all
-
-  
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: bazel-out/_coverage/_coverage_report.dat
+          fail_ci_if_error: false

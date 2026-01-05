@@ -18,9 +18,11 @@ namespace motorium::model {
 // Define an extractor that gets a scalar value out of T for eigen vectorization
 // when T is itself a composite type (e.g. struct).
 template <typename E, typename T, typename ScalarType>
-concept IDMapExtractor = requires(E e, const T& val) {
-  { e(val) } -> std::same_as<ScalarType>;
-};
+concept IDMapExtractor =
+    (requires(const T& val) { val.has_value(); *val; } &&
+     requires(E e, const T& val) { { e(*val) } -> std::convertible_to<ScalarType>; }) ||
+    (!requires(const T& val) { val.has_value(); } &&
+     requires(E e, const T& val) { { e(val) } -> std::convertible_to<ScalarType>; });
 
 template <typename T>
 class FixedIDArray {

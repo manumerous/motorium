@@ -49,6 +49,8 @@ ament_target_dependencies(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
         ${URDFDOM_LIBRARIES}
         absl::flat_hash_map
+        absl::log
+        absl::check
 )
 target_include_directories(${PROJECT_NAME}
     PUBLIC
@@ -71,6 +73,11 @@ if (BUILD_TESTING)
         ament_target_dependencies(${PROJECT_NAME}
         ${dependencies}
 )
+
+        ament_add_gtest(test_fixed_id_array test/testFixedIDArray.cpp)
+        target_link_libraries(test_fixed_id_array
+            ${PROJECT_NAME}
+        )
 
 endif ()
 
