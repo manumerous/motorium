@@ -4,12 +4,6 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    branches: 
-      - '**'
-  merge_group:
-    branches:
-      - main
 
 jobs:
   coverage:
