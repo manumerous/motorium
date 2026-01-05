@@ -13,17 +13,17 @@ on:
       - main
 
 jobs:
-  bazel-build:
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     container: linuxmintd/mint22-amd64:latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Cache APT packages
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: /var/cache/apt
           key: ${{ runner.os }}-apt-${{ hashFiles('dependencies.txt') }}
@@ -45,13 +45,69 @@ jobs:
 
       - name: Install Bazel (Bazelisk)
         run: |
-          wget https://github.com/bazelbuild/bazelisk/releases/download/v1.19.0/bazelisk-linux-amd64
+          wget https://github.com/bazelbuild/bazelisk/releases/download/v1.27.0/bazelisk-linux-amd64
           chmod +x bazelisk-linux-amd64
           sudo mv bazelisk-linux-amd64 /usr/local/bin/bazel
+
+      - name: Cache Bazel
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/bazel
+            ~/.cache/bazelisk
+          key: ${{ runner.os }}-bazel-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-bazel-
 
       - name: Build All Targets
         run: |
           bazel build //motorium/...
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    container: linuxmintd/mint22-amd64:latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache APT packages
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt
+          key: ${{ runner.os }}-apt-${{ hashFiles('dependencies.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-
+
+      - name: Install Base Dependencies
+        run: |
+          sudo apt-get update && sudo apt-get upgrade -y
+          sudo apt-get update && apt-get install -y --no-install-recommends \
+          curl gnupg2 lsb-release software-properties-common \
+          locales \
+          git \
+          wget
+
+      - name: Install Project Dependencies
+        run: |
+          sudo apt-get install -y --no-install-recommends $(cat dependencies.txt)
+
+      - name: Install Bazel (Bazelisk)
+        run: |
+          wget https://github.com/bazelbuild/bazelisk/releases/download/v1.27.0/bazelisk-linux-amd64
+          chmod +x bazelisk-linux-amd64
+          sudo mv bazelisk-linux-amd64 /usr/local/bin/bazel
+
+      - name: Restore Bazel Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/bazel
+            ~/.cache/bazelisk
+          key: ${{ runner.os }}-bazel-${{ github.sha }}
+          fail-on-cache-miss: true
 
       - name: Run Tests
         run: |

@@ -64,6 +64,58 @@ jobs:
           export PARALLEL_JOBS=1
           make build-all
 
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: colcon-build-${{ matrix.container }}
+          path: |
+            build/
+            install/
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      matrix:
+        container:
+          - "ros:jazzy"
+    container: ${{ matrix.container }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache APT packages
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt
+          key: ${{ runner.os }}-apt-${{ hashFiles('dependencies.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-
+
+      - name: Install Base Dependencies
+        run: |
+          sudo apt-get update && sudo apt-get upgrade -y
+          sudo apt-get update && apt-get install -y --no-install-recommends \
+          curl gnupg2 lsb-release software-properties-common \
+          locales \
+          git
+
+      - name: Install Project Dependencies
+        run: |
+          sudo apt-get install -y --no-install-recommends $(cat dependencies.txt)
+
+      - name: Initialize submodules
+        run: |
+          git config --global --add safe.directory $GITHUB_WORKSPACE
+          git submodule update --init --recursive
+
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: colcon-build-${{ matrix.container }}
+
       - name: Run Tests
         run: |
           make test-all
