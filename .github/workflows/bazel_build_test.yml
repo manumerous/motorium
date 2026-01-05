@@ -1,4 +1,4 @@
-name: Bazel Build
+name: Bazel
 
 on:
   push:

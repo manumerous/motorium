@@ -1,4 +1,4 @@
-name: Colcon Build
+name: Colcon
 
 on:
   push:
@@ -18,8 +18,9 @@ jobs:
     timeout-minutes: 180
     strategy:
       matrix:
-        container:
-          - "ros:jazzy"
+        include:
+          - container: "ros:jazzy"
+            name: "ros-jazzy"
     container: ${{ matrix.container }}
 
     steps:
@@ -67,7 +68,7 @@ jobs:
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: colcon-build-${{ matrix.container }}
+          name: colcon-build-${{ matrix.name }}
           path: |
             build/
             install/
@@ -78,8 +79,9 @@ jobs:
     timeout-minutes: 180
     strategy:
       matrix:
-        container:
-          - "ros:jazzy"
+        include:
+          - container: "ros:jazzy"
+            name: "ros-jazzy"
     container: ${{ matrix.container }}
 
     steps:
