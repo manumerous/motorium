@@ -79,6 +79,11 @@ if (BUILD_TESTING)
             ${PROJECT_NAME}
         )
 
+        ament_add_gtest(test_robot_state test/testRobotState.cpp)
+        target_link_libraries(test_robot_state
+            ${PROJECT_NAME}
+        )
+
 endif ()
 
 #############

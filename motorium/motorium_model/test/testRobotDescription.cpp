@@ -6,8 +6,7 @@
 #include <fstream>
 #include <sstream>
 
-namespace motorium::model {
-namespace testing {
+namespace motorium::model::testing {
 
 class RobotDescriptionTest : public ::testing::Test {
  protected:
@@ -198,8 +197,67 @@ TEST_F(RobotDescriptionTest, RobotDescriptionStreamOperator) {
   EXPECT_TRUE(output.find("wrist_joint") != std::string::npos);
 }
 
-}  // namespace testing
-}  // namespace motorium::model
+// Test constructor with vector of JointDescription
+TEST_F(RobotDescriptionTest, ConstructorWithVector) {
+  std::vector<JointDescription> jointDescs;
+
+  JointDescription j1;
+  j1.name = "joint1";
+  j1.position_bounds = Bounds(-1.0, 1.0);
+  j1.velocity_bounds = Bounds(-1.0, 1.0);
+  j1.torque_bounds = Bounds(-10.0, 10.0);
+  jointDescs.push_back(j1);
+
+  JointDescription j2;
+  j2.name = "joint2";
+  j2.position_bounds = Bounds(0.0, 0.5);
+  j2.velocity_bounds = Bounds(0.0, 0.5);
+  j2.torque_bounds = Bounds(0.0, 20.0);
+  jointDescs.push_back(j2);
+
+  RobotDescription robotDesc(jointDescs);
+
+  EXPECT_EQ(robotDesc.getNumJoints(), 2);
+  EXPECT_TRUE(robotDesc.containsJoint("joint1"));
+  EXPECT_TRUE(robotDesc.containsJoint("joint2"));
+  EXPECT_FALSE(robotDesc.containsJoint("joint3"));
+
+  EXPECT_EQ(robotDesc.getJointDescription("joint1").position_bounds.min, -1.0);
+}
+
+// Test getJointIndices with vector of names
+TEST_F(RobotDescriptionTest, GetJointIndicesVector) {
+  RobotDescription robotDesc(urdf_path_.string());
+
+  std::vector<std::string> names = {"shoulder_joint", "wrist_joint"};
+  std::vector<joint_index_t> indices = robotDesc.getJointIndices(names);
+
+  EXPECT_EQ(indices.size(), 2);
+  EXPECT_EQ(indices[0], robotDesc.getJointIndex("shoulder_joint"));
+  EXPECT_EQ(indices[1], robotDesc.getJointIndex("wrist_joint"));
+}
+
+// Test JointDescription validation
+TEST_F(RobotDescriptionTest, JointDescriptionValidation) {
+  JointDescription j;
+  j.name = "test";
+  j.position_bounds = Bounds(1.0, -1.0);  // Invalid: min > max
+
+  EXPECT_THROW(j.validate(), std::invalid_argument);
+
+  j.position_bounds = Bounds(-1.0, 1.0);  // Valid
+  j.velocity_bounds = Bounds(1.0, -1.0);  // Invalid
+  EXPECT_THROW(j.validate(), std::invalid_argument);
+
+  j.velocity_bounds = Bounds(-1.0, 1.0);  // Valid
+  j.torque_bounds = Bounds(1.0, -1.0);    // Invalid
+  EXPECT_THROW(j.validate(), std::invalid_argument);
+
+  j.torque_bounds = Bounds(-1.0, 1.0);  // Valid
+  j.validate();                         // Should not throw
+}
+
+}  // namespace motorium::model::testing
 
 // Main function that runs all tests
 int main(int argc, char** argv) {
