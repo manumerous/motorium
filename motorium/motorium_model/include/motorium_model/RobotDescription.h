@@ -58,7 +58,6 @@ class RobotDescription {
   const std::string getURDFName() const;
 
   joint_index_t getJointIndex(const std::string& joint_name) const { return joint_name_description_map_.at(joint_name).first; };
-  std::vector<joint_index_t> getJointIndices(const std::vector<std::string>& jointNames) const;
 
   std::string getJointName(joint_index_t jointIndex) const { return joint_names_.at(jointIndex); };
 

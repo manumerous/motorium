@@ -34,3 +34,12 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_test(
+    name = "test_robot_state",
+    srcs = ["test/testRobotState.cpp"],
+    deps = [
+        ":motorium_model",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
