@@ -12,8 +12,6 @@ class ControllerBase {
   explicit ControllerBase([[maybe_unused]] const model::RobotDescription& robotDescription){};
   virtual ~ControllerBase() = default;
 
-  virtual bool ready() const = 0;
-
   // Computes [commands] given [joints] states and configs.
   virtual void computeJointControlAction(scalar_t time, const model::RobotState& robotState, model::RobotJointAction& robotJointAction) = 0;
 };

@@ -96,6 +96,7 @@ RobotDescription::RobotDescription(const std::vector<JointDescription>& joint_de
 }
 
 bool RobotDescription::containsJoint(const std::string& jointName) const {
+ 
   return joint_name_description_map_.contains(jointName);
 }
 
@@ -104,7 +105,7 @@ std::vector<joint_index_t> RobotDescription::getJointIndices(std::span<const std
   indices.reserve(joint_names.size());
 
   for (const std::string& joint_name : joint_names) {
-    indices.push_back(joint_name_description_map_.at(joint_name).first);
+    indices.push_back(joint_name_description_map_.at(validateName(joint_name)).first);
   }
 
   return indices;

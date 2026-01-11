@@ -48,22 +48,32 @@ class RobotDescription {
   bool containsJoint(const std::string& jointName) const;
 
   const JointDescription& getJointDescription(const std::string& joint_name) const {
-    return joint_name_description_map_.at(joint_name).second;
+    return joint_name_description_map_.at(validateName(joint_name)).second;
   };
 
-  const JointDescription& getJointDescription(size_t joint_index) const { return getJointDescription(joint_names_.at(joint_index)); };
+  const JointDescription& getJointDescription(size_t joint_index) const { return getJointDescription(joint_names_.at(validateIndex(joint_index))); };
 
   size_t getNumJoints() const { return joint_name_description_map_.size(); }
   const std::string& getURDFPath() const { return urdf_path_; }
   const std::string getURDFName() const;
 
-  joint_index_t getJointIndex(const std::string& joint_name) const { return joint_name_description_map_.at(joint_name).first; };
+  joint_index_t getJointIndex(const std::string& joint_name) const { return joint_name_description_map_.at(validateName(joint_name)).first; };
 
-  std::string getJointName(joint_index_t jointIndex) const { return joint_names_.at(jointIndex); };
+  std::string getJointName(joint_index_t jointIndex) const { return joint_names_.at(validateIndex(jointIndex)); };
 
   friend std::ostream& operator<<(std::ostream& os, const RobotDescription& robot);
 
  private:
+
+ inline joint_index_t validateIndex(joint_index_t index) const {
+   MT_DCHECK(index < joint_indices_.size()) << "Joint index " << index << " out of bounds of RobotDescription.";
+   return index;
+ }
+
+ inline std::string validateName(const std::string& name) const {
+   MT_DCHECK(containsJoint(name)) << "Joint " << name << " not found in RobotDescription.";
+   return name;
+ }
   const std::string urdf_path_;
   absl::flat_hash_map<std::string, std::pair<joint_index_t, JointDescription>> joint_name_description_map_;
 
