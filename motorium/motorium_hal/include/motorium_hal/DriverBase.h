@@ -8,13 +8,13 @@ namespace motorium::hal {
 
 class DriverBase {
  public:
-  DriverBase([[maybe_unused]] const model::RobotDescription& robotDescription, const std::string& name) : name_(name){};
+  DriverBase([[maybe_unused]] const model::RobotDescription& robot_description, const std::string& name) : name_(name){};
 
   virtual void start() = 0;
 
   virtual void stop() = 0;
 
-  virtual void updateRobotState(model::RobotState& robotState) = 0;
+  virtual void updateRobotState(model::RobotState& robot_state) = 0;
 
   virtual void setJointAction(const model::RobotJointAction& action) = 0;
 

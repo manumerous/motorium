@@ -35,24 +35,24 @@ namespace motorium::mujoco {
 
 struct Metrics {
   /// FPS of Simulation::step
-  double fpsSim;
+  double fps_sim;
   /// Real time factor for current sim step: RTF = dt_sim / dt_real
-  double rtfTick;
+  double rtf_tick;
   /// Time drift per-tick.
-  double driftTick;
+  double drift_tick;
   /// Total time drift since starting the sim.
-  double driftCumulative;
+  double drift_cummulative;
 
   void reset() {
-    fpsSim = 0.0;
-    rtfTick = 0.0;
-    driftTick = 0.0;
-    driftCumulative = 0.0;
+    fps_sim = 0.0;
+    rtf_tick = 0.0;
+    drift_tick = 0.0;
+    drift_cummulative = 0.0;
   }
 };
 
 struct MjState {
-  explicit MjState(const mjModel* mujocoModel_);
+  explicit MjState(const mjModel* mj_model_);
 
   int64_t timestamp{0};
   mjData* data;

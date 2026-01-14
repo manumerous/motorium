@@ -17,7 +17,7 @@ struct JointAction {
 
 class RobotJointAction : public JointIdMap<JointAction> {
  public:
-  explicit RobotJointAction(const RobotDescription& robotDescription) : JointIdMap(robotDescription) {}
+  explicit RobotJointAction(const RobotDescription& robot_description) : JointIdMap(robot_description) {}
 };
 
 }  // namespace motorium::model

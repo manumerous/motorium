@@ -8,7 +8,7 @@ namespace motorium::model {
 struct JointState {
   scalar_t position = 0.0;
   scalar_t velocity = 0.0;
-  scalar_t measuredEffort = 0.0;
+  scalar_t measured_effort = 0.0;
 
   JointState() = default;
 };

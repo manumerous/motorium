@@ -9,11 +9,11 @@ namespace motorium::control {
 
 class ControllerBase {
  public:
-  explicit ControllerBase([[maybe_unused]] const model::RobotDescription& robotDescription){};
+  explicit ControllerBase([[maybe_unused]] const model::RobotDescription& robot_description){};
   virtual ~ControllerBase() = default;
 
   // Computes [commands] given [joints] states and configs.
-  virtual void computeJointControlAction(scalar_t time, const model::RobotState& robotState, model::RobotJointAction& robotJointAction) = 0;
+  virtual void computeJointControlAction(scalar_t time, const model::RobotState& robot_state, model::RobotJointAction& robot_joint_action) = 0;
 };
 
 }  // namespace motorium::control

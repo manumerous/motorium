@@ -11,7 +11,7 @@ namespace motorium::model {
 template <typename T>
 class JointIdMap : public FixedIDArray<T> {
  public:
-  explicit JointIdMap(const RobotDescription& robotDescription) : FixedIDArray<T>(robotDescription.getNumJoints()) {}
+  explicit JointIdMap(const RobotDescription& robot_description) : FixedIDArray<T>(robot_description.getNumJoints()) {}
 
   JointIdMap() = delete;
 
@@ -21,7 +21,6 @@ class JointIdMap : public FixedIDArray<T> {
     return this->toEigenVector(joint_ids, value_extractor, default_value);
   }
 
- private:
 };
 
 }  // namespace motorium::model

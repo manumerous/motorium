@@ -41,16 +41,18 @@ namespace motorium::hal {
 
 class RobotHardware {
  public:
-  RobotHardware(const std::string& urdfPath) : robotDescription_(urdfPath){};
+  RobotHardware(const std::string& urdfPath) : robot_description_(urdfPath){};
 
-  const model::RobotDescription& getRobotDescription() const { return robotDescription_; }
+  const model::RobotDescription& getRobotDescription() const { return robot_description_; }
+
+  const model::RobotDescription& getRobotDescription(){return robot_description_;}
 
   // Consider moving this to the constructor.
   void addDriver(std::shared_ptr<hal::DriverBase> driver) { drivers_.push_back(driver); }
 
-  void updateRobotState(model::RobotState& robotState) const {
+  void updateRobotState(model::RobotState& robot_state) const {
     for (const auto& driver : drivers_) {
-      driver->updateRobotState(robotState);
+      driver->updateRobotState(robot_state);
     }
   }
 
@@ -73,7 +75,7 @@ class RobotHardware {
   }
 
  private:
-  const model::RobotDescription robotDescription_;
+  const model::RobotDescription robot_description_;
   std::vector<std::shared_ptr<hal::DriverBase>> drivers_;
 };
 

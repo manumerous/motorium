@@ -4,8 +4,8 @@
 
 namespace motorium::control {
 
-ImplicitPDController::ImplicitPDController(const model::RobotDescription& robotDescription, const ImplicitPDControllerConfig& config)
-    : ControllerBase(robotDescription), config_(config), joint_indices_(robotDescription.getJointIndices(config_.joint_names)) {
+ImplicitPDController::ImplicitPDController(const model::RobotDescription& robot_description, const ImplicitPDControllerConfig& config)
+    : ControllerBase(robot_description), config_(config), joint_indices_(robot_description.getJointIndices(config_.joint_names)) {
   validateConfig();
 }
 
@@ -21,12 +21,12 @@ bool ImplicitPDController::validateConfig() const {
 }
 
 void ImplicitPDController::computeJointControlAction([[maybe_unused]] scalar_t time,
-                                                     [[maybe_unused]] const model::RobotState& robotState,
-                                                     model::RobotJointAction& robotJointAction) {
+                                                     [[maybe_unused]] const model::RobotState& robot_state,
+                                                     model::RobotJointAction& robot_joint_action) {
   for (size_t i = 0; i < joint_indices_.size(); ++i) {
     const auto joint_index = joint_indices_[i];
-    if (robotJointAction.contains(joint_index)) {
-      model::JointAction& action = robotJointAction[joint_index];
+    if (robot_joint_action.contains(joint_index)) {
+      model::JointAction& action = robot_joint_action[joint_index];
       // Use 'i' to index into the config arrays
       action.kp = config_.kp(i);
       action.kd = config_.kd(i);
