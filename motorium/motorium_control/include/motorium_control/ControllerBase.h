@@ -42,7 +42,9 @@ class ControllerBase {
   virtual ~ControllerBase() = default;
 
   // Computes [commands] given [joints] states and configs.
-  virtual void computeJointControlAction(scalar_t time, const model::RobotState& robot_state, model::RobotJointAction& robot_joint_action) = 0;
+  virtual void computeJointControlAction(scalar_t time,
+                                         const model::RobotState& robot_state,
+                                         model::RobotJointAction& robot_joint_action) = 0;
 };
 
 }  // namespace motorium::control

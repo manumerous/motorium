@@ -66,8 +66,6 @@ MujocoSimInterface::MujocoSimInterface(const MujocoSimConfig& config, const mode
 
   mj_contact_ = mj_data_->contact;
 
-
-
   // assert(num_active_joints_ == neo_definitions::FULL_NEO_JOINT_DIM);
 
   mj_model_->opt.timestep = config_.dt;
@@ -235,11 +233,10 @@ void MujocoSimInterface::printModelInfo() {
 
   // Print the information
   std::cerr << "Joint Name: " << jointName << std::endl;
-  std::cerr << "Position: " << mj_data_->qpos[0] << " " << mj_data_->qpos[1] << " " << mj_data_->qpos[2] << " "
-            << mj_data_->qpos[3] << " " << mj_data_->qpos[4] << " " << mj_data_->qpos[5] << " " << mj_data_->qpos[6]
-            << std::endl;
-  std::cerr << "Velocity: " << mj_data_->qvel[0] << " " << mj_data_->qvel[1] << " " << mj_data_->qvel[2] << " "
-            << mj_data_->qvel[3] << " " << mj_data_->qvel[4] << " " << mj_data_->qvel[5] << std::endl;
+  std::cerr << "Position: " << mj_data_->qpos[0] << " " << mj_data_->qpos[1] << " " << mj_data_->qpos[2] << " " << mj_data_->qpos[3] << " "
+            << mj_data_->qpos[4] << " " << mj_data_->qpos[5] << " " << mj_data_->qpos[6] << std::endl;
+  std::cerr << "Velocity: " << mj_data_->qvel[0] << " " << mj_data_->qvel[1] << " " << mj_data_->qvel[2] << " " << mj_data_->qvel[3] << " "
+            << mj_data_->qvel[4] << " " << mj_data_->qvel[5] << std::endl;
 
   // Print joint names, positions, and velocities
   for (int i = 1; i < mj_model_->njnt; ++i) {
@@ -325,8 +322,7 @@ void MujocoSimInterface::updateRobotState(model::RobotState& robot_state) {
   robot_state.setRootPositionInWorldFrame(vector3_t(mj_data_->qpos[0], mj_data_->qpos[1], mj_data_->qpos[2]));
   robot_state.setRootRotationLocalToWorldFrame(quat_l_to_w);
   // Rotate the angular velocity from world frame to local frame.
-  robot_state.setRootLinearVelocityInLocalFrame(quat_l_to_w.inverse() *
-                                               vector3_t(mj_data_->qvel[0], mj_data_->qvel[1], mj_data_->qvel[2]));
+  robot_state.setRootLinearVelocityInLocalFrame(quat_l_to_w.inverse() * vector3_t(mj_data_->qvel[0], mj_data_->qvel[1], mj_data_->qvel[2]));
   robot_state.setRootAngularVelocityInLocalFrame(pelvisAngularVelLocal);
   robot_state.setContactFlag(0, leftFootContact);
   robot_state.setContactFlag(1, rightFootContact);

@@ -130,7 +130,7 @@ class MujocoSimInterface : public hal::DriverBase {
   const bool verbose_;
 
   mutable std::mutex mj_mutex_;  // Used to access mujoco model and data
-                                    // accross simulation and render threads.
+                                 // accross simulation and render threads.
   std::jthread simulate_thread_;
   std::unique_ptr<MujocoRenderer> renderer_;
 

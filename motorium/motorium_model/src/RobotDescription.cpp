@@ -124,7 +124,6 @@ RobotDescription::RobotDescription(const std::vector<JointDescription>& joint_de
 }
 
 bool RobotDescription::containsJoint(const std::string& jointName) const {
- 
   return joint_name_description_map_.contains(jointName);
 }
 

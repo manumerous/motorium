@@ -49,7 +49,6 @@ class JointIdMap : public FixedIDArray<T> {
                     scalar_t default_value = std::numeric_limits<scalar_t>::quiet_NaN()) const {
     return this->toEigenVector(joint_ids, value_extractor, default_value);
   }
-
 };
 
 }  // namespace motorium::model
