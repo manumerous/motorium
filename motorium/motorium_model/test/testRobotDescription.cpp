@@ -150,8 +150,8 @@ TEST_F(RobotDescriptionTest, GetJointDescription) {
   EXPECT_EQ(elbowDesc.torque_bounds.max, 80.0);
   EXPECT_EQ(elbowDesc.velocity_bounds.max, 1.5);
 
-  // Test nonexistent joint should be result of MT_DCHECK
-  EXPECT_DEATH({ robotDesc.getJointDescription("nonexistent_joint"); }, "");
+  // Test nonexistent joint should throw
+  EXPECT_THROW({ robotDesc.getJointDescription("nonexistent_joint"); }, std::out_of_range);
 }
 
 // Test getJointIndex method
@@ -171,8 +171,8 @@ TEST_F(RobotDescriptionTest, GetJointIndex) {
   EXPECT_GE(shoulderIndex, 0);
   EXPECT_LT(shoulderIndex, 3);
 
-  // Test nonexistent joint should terminate
-  EXPECT_DEATH({ robotDesc.getJointIndex("nonexistent_joint"); }, "");
+  // Test nonexistent joint should throw
+  EXPECT_THROW({ robotDesc.getJointIndex("nonexistent_joint"); }, std::out_of_range);
 }
 
 // Test getJointName method
@@ -189,8 +189,8 @@ TEST_F(RobotDescriptionTest, GetJointName) {
   EXPECT_EQ(robotDesc.getJointName(elbowIndex), "elbow_joint");
   EXPECT_EQ(robotDesc.getJointName(wristIndex), "wrist_joint");
 
-  // Test invalid index should terminate
-  EXPECT_DEATH({ robotDesc.getJointName(999); }, "");
+  // Test invalid index should throw
+  EXPECT_THROW({ robotDesc.getJointName(999); }, std::out_of_range);
 }
 
 TEST_F(RobotDescriptionTest, JointDescriptionStreamOperator) {
