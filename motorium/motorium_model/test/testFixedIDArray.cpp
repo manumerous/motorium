@@ -28,6 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
 #include <gtest/gtest.h>
+#include <numeric>
 
 #include "motorium_model/FixedIDArray.h"
 
