@@ -18,6 +18,6 @@ cc_test(
     deps = [
         ":motorium_control",
         "//motorium/motorium_model",
-        "@com_google_googletest//:gtest_main",
+        "@googletest//:gtest_main",
     ],
 )

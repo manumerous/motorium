@@ -92,18 +92,22 @@ class RobotDescription {
     return joint_name_description_map_.at(validateName(joint_name)).first;
   };
 
-  std::string getJointName(joint_index_t jointIndex) const { return joint_names_.at(validateIndex(jointIndex)); };
+  const std::string& getJointName(joint_index_t jointIndex) const { return joint_names_.at(validateIndex(jointIndex)); };
 
   friend std::ostream& operator<<(std::ostream& os, const RobotDescription& robot);
 
  private:
   inline joint_index_t validateIndex(joint_index_t index) const {
-    MT_CHECK(index < joint_indices_.size()) << "Joint index " << index << " out of bounds of RobotDescription.";
+    if(index >= joint_indices_.size()) {
+       throw std::out_of_range("Joint index " + std::to_string(index) + " out of bounds of RobotDescription.");
+    }
     return index;
   }
 
   inline const std::string& validateName(const std::string& name) const {
-    MT_CHECK(containsJoint(name)) << "Joint " << name << " not found in RobotDescription.";
+    if (!containsJoint(name)) {
+      throw std::out_of_range("Joint " + name + " not found in RobotDescription.");
+    }
     return name;
   }
   const std::string urdf_path_;

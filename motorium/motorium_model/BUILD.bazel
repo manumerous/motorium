@@ -22,7 +22,7 @@ cc_test(
     srcs = ["test/testRobotDescription.cpp"],
     deps = [
         ":motorium_model",
-        "@com_google_googletest//:gtest_main",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -31,7 +31,7 @@ cc_test(
     srcs = ["test/testFixedIDArray.cpp"],
     deps = [
         ":motorium_model",
-        "@com_google_googletest//:gtest_main",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -40,6 +40,6 @@ cc_test(
     srcs = ["test/testRobotState.cpp"],
     deps = [
         ":motorium_model",
-        "@com_google_googletest//:gtest_main",
+        "@googletest//:gtest_main",
     ],
 )
