@@ -29,26 +29,30 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include <motorium_model/FixedIDArray.h>
-#include <motorium_model/RobotDescription.h>
+#include <motorium_control/ControllerBase.h>
+#include <motorium_core/Check.h>
+#include <motorium_core/Types.h>
 
-#include <functional>
-#include <vector>
+namespace motorium::control {
 
-namespace motorium::model {
-
-template <typename T>
-class JointIdMap : public FixedIDArray<T> {
- public:
-  explicit JointIdMap(const RobotDescription& robot_description) : FixedIDArray<T>(robot_description.getNumJoints()) {}
-
-  JointIdMap() = delete;
-
-  vector_t toVector(std::span<const joint_index_t> joint_ids,
-                    IDMapExtractor<T, scalar_t> auto value_extractor,
-                    scalar_t default_value = std::numeric_limits<scalar_t>::quiet_NaN()) const {
-    return this->toEigenVector(joint_ids, value_extractor, default_value);
-  }
+struct ImplicitPDControllerConfig {
+  std::vector<std::string> joint_names;
+  vector_t kp;
+  vector_t kd;
 };
 
-}  // namespace motorium::model
+class ImplicitPDController : public ControllerBase {
+ public:
+  ImplicitPDController(const model::RobotDescription& robot_description, const ImplicitPDControllerConfig& config);
+  ~ImplicitPDController() override = default;
+
+  void validateConfig() const;
+
+  void computeJointControlAction(scalar_t time, const model::RobotState& robot_state, model::RobotJointAction& robot_joint_action) override;
+
+ private:
+  ImplicitPDControllerConfig config_;
+  std::vector<joint_index_t> joint_indices_;
+};
+
+}  // namespace motorium::control

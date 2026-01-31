@@ -27,38 +27,39 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
-#pragma once
-
-#include <algorithm>
-#include <limits>
-#include <ostream>
+#include <motorium_control/ImplicitPDController.h>
 
 #include <motorium_core/Check.h>
-#include <motorium_core/Types.h>
 
-namespace motorium {
+namespace motorium::control {
 
-struct Bounds {
-  Bounds(scalar_t minimum, scalar_t maximum) : min(minimum), max(maximum){};
-  Bounds() : min(-std::numeric_limits<scalar_t>::infinity()), max(std::numeric_limits<scalar_t>::infinity()) {
-    MT_CHECK(min <= max) << "Invalid Bounds initialization: min > max";
-  };
-  scalar_t min;
-  scalar_t max;
-
-  scalar_t clamp(scalar_t val) const { return std::clamp(val, min, max); }
-  scalar_t violation(scalar_t val) const {
-    if (val > max) return val - max;
-    if (val < min) return val - min;
-    return 0;
-  }
-
-  friend std::ostream& operator<<(std::ostream& os, const Bounds& bounds);
-};
-
-inline std::ostream& operator<<(std::ostream& os, const Bounds& bounds) {
-  os << "Bounds { " << "min: " << bounds.min << ", max: " << bounds.max << " }";
-  return os;
+ImplicitPDController::ImplicitPDController(const model::RobotDescription& robot_description, const ImplicitPDControllerConfig& config)
+    : ControllerBase(robot_description), config_(config), joint_indices_(robot_description.getJointIndices(config_.joint_names)) {
+  validateConfig();
 }
 
-}  // namespace motorium
+void ImplicitPDController::validateConfig() const {
+  MT_CHECK(!config_.joint_names.empty()) << "[ImplicitPDController] Configuration error: Joint names list is empty.";
+  // vector_t::size() returns Eigen::Index (long). std::vector::size() returns size_t (ulong).
+  // Cast to compare safe.
+  MT_CHECK(static_cast<long>(config_.joint_names.size()) == config_.kp.size())
+      << "[ImplicitPDController] Configuration error: Size mismatch between joint_names and kp.";
+  MT_CHECK(static_cast<long>(config_.joint_names.size()) == config_.kd.size())
+      << "[ImplicitPDController] Configuration error: Size mismatch between joint_names and kd.";
+}
+
+void ImplicitPDController::computeJointControlAction([[maybe_unused]] scalar_t time,
+                                                     [[maybe_unused]] const model::RobotState& robot_state,
+                                                     model::RobotJointAction& robot_joint_action) {
+  for (size_t i = 0; i < joint_indices_.size(); ++i) {
+    const auto joint_index = joint_indices_[i];
+    if (robot_joint_action.contains(joint_index)) {
+      model::JointAction& action = robot_joint_action[joint_index];
+      // Use 'i' to index into the config arrays
+      action.kp = config_.kp(i);
+      action.kd = config_.kd(i);
+    }
+  }
+}
+
+}  // namespace motorium::control

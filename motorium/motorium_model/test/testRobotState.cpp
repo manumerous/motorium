@@ -1,9 +1,37 @@
+/******************************************************************************
+Copyright (c) 2025, Manuel Yves Galliker. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+* Neither the name of the copyright holder nor the names of its
+  contributors may be used to endorse or promote products derived from
+  this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+******************************************************************************/
+
 #include <gtest/gtest.h>
 #include <motorium_model/RobotState.h>
 
 #include <filesystem>
 #include <fstream>
-#include <vector>
 
 namespace motorium::model {
 namespace testing {
@@ -54,7 +82,7 @@ TEST_F(RobotStateTest, ConstructorAndInitialization) {
   EXPECT_DOUBLE_EQ(state.getTime(), 0.0);
 
   // Check contact flags default (size 1, true)
-  EXPECT_EQ(state.getContactFlags().size(), 1);
+  EXPECT_EQ(state.getContactFlags().size(), 1u);
   EXPECT_TRUE(state.getContactFlag(0));
 
   // Check root state is zero/identity
@@ -131,13 +159,13 @@ TEST_F(RobotStateTest, JointStateAccessors) {
   JointState js;
   js.position = 0.8;
   js.velocity = 0.2;
-  js.measuredEffort = 5.0;
+  js.measured_effort = 5.0;
   state.setJointState(joint2_idx, js);
 
   auto ret_js = state.getJointState(joint2_idx);
   EXPECT_DOUBLE_EQ(ret_js.position, 0.8);
   EXPECT_DOUBLE_EQ(ret_js.velocity, 0.2);
-  EXPECT_DOUBLE_EQ(ret_js.measuredEffort, 5.0);
+  EXPECT_DOUBLE_EQ(ret_js.measured_effort, 5.0);
 }
 
 TEST_F(RobotStateTest, VectorAccessors) {
@@ -154,12 +182,12 @@ TEST_F(RobotStateTest, VectorAccessors) {
   std::vector<joint_index_t> ids = {joint1_idx, joint2_idx};
 
   vector_t positions = state.getJointPositions(ids);
-  EXPECT_EQ(positions.size(), 2);
+  EXPECT_EQ(positions.size(), 2u);
   EXPECT_DOUBLE_EQ(positions[0], 0.5);
   EXPECT_DOUBLE_EQ(positions[1], 0.25);
 
   vector_t velocities = state.getJointVelocities(ids);
-  EXPECT_EQ(velocities.size(), 2);
+  EXPECT_EQ(velocities.size(), 2u);
   EXPECT_DOUBLE_EQ(velocities[0], 1.0);
   EXPECT_DOUBLE_EQ(velocities[1], 0.5);
 }
@@ -167,7 +195,7 @@ TEST_F(RobotStateTest, VectorAccessors) {
 TEST_F(RobotStateTest, ContactFlags) {
   RobotState state(*robot_desc_, 2);  // 2 contacts
 
-  EXPECT_EQ(state.getContactFlags().size(), 2);
+  EXPECT_EQ(state.getContactFlags().size(), 2u);
   EXPECT_TRUE(state.getContactFlag(0));
   EXPECT_TRUE(state.getContactFlag(1));
 

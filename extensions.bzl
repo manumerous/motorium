@@ -7,7 +7,8 @@ def _non_module_deps_impl(ctx):
         urls = ["https://github.com/google-deepmind/mujoco/releases/download/3.3.4/mujoco-3.3.4-linux-x86_64.tar.gz"],
         sha256 = "ecf1a17459a342badf2b4f32dd4677a6a0e5fd393c5143993eb3e81b8e44609b",
         strip_prefix = "mujoco-3.3.4",
-        build_file_content = """
+        build_file_content = """load("@rules_cc//cc:defs.bzl", "cc_library")
+
 package(default_visibility = ["//visibility:public"])
 cc_library(
     name = "mujoco",
