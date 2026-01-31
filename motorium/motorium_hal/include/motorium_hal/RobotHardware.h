@@ -45,8 +45,6 @@ class RobotHardware {
 
   const model::RobotDescription& getRobotDescription() const { return robot_description_; }
 
-  const model::RobotDescription& getRobotDescription() { return robot_description_; }
-
   // Consider moving this to the constructor.
   void addDriver(std::shared_ptr<hal::DriverBase> driver) { drivers_.push_back(driver); }
 

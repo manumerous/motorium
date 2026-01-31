@@ -41,18 +41,18 @@ struct Metrics {
   /// Time drift per-tick.
   double drift_tick;
   /// Total time drift since starting the sim.
-  double drift_cummulative;
+  double drift_cumulative;
 
   void reset() {
     fps_sim = 0.0;
     rtf_tick = 0.0;
     drift_tick = 0.0;
-    drift_cummulative = 0.0;
+    drift_cumulative = 0.0;
   }
 };
 
 struct MjState {
-  explicit MjState(const mjModel* mj_model_);
+  explicit MjState(const mjModel* mj_model);
 
   int64_t timestamp{0};
   mjData* data;

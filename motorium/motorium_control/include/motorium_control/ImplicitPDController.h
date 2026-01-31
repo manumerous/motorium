@@ -46,7 +46,7 @@ class ImplicitPDController : public ControllerBase {
   ImplicitPDController(const model::RobotDescription& robot_description, const ImplicitPDControllerConfig& config);
   ~ImplicitPDController() override = default;
 
-  bool validateConfig() const;
+  void validateConfig() const;
 
   void computeJointControlAction(scalar_t time, const model::RobotState& robot_state, model::RobotJointAction& robot_joint_action) override;
 

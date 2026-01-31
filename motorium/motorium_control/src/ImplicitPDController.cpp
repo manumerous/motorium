@@ -38,7 +38,7 @@ ImplicitPDController::ImplicitPDController(const model::RobotDescription& robot_
   validateConfig();
 }
 
-bool ImplicitPDController::validateConfig() const {
+void ImplicitPDController::validateConfig() const {
   MT_CHECK(!config_.joint_names.empty()) << "[ImplicitPDController] Configuration error: Joint names list is empty.";
   // vector_t::size() returns Eigen::Index (long). std::vector::size() returns size_t (ulong).
   // Cast to compare safe.
@@ -46,7 +46,6 @@ bool ImplicitPDController::validateConfig() const {
       << "[ImplicitPDController] Configuration error: Size mismatch between joint_names and kp.";
   MT_CHECK(static_cast<long>(config_.joint_names.size()) == config_.kd.size())
       << "[ImplicitPDController] Configuration error: Size mismatch between joint_names and kd.";
-  return true;
 }
 
 void ImplicitPDController::computeJointControlAction([[maybe_unused]] scalar_t time,

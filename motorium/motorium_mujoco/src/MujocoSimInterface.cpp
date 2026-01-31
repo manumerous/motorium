@@ -35,7 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace motorium::mujoco {
 
-MjState::MjState(const mjModel* mj_model_) : data(mj_makeData(mj_model_)) {}
+MjState::MjState(const mjModel* mj_model) : data(mj_makeData(mj_model)) {}
 
 /******************************************************************************************************/
 /******************************************************************************************************/
@@ -344,7 +344,7 @@ void MujocoSimInterface::updateMetrics() {
   last_realtime_ = nowRealTime;
 
   metrics_.drift_tick = config_.dt - realElapsedTime;
-  metrics_.drift_cummulative += metrics_.drift_tick;
+  metrics_.drift_cumulative += metrics_.drift_tick;
 
   metrics_.rtf_tick = config_.dt / realElapsedTime;
 }

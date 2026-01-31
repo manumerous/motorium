@@ -98,12 +98,12 @@ class RobotDescription {
 
  private:
   inline joint_index_t validateIndex(joint_index_t index) const {
-    MT_DCHECK(index < joint_indices_.size()) << "Joint index " << index << " out of bounds of RobotDescription.";
+    MT_CHECK(index < joint_indices_.size()) << "Joint index " << index << " out of bounds of RobotDescription.";
     return index;
   }
 
-  inline std::string validateName(const std::string& name) const {
-    MT_DCHECK(containsJoint(name)) << "Joint " << name << " not found in RobotDescription.";
+  inline const std::string& validateName(const std::string& name) const {
+    MT_CHECK(containsJoint(name)) << "Joint " << name << " not found in RobotDescription.";
     return name;
   }
   const std::string urdf_path_;
