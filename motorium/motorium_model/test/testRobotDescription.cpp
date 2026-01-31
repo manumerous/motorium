@@ -97,7 +97,7 @@ TEST_F(RobotDescriptionTest, Constructor) {
   RobotDescription robotDesc(urdf_path_.string());
   EXPECT_EQ(robotDesc.getURDFPath(), urdf_path_.string());
   EXPECT_EQ(robotDesc.getNumJoints(),
-            3);  // Should only count the revolute joints
+            3u);  // Should only count the revolute joints
 }
 
 // Test constructor with non-existent URDF
@@ -246,7 +246,7 @@ TEST_F(RobotDescriptionTest, ConstructorWithVector) {
 
   RobotDescription robotDesc(jointDescs);
 
-  EXPECT_EQ(robotDesc.getNumJoints(), 2);
+  EXPECT_EQ(robotDesc.getNumJoints(), 2u);
   EXPECT_TRUE(robotDesc.containsJoint("joint1"));
   EXPECT_TRUE(robotDesc.containsJoint("joint2"));
   EXPECT_FALSE(robotDesc.containsJoint("joint3"));
@@ -261,7 +261,7 @@ TEST_F(RobotDescriptionTest, GetJointIndicesVector) {
   std::vector<std::string> names = {"shoulder_joint", "wrist_joint"};
   std::vector<joint_index_t> indices = robotDesc.getJointIndices(names);
 
-  EXPECT_EQ(indices.size(), 2);
+  EXPECT_EQ(indices.size(), 2u);
   EXPECT_EQ(indices[0], robotDesc.getJointIndex("shoulder_joint"));
   EXPECT_EQ(indices[1], robotDesc.getJointIndex("wrist_joint"));
 }

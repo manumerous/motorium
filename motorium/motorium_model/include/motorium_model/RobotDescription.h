@@ -98,8 +98,8 @@ class RobotDescription {
 
  private:
   inline joint_index_t validateIndex(joint_index_t index) const {
-    if(index >= joint_indices_.size()) {
-       throw std::out_of_range("Joint index " + std::to_string(index) + " out of bounds of RobotDescription.");
+    if (index >= joint_indices_.size()) {
+      throw std::out_of_range("Joint index " + std::to_string(index) + " out of bounds of RobotDescription.");
     }
     return index;
   }

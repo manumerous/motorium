@@ -48,7 +48,7 @@ class FixedIDArrayTest : public ::testing::Test {};
 
 TEST_F(FixedIDArrayTest, InitializationCalculatesSizeCorrectly) {
   FixedIDArray<int> array(10);
-  EXPECT_EQ(array.size(), 10);
+  EXPECT_EQ(array.size(), 10u);
 }
 
 TEST_F(FixedIDArrayTest, InitializationFailsForZeroSize) {

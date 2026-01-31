@@ -82,7 +82,7 @@ TEST_F(RobotStateTest, ConstructorAndInitialization) {
   EXPECT_DOUBLE_EQ(state.getTime(), 0.0);
 
   // Check contact flags default (size 1, true)
-  EXPECT_EQ(state.getContactFlags().size(), 1);
+  EXPECT_EQ(state.getContactFlags().size(), 1u);
   EXPECT_TRUE(state.getContactFlag(0));
 
   // Check root state is zero/identity
@@ -182,12 +182,12 @@ TEST_F(RobotStateTest, VectorAccessors) {
   std::vector<joint_index_t> ids = {joint1_idx, joint2_idx};
 
   vector_t positions = state.getJointPositions(ids);
-  EXPECT_EQ(positions.size(), 2);
+  EXPECT_EQ(positions.size(), 2u);
   EXPECT_DOUBLE_EQ(positions[0], 0.5);
   EXPECT_DOUBLE_EQ(positions[1], 0.25);
 
   vector_t velocities = state.getJointVelocities(ids);
-  EXPECT_EQ(velocities.size(), 2);
+  EXPECT_EQ(velocities.size(), 2u);
   EXPECT_DOUBLE_EQ(velocities[0], 1.0);
   EXPECT_DOUBLE_EQ(velocities[1], 0.5);
 }
@@ -195,7 +195,7 @@ TEST_F(RobotStateTest, VectorAccessors) {
 TEST_F(RobotStateTest, ContactFlags) {
   RobotState state(*robot_desc_, 2);  // 2 contacts
 
-  EXPECT_EQ(state.getContactFlags().size(), 2);
+  EXPECT_EQ(state.getContactFlags().size(), 2u);
   EXPECT_TRUE(state.getContactFlag(0));
   EXPECT_TRUE(state.getContactFlag(1));
 
