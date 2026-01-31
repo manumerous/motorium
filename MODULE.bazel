@@ -6,9 +6,42 @@ module(
 bazel_dep(name = "rules_cc", version = "0.2.16")
 bazel_dep(name = "eigen", version = "3.4.0.bcr.3")
 bazel_dep(name = "abseil-cpp", version = "20250814.1", repo_name = "com_google_absl")
-bazel_dep(name = "googletest", version = "1.17.0")
-bazel_dep(name = "glfw", version = "3.3.9")
+bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
+bazel_dep(name = "glfw", version = "3.4.0.bcr.1")
 bazel_dep(name = "glew", version = "2.2.0")
+
+# Override glew to add required load() statements for Bazel 7+
+archive_override(
+    module_name = "glew",
+    urls = ["https://github.com/nigels-com/glew/releases/download/glew-2.2.0/glew-2.2.0.zip"],
+    integrity = "sha256-qQRqkTd0OVoJXtzAsKwtgcOqzKYXh7OYOblB6b4U4NQ=",
+    strip_prefix = "glew-2.2.0",
+    build_file_content = """
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_binary")
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "glew_static",
+    srcs = ["src/glew.c"],
+    hdrs = glob(["include/GL/*.h"]),
+    defines = ["GLEW_STATIC"],
+    strip_include_prefix = "include",
+)
+
+cc_binary(
+    name = "glewinfo",
+    srcs = ["src/glewinfo.c"],
+    linkopts = select({
+        "@platforms//os:windows": ["-DEFAULTLIB:opengl32.lib", "-DEFAULTLIB:User32.lib", "-DEFAULTLIB:Gdi32.lib"],
+        "@platforms//os:macos": ["-Wl,-framework,OpenGL"],
+        "//conditions:default": ["-lGL", "-lX11"],
+    }),
+    deps = [":glew_static"],
+)
+""",
+    patches = ["//patches:glew_module.patch"],
+    patch_strip = 1,
+)
 
 non_module_deps = use_extension("//:extensions.bzl", "non_module_deps")
 use_repo(non_module_deps, "mujoco")
