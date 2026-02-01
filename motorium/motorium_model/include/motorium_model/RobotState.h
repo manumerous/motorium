@@ -80,15 +80,15 @@ class RobotState {
   void setRootLinearVelocityInLocalFrame(const vector3_t& linear_velocity) { root_state_.linear_velocity_ = linear_velocity; }
   void setRootAngularVelocityInLocalFrame(const vector3_t& angular_velocity) { root_state_.angular_velocity_ = angular_velocity; }
 
-  void setJointPosition(size_t joint_id, scalar_t joint_position) { joint_state_map_.at(joint_id).q = joint_position; }
+  void setJointPosition(size_t joint_id, scalar_t q) { joint_state_map_.at(joint_id).q = q; }
 
   scalar_t getJointPosition(size_t joint_id) const { return joint_state_map_.at(joint_id).q; }
 
-  void setJointVelocity(size_t joint_id, scalar_t jointVelocity) { joint_state_map_.at(joint_id).v = jointVelocity; }
+  void setJointVelocity(size_t joint_id, scalar_t v) { joint_state_map_.at(joint_id).v = v; }
 
   scalar_t getJointVelocity(size_t joint_id) const { return joint_state_map_.at(joint_id).v; }
 
-  void setJointEffort(size_t joint_id, scalar_t jointEffort) { joint_state_map_.at(joint_id).effort = jointEffort; }
+  void setJointEffort(size_t joint_id, scalar_t effort) { joint_state_map_.at(joint_id).effort = effort; }
 
   scalar_t getJointEffort(size_t joint_id) const { return joint_state_map_.at(joint_id).effort; }
 
