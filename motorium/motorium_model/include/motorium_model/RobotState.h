@@ -35,8 +35,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace motorium::model {
 
 struct JointState {
-  scalar_t position = 0.0;
-  scalar_t velocity = 0.0;
+  scalar_t q = 0.0;
+  scalar_t v = 0.0;
   scalar_t effort = 0.0;
 
   JointState() = default;
@@ -80,28 +80,32 @@ class RobotState {
   void setRootLinearVelocityInLocalFrame(const vector3_t& linear_velocity) { root_state_.linear_velocity_ = linear_velocity; }
   void setRootAngularVelocityInLocalFrame(const vector3_t& angular_velocity) { root_state_.angular_velocity_ = angular_velocity; }
 
-  void setJointPosition(size_t joint_id, scalar_t joint_position) { joint_state_map_.at(joint_id).position = joint_position; }
+  void setJointPosition(size_t joint_id, scalar_t joint_position) { joint_state_map_.at(joint_id).q = joint_position; }
 
-  scalar_t getJointPosition(size_t joint_id) const { return joint_state_map_.at(joint_id).position; }
+  scalar_t getJointPosition(size_t joint_id) const { return joint_state_map_.at(joint_id).q; }
 
-  void setJointVelocity(size_t joint_id, scalar_t jointVelocity) { joint_state_map_.at(joint_id).velocity = jointVelocity; }
+  void setJointVelocity(size_t joint_id, scalar_t jointVelocity) { joint_state_map_.at(joint_id).v = jointVelocity; }
 
-  scalar_t getJointVelocity(size_t joint_id) const { return joint_state_map_.at(joint_id).velocity; }
+  scalar_t getJointVelocity(size_t joint_id) const { return joint_state_map_.at(joint_id).v; }
+
+  void setJointEffort(size_t joint_id, scalar_t jointEffort) { joint_state_map_.at(joint_id).effort = jointEffort; }
+
+  scalar_t getJointEffort(size_t joint_id) const { return joint_state_map_.at(joint_id).effort; }
 
   //  Get a vector_t of joint positions given a vector of joint IDs
 
   vector_t getJointPositions(std::vector<joint_index_t> joint_ids) const {
-    return joint_state_map_.toVector(joint_ids, [](const JointState& js) { return js.position; });
+    return joint_state_map_.toVector(joint_ids, [](const JointState& js) { return js.q; });
   }
 
   //  Get a vector_t of joint velocities given a vector of joint IDs
   vector_t getJointVelocities(std::vector<joint_index_t> joint_ids) const {
-    return joint_state_map_.toVector(joint_ids, [](const JointState& js) { return js.velocity; });
+    return joint_state_map_.toVector(joint_ids, [](const JointState& js) { return js.v; });
   }
 
   void setJointState(size_t joint_id, const JointState& joint_state) { joint_state_map_.at(joint_id) = joint_state; }
 
-  JointState getJointState(size_t joint_id) const { return joint_state_map_.at(joint_id); }
+  const JointState& getJointState(size_t joint_id) const { return joint_state_map_.at(joint_id); }
 
   bool getContactFlag(size_t index) const { return contact_flags_.at(index); }
 

@@ -105,7 +105,7 @@ TEST_F(ImplicitPDControllerTest, ComputeAction) {
   RobotState state(*robot_description_);
   RobotJointFeedbackAction action(*robot_description_);
 
-  controller.computeJointControlAction(0.0, state, action);
+  controller.computeJointControlAction(0.0, state, state, action);
 
   // Check joint1
   joint_index_t idx1 = robot_description_->getJointIndex("joint1");
@@ -140,7 +140,7 @@ TEST_F(ImplicitPDControllerTest, PartialControl) {
   action[idx1].kp = 0.0;
   action[idx2].kp = 0.0;
 
-  controller.computeJointControlAction(0.0, state, action);
+  controller.computeJointControlAction(0.0, state, state, action);
 
   EXPECT_DOUBLE_EQ(action[idx1].kp, 0.0);  // Should be untouched
   EXPECT_DOUBLE_EQ(action[idx2].kp, 5.0);

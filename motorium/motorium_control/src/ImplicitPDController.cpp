@@ -49,13 +49,17 @@ void ImplicitPDController::validateConfig() const {
 }
 
 void ImplicitPDController::computeJointControlAction([[maybe_unused]] scalar_t time,
-                                                     [[maybe_unused]] const model::RobotState& robot_state,
-                                                     model::RobotJointFeedbackAction& robot_joint_action) {
+                                                     const model::RobotState& current_state,
+                                                     const model::RobotState& desired_state,
+                                                     model::RobotJointFeedbackAction& joint_action) {
   for (size_t i = 0; i < joint_indices_.size(); ++i) {
     const auto joint_index = joint_indices_[i];
-    if (robot_joint_action.contains(joint_index)) {
-      model::JointFeedbackAction& action = robot_joint_action[joint_index];
-      // Use 'i' to index into the config arrays
+    if (joint_action.contains(joint_index)) {
+      model::JointFeedbackAction& action = joint_action[joint_index];
+      const model::JointState& desired = desired_state.getJointState(joint_index);
+      action.q_des = desired.q;
+      action.v_des = desired.v;
+      action.feed_forward_effort = desired.effort;
       action.kp = config_.kp(i);
       action.kd = config_.kd(i);
     }

@@ -36,12 +36,12 @@ namespace motorium::model {
 
 struct JointFeedbackAction {
   scalar_t q_des = 0;
-  scalar_t qd_des = 0;
+  scalar_t v_des = 0;
   scalar_t kp = 0;
   scalar_t kd = 0;
   scalar_t feed_forward_effort = 0;
 
-  scalar_t getTotalFeedbackTorque(scalar_t q, scalar_t qd) const { return (kp * (q_des - q) + kd * (qd_des - qd) + feed_forward_effort); }
+  scalar_t getTotalFeedbackTorque(scalar_t q, scalar_t qd) const { return (kp * (q_des - q) + kd * (v_des - qd) + feed_forward_effort); }
 };
 
 class RobotJointFeedbackAction : public JointIdMap<JointFeedbackAction> {
