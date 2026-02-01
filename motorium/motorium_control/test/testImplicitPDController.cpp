@@ -87,7 +87,7 @@ TEST_F(ImplicitPDControllerTest, InitializationMissingJoint) {
   config.kp = kp;
   config.kd = kd;
 
-  EXPECT_DEATH(ImplicitPDController(*robot_description_, config), "not found in RobotDescription");
+  EXPECT_THROW(ImplicitPDController(*robot_description_, config), std::out_of_range);
 }
 
 TEST_F(ImplicitPDControllerTest, ComputeAction) {
