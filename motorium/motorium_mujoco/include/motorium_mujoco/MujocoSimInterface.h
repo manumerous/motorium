@@ -64,7 +64,7 @@ struct MujocoSimConfig {
 
 class MujocoSimInterface : public hal::DriverBase {
  public:
-  MujocoSimInterface(const MujocoSimConfig& config, const model::RobotDescription& robotDescription);
+  MujocoSimInterface(const MujocoSimConfig& config, const model::RobotDescription& robot_description);
 
   /** Destructor */
   ~MujocoSimInterface();
@@ -75,7 +75,7 @@ class MujocoSimInterface : public hal::DriverBase {
 
   void stop() override;
 
-  void updateRobotState(model::RobotState& robotState) override;
+  void updateRobotState(model::RobotState& robot_state) override;
 
   void setJointAction(const model::RobotJointAction& action) override;
 
@@ -88,14 +88,14 @@ class MujocoSimInterface : public hal::DriverBase {
   // frequency.
   void copyMjState(MjState& state) const;
 
-  const mjModel* getModel() const { return mujocoModel_; }
+  const mjModel* getModel() const { return mj_model_; }
 
   const MujocoSimConfig& getConfig() const { return config_; }
 
  private:
-  void setupJointIndexMaps(const model::RobotDescription& robotDescription);
+  void setupJointIndexMaps(const model::RobotDescription& robot_description);
 
-  void setSimState(const model::RobotState& robotState);
+  void setSimState(const model::RobotState& robot_state);
 
   void updateThreadSafeRobotState();
 
@@ -109,35 +109,33 @@ class MujocoSimInterface : public hal::DriverBase {
 
   mjtNum* qpos_init_;  // position                                         (nq x 1)
   mjtNum* qvel_init_;
-  model::RobotJointAction actionInternal_;
-  mutable std::mutex actionMutex_;
+  model::RobotJointAction action_internal_;
+  mutable std::mutex action_mutex_;
 
-  size_t timeStepMicro_;
-  double simStart_;
-  size_t nActiveJoints_;
-  size_t nActuators_;
-  std::vector<std::string> activeMuJoCoJointNames_;
-  std::vector<std::string> activeMuJoCoActuatorNames_;
-  std::vector<joint_index_t> activeRobotJointStateIndices_;
-  std::vector<joint_index_t> activeRobotActuatorIndices_;
+  size_t time_step_micro_;
+  size_t num_active_joints_;
+  size_t num_actuators_;
+  std::vector<std::string> active_joint_names_;
+  std::vector<std::string> active_actuator_names_;
+  std::vector<joint_index_t> active_robot_joint_indices_;
+  std::vector<joint_index_t> active_robot_actuator_indices_;
 
-  mjModel* mujocoModel_ = NULL;
-  mjData* mujocoData_ = NULL;
-  mjContact* mujocoContact_ = NULL;
+  mjModel* mj_model_ = NULL;
+  mjData* mj_data_ = NULL;
+  mjContact* mj_contact_ = NULL;
   // mjfSensor mujocoSenor_;
 
-  bool simInit_;
+  bool sim_initialized_;
   const bool headless_;
   const bool verbose_;
-  std::atomic<bool> guiInitialized_{false};
 
-  mutable std::mutex mujocoMutex_;  // Used to access mujoco model and data
-                                    // accross simulation and render threads.
+  mutable std::mutex mj_mutex_;  // Used to access mujoco model and data
+                                 // accross simulation and render threads.
   std::jthread simulate_thread_;
   std::unique_ptr<MujocoRenderer> renderer_;
 
   FPSTracker simFps_{"mujoco_sim"};
-  std::chrono::high_resolution_clock::time_point lastRealTime_;
+  std::chrono::high_resolution_clock::time_point last_realtime_;
   Metrics metrics_{};
 
   size_t right_foot_sensor_addr_;

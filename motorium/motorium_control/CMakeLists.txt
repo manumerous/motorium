@@ -10,6 +10,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(ament_cmake REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(motorium_model REQUIRED)
+find_package(absl CONFIG REQUIRED)
 
 find_package(GTest REQUIRED)
 
@@ -28,7 +29,43 @@ set(dependencies
         ament_cmake
         ament_index_cpp
         motorium_model
+        absl
 )
+
+#############
+## Library ##
+#############
+
+add_library(${PROJECT_NAME}
+        src/ImplicitPDController.cpp
+)
+ament_target_dependencies(${PROJECT_NAME}
+        ${dependencies}
+)
+target_link_libraries(${PROJECT_NAME}
+        absl::flat_hash_map
+        absl::log
+        absl::check
+)
+target_include_directories(${PROJECT_NAME}
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+)
+
+# ############
+# # Testing ##
+# ############
+
+if (BUILD_TESTING)
+        find_package(ament_cmake_gtest REQUIRED)
+
+        ament_add_gtest(test_implicit_pd_controller test/testImplicitPDController.cpp)
+        target_link_libraries(test_implicit_pd_controller
+                ${PROJECT_NAME}
+        )
+
+endif ()
 
 #############
 ## Install ##

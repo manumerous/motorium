@@ -55,17 +55,17 @@ void MujocoRenderer::keyboard(GLFWwindow* window, int key, int, int act, int mod
 
   // 'c' key: toggle contact point visualization
   if (act == GLFW_PRESS && key == GLFW_KEY_C) {
-    renderer->mujocoOptions_.flags[mjVIS_CONTACTPOINT] = !renderer->mujocoOptions_.flags[mjVIS_CONTACTPOINT];
+    renderer->mujoco_options_.flags[mjVIS_CONTACTPOINT] = !renderer->mujoco_options_.flags[mjVIS_CONTACTPOINT];
   }
 
   // 'f' key: toggle contact force visualization
   if (act == GLFW_PRESS && key == GLFW_KEY_F) {
-    renderer->mujocoOptions_.flags[mjVIS_CONTACTFORCE] = !renderer->mujocoOptions_.flags[mjVIS_CONTACTFORCE];
+    renderer->mujoco_options_.flags[mjVIS_CONTACTFORCE] = !renderer->mujoco_options_.flags[mjVIS_CONTACTFORCE];
   }
 
   // 'm' key: toggle centre of mass visualization
   if (act == GLFW_PRESS && key == GLFW_KEY_M) {
-    renderer->mujocoOptions_.flags[mjVIS_COM] = !renderer->mujocoOptions_.flags[mjVIS_COM];
+    renderer->mujoco_options_.flags[mjVIS_COM] = !renderer->mujoco_options_.flags[mjVIS_COM];
   }
 
   // 't' key: toggle model transparency
@@ -80,12 +80,12 @@ void MujocoRenderer::keyboard(GLFWwindow* window, int key, int, int act, int mod
 
   // 'i' key: toggle inertia visualization
   if (act == GLFW_PRESS && key == GLFW_KEY_I) {
-    renderer->mujocoOptions_.flags[mjVIS_INERTIA] = !renderer->mujocoOptions_.flags[mjVIS_INERTIA];
+    renderer->mujoco_options_.flags[mjVIS_INERTIA] = !renderer->mujoco_options_.flags[mjVIS_INERTIA];
   }
 
   // 'h' key: toggle hull visualization
   if (act == GLFW_PRESS && key == GLFW_KEY_H) {
-    renderer->mujocoOptions_.flags[mjVIS_CONVEXHULL] = !renderer->mujocoOptions_.flags[mjVIS_CONVEXHULL];
+    renderer->mujoco_options_.flags[mjVIS_CONVEXHULL] = !renderer->mujoco_options_.flags[mjVIS_CONVEXHULL];
   }
 
   // 'p' key: print hotkeys
@@ -143,14 +143,14 @@ void MujocoRenderer::mouse_move(GLFWwindow* window, double xpos, double ypos) {
     action = mjMOUSE_ZOOM;
 
   // move camera
-  mjv_moveCamera(renderer->simInterface_->getModel(), action, dx / width, dy / height, &renderer->mujocoScene_, &renderer->mujocoCam_);
+  mjv_moveCamera(renderer->simInterface_->getModel(), action, dx / width, dy / height, &renderer->mujoco_scene_, &renderer->mujoco_cam_);
 }
 
 // scroll callback
 void MujocoRenderer::scroll(GLFWwindow* window, double, double yoffset) {
   auto* renderer = static_cast<MujocoRenderer*>(glfwGetWindowUserPointer(window));
   // emulate vertical mouse motion = 5% of window height
-  mjv_moveCamera(renderer->simInterface_->getModel(), mjMOUSE_ZOOM, 0, -0.05 * yoffset, &renderer->mujocoScene_, &renderer->mujocoCam_);
+  mjv_moveCamera(renderer->simInterface_->getModel(), mjMOUSE_ZOOM, 0, -0.05 * yoffset, &renderer->mujoco_scene_, &renderer->mujoco_cam_);
 }
 
 //// Public
@@ -158,9 +158,9 @@ void MujocoRenderer::scroll(GLFWwindow* window, double, double yoffset) {
 MujocoRenderer::MujocoRenderer(const MujocoSimInterface* simInterface)
     : simInterface_(simInterface),
       simState_(simInterface_->getModel()),
-      timeStepMicro_(1e6 / simInterface_->getConfig().renderFrequencyHz) {
-  mujocoScene_.flags[mjRND_SHADOW] = 1;
-  mujocoScene_.flags[mjRND_REFLECTION] = 1;
+      time_step_micro_(1e6 / simInterface_->getConfig().renderFrequencyHz) {
+  mujoco_scene_.flags[mjRND_SHADOW] = 1;
+  mujoco_scene_.flags[mjRND_REFLECTION] = 1;
 }
 
 MujocoRenderer::~MujocoRenderer() {
@@ -198,16 +198,16 @@ void renderMetrics(const mjrContext* con, const mjrRect& viewport, const MjState
 
   // FPS (Simulation & Renderer)
   metrics << "Render FPS: " << static_cast<int>(fpsRender) << "\n";
-  metrics << "Sim FPS: " << static_cast<int>(state.metrics.fpsSim) << "\n";
+  metrics << "Sim FPS: " << static_cast<int>(state.metrics.fps_sim) << "\n";
 
   // The actual amount of time elapsed in simulation.
   metrics << "Real Time[s]: " << std::fixed << std::setprecision(3) << elapsed_time << "\n";
   metrics << "Sim  Time[s]: " << std::fixed << std::setprecision(3) << state.data->time << "\n\n";
 
   // Real-time tracking
-  metrics << "RTF: " << std::fixed << std::setprecision(3) << state.metrics.rtfTick << "\n";
-  metrics << "Drift[ms]: " << std::fixed << std::setprecision(3) << state.metrics.driftTick * 1e3 << "\n";
-  metrics << "Cummulative Drift[ms]: " << std::fixed << std::setprecision(3) << state.metrics.driftCumulative * 1e3;
+  metrics << "RTF: " << std::fixed << std::setprecision(3) << state.metrics.rtf_tick << "\n";
+  metrics << "Drift[ms]: " << std::fixed << std::setprecision(3) << state.metrics.drift_tick * 1e3 << "\n";
+  metrics << "Cummulative Drift[ms]: " << std::fixed << std::setprecision(3) << state.metrics.drift_cumulative * 1e3;
 
   mjr_overlay(mjFONT_NORMAL, mjGRID_TOPLEFT, viewport, metrics.str().c_str(), nullptr, con);
 }
@@ -237,9 +237,9 @@ void MujocoRenderer::renderExternalForces() {
 
     // Create arrow geom
     mjvGeom* arrow = nullptr;
-    if (mujocoScene_.ngeom < mujocoScene_.maxgeom) {
-      arrow = &mujocoScene_.geoms[mujocoScene_.ngeom];
-      mujocoScene_.ngeom++;
+    if (mujoco_scene_.ngeom < mujoco_scene_.maxgeom) {
+      arrow = &mujoco_scene_.geoms[mujoco_scene_.ngeom];
+      mujoco_scene_.ngeom++;
     } else {
       continue;  // Skip if we're out of geom space
     }
@@ -295,18 +295,18 @@ void MujocoRenderer::renderLoop() {
     simInterface_->copyMjState(simState_);
     mj_forward(simInterface_->getModel(), simState_.data);
 
-    mjv_updateScene(simInterface_->getModel(), simState_.data, &mujocoOptions_, nullptr, nullptr, mjCAT_ALL, &mujocoScene_);
+    mjv_updateScene(simInterface_->getModel(), simState_.data, &mujoco_options_, nullptr, nullptr, mjCAT_ALL, &mujoco_scene_);
 
     renderExternalForces();
 
     // render to glfw window
-    mjv_updateCamera(simInterface_->getModel(), simState_.data, &mujocoCam_, &mujocoScene_);
-    mjr_render(viewport_, &mujocoScene_, &mujocoContext_);
+    mjv_updateCamera(simInterface_->getModel(), simState_.data, &mujoco_cam_, &mujoco_scene_);
+    mjr_render(viewport_, &mujoco_scene_, &mujoco_context_);
 
     // render text overlay
     const auto current_time = std::chrono::steady_clock::now();
     const auto elapsed_time = std::chrono::duration<double>(current_time - start_time).count();
-    renderMetrics(&mujocoContext_, viewport_, simState_, rendererFps_.fps(), elapsed_time);
+    renderMetrics(&mujoco_context_, viewport_, simState_, renderer_fps.fps(), elapsed_time);
 
     // swap OpenGL buffers (blocking call due to v-sync)
     glfwSwapBuffers(window_);
@@ -314,9 +314,9 @@ void MujocoRenderer::renderLoop() {
     glfwPollEvents();
 
     // Sleep in case render loop is faster than specified sim rate.
-    std::this_thread::sleep_until(start + std::chrono::microseconds(timeStepMicro_));
+    std::this_thread::sleep_until(start + std::chrono::microseconds(time_step_micro_));
 
-    rendererFps_.tick();
+    renderer_fps.tick();
   }
 
   std::cerr << "Exited Mujoco renderLoop." << std::endl;
@@ -342,20 +342,20 @@ void MujocoRenderer::initialize() {
   glfwSwapInterval(1);
 
   // initialize visualization data structures
-  mjv_defaultCamera(&mujocoCam_);
-  mjv_defaultOption(&mujocoOptions_);
-  mjv_defaultScene(&mujocoScene_);
-  mjr_defaultContext(&mujocoContext_);
-  mjv_makeScene(simInterface_->getModel(), &mujocoScene_,
+  mjv_defaultCamera(&mujoco_cam_);
+  mjv_defaultOption(&mujoco_options_);
+  mjv_defaultScene(&mujoco_scene_);
+  mjr_defaultContext(&mujoco_context_);
+  mjv_makeScene(simInterface_->getModel(), &mujoco_scene_,
                 2000);  // space for 2000 objects
-  mjr_makeContext(simInterface_->getModel(), &mujocoContext_,
+  mjr_makeContext(simInterface_->getModel(), &mujoco_context_,
                   mjFONTSCALE_150);  // model-specific context
 
   // Set mujoco option
-  mujocoOptions_.flags[mjVIS_CONTACTPOINT] = 0;
-  mujocoOptions_.flags[mjVIS_CONTACTFORCE] = 0;
-  mujocoOptions_.flags[mjVIS_COM] = 0;
-  mujocoOptions_.flags[mjVIS_INERTIA] = 0;
+  mujoco_options_.flags[mjVIS_CONTACTPOINT] = 0;
+  mujoco_options_.flags[mjVIS_CONTACTFORCE] = 0;
+  mujoco_options_.flags[mjVIS_COM] = 0;
+  mujoco_options_.flags[mjVIS_INERTIA] = 0;
 
   glfwSetWindowUserPointer(window_, this);
 
@@ -367,12 +367,12 @@ void MujocoRenderer::initialize() {
 
   // Setup Camera
   double arr_view[] = {89.608063, -5.588379, 3, 0.000000, 0.000000, 0.500000};  // view the left side (for ll, lh, left_side)
-  mujocoCam_.azimuth = arr_view[0];
-  mujocoCam_.elevation = arr_view[1];
-  mujocoCam_.distance = arr_view[2];
-  mujocoCam_.lookat[0] = arr_view[3];
-  mujocoCam_.lookat[1] = arr_view[4];
-  mujocoCam_.lookat[2] = arr_view[5];
+  mujoco_cam_.azimuth = arr_view[0];
+  mujoco_cam_.elevation = arr_view[1];
+  mujoco_cam_.distance = arr_view[2];
+  mujoco_cam_.lookat[0] = arr_view[3];
+  mujoco_cam_.lookat[1] = arr_view[4];
+  mujoco_cam_.lookat[2] = arr_view[5];
 
   simInterface_->copyMjState(simState_);
 
@@ -382,9 +382,9 @@ void MujocoRenderer::initialize() {
   mj_step(simInterface_->getModel(), simState_.data);  // populate state info
   glfwGetFramebufferSize(window_, &viewport_.width, &viewport_.height);
 
-  mjv_updateScene(simInterface_->getModel(), simState_.data, &mujocoOptions_, nullptr, &mujocoCam_, mjCAT_ALL, &mujocoScene_);
+  mjv_updateScene(simInterface_->getModel(), simState_.data, &mujoco_options_, nullptr, &mujoco_cam_, mjCAT_ALL, &mujoco_scene_);
 
-  mjr_render(viewport_, &mujocoScene_, &mujocoContext_);
+  mjr_render(viewport_, &mujoco_scene_, &mujoco_context_);
   // swap OpenGL buffers (blocking call due to v-sync)
   glfwSwapBuffers(window_);
   // process pending GUI events, call GLFW callbacks
@@ -393,8 +393,8 @@ void MujocoRenderer::initialize() {
 
 void MujocoRenderer::cleanup() {
   // Cleanup mujoco stuff.
-  mjv_freeScene(&mujocoScene_);
-  mjr_freeContext(&mujocoContext_);
+  mjv_freeScene(&mujoco_scene_);
+  mjr_freeContext(&mujoco_context_);
 
   glfwDestroyWindow(window_);
   glfwTerminate();

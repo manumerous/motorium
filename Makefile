@@ -88,7 +88,8 @@ COMMON_COLCON_BUILD_FLAGS ?= \
 	${EVENT_HANDLERS} \
 	--symlink-install \
 	--build-base $(build_dir)/build \
-	--install-base $(build_dir)/install
+	--install-base $(build_dir)/install \
+	--base-paths $(current_path)/motorium $(current_path)/lib
 
 ############################################################
 # Define build and test targets
@@ -112,7 +113,7 @@ define default-test-package
   cd ${build_dir} && \
   source ${ros_source_file} && \
   source $(build_dir)/install/setup.bash && \
-  colcon test --packages-select $(1) --event-handlers console_direct+ --return-code-on-test-failure
+  colcon test --base-paths $(current_path)/motorium $(current_path)/lib --packages-select $(1) --event-handlers console_direct+ --return-code-on-test-failure
 endef
 
 ############################################################
@@ -141,6 +142,11 @@ build-relwithdebinfo:
 
 
 test-all: $(addprefix test-,$(PACKAGES))
+	@echo ""
+	@echo "=========================================="
+	@echo "Test Results Summary:"
+	@echo "=========================================="
+	@cd ${build_dir} && source ${ros_source_file} && colcon test-result --all
 
 $(addprefix test-,$(PACKAGES)):
 	$(call default-test-package,$(patsubst test-%,%,$@))

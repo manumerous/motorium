@@ -114,17 +114,17 @@ class MujocoRenderer {
   bool model_transparent = false;
 
   // Mujoco visualization structures
-  mjvCamera mujocoCam_;       // abstract camera
-  mjvOption mujocoOptions_;   // visualization options
-  mjvScene mujocoScene_;      // abstract scene
-  mjrContext mujocoContext_;  // custom GPU context
+  mjvCamera mujoco_cam_;       // abstract camera
+  mjvOption mujoco_options_;   // visualization options
+  mjvScene mujoco_scene_;      // abstract scene
+  mjrContext mujoco_context_;  // custom GPU context
 
-  size_t timeStepMicro_;
+  size_t time_step_micro_;
 
   std::atomic<bool> window_closed_{false};
   std::atomic<bool> init_complete_{false};
 
-  FPSTracker rendererFps_{"renderer"};
+  FPSTracker renderer_fps{"renderer"};
 };
 
 }  // namespace motorium::mujoco

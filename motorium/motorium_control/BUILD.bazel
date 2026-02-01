@@ -1,12 +1,23 @@
-load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
 cc_library(
     name = "motorium_control",
+    srcs = ["src/ImplicitPDController.cpp"],
     hdrs = glob(["include/**/*.h"]),
     includes = ["include"],
     visibility = ["//visibility:public"],
     deps = [
         "//motorium/motorium_model",
         "@eigen//:eigen",
+    ],
+)
+
+cc_test(
+    name = "test_implicit_pd_controller",
+    srcs = ["test/testImplicitPDController.cpp"],
+    deps = [
+        ":motorium_control",
+        "//motorium/motorium_model",
+        "@googletest//:gtest_main",
     ],
 )
