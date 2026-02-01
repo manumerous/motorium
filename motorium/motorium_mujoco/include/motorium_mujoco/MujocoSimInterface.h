@@ -77,7 +77,7 @@ class MujocoSimInterface : public hal::DriverBase {
 
   void updateRobotState(model::RobotState& robot_state) override;
 
-  void setJointAction(const model::RobotJointAction& action) override;
+  void setJointFeedbackAction(const model::RobotJointFeedbackAction& action) override;
 
   void simulationStep();
 
@@ -109,7 +109,7 @@ class MujocoSimInterface : public hal::DriverBase {
 
   mjtNum* qpos_init_;  // position                                         (nq x 1)
   mjtNum* qvel_init_;
-  model::RobotJointAction action_internal_;
+  model::RobotJointFeedbackAction action_internal_;
   mutable std::mutex action_mutex_;
 
   size_t time_step_micro_;

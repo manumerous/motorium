@@ -30,7 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <gtest/gtest.h>
 #include <motorium_control/ImplicitPDController.h>
 #include <motorium_model/RobotDescription.h>
-#include <motorium_model/RobotJointAction.h>
+#include <motorium_model/RobotJointFeedbackAction.h>
 #include <motorium_model/RobotState.h>
 
 using namespace motorium;
@@ -103,7 +103,7 @@ TEST_F(ImplicitPDControllerTest, ComputeAction) {
   ImplicitPDController controller(*robot_description_, config);
 
   RobotState state(*robot_description_);
-  RobotJointAction action(*robot_description_);
+  RobotJointFeedbackAction action(*robot_description_);
 
   controller.computeJointControlAction(0.0, state, action);
 
@@ -132,7 +132,7 @@ TEST_F(ImplicitPDControllerTest, PartialControl) {
   ImplicitPDController controller(*robot_description_, config);
 
   RobotState state(*robot_description_);
-  RobotJointAction action(*robot_description_);
+  RobotJointFeedbackAction action(*robot_description_);
 
   // Initialize action with zeros
   joint_index_t idx1 = robot_description_->getJointIndex("joint1");

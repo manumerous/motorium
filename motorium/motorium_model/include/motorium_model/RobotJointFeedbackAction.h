@@ -34,7 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace motorium::model {
 
-struct JointAction {
+struct JointFeedbackAction {
   scalar_t q_des = 0;
   scalar_t qd_des = 0;
   scalar_t kp = 0;
@@ -44,9 +44,9 @@ struct JointAction {
   scalar_t getTotalFeedbackTorque(scalar_t q, scalar_t qd) const { return (kp * (q_des - q) + kd * (qd_des - qd) + feed_forward_effort); }
 };
 
-class RobotJointAction : public JointIdMap<JointAction> {
+class RobotJointFeedbackAction : public JointIdMap<JointFeedbackAction> {
  public:
-  explicit RobotJointAction(const RobotDescription& robot_description) : JointIdMap(robot_description) {}
+  explicit RobotJointFeedbackAction(const RobotDescription& robot_description) : JointIdMap(robot_description) {}
 };
 
 }  // namespace motorium::model

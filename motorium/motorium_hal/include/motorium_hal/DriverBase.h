@@ -30,7 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include <motorium_model/RobotDescription.h>
-#include <motorium_model/RobotJointAction.h>
+#include <motorium_model/RobotJointFeedbackAction.h>
 #include <motorium_model/RobotState.h>
 
 namespace motorium::hal {
@@ -45,7 +45,7 @@ class DriverBase {
 
   virtual void updateRobotState(model::RobotState& robot_state) = 0;
 
-  virtual void setJointAction(const model::RobotJointAction& action) = 0;
+  virtual void setJointFeedbackAction(const model::RobotJointFeedbackAction& action) = 0;
 
   virtual void reset() = 0;
 
