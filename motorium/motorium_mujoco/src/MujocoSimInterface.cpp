@@ -364,8 +364,8 @@ void MujocoSimInterface::simulationStep() {
 
     for (size_t i = 0; i < num_actuators_; ++i) {
       joint_index_t idx = active_robot_actuator_indices_[i];
-      const motorium::model::JointFeedbackAction& JointFeedbackAction = action_internal_.at(idx);
-      mj_data_->ctrl[i] = JointFeedbackAction.getTotalFeedbackTorque(mj_data_->qpos[i + 7], mj_data_->qvel[i + 6]);
+      const motorium::model::JointFeedbackAction& action = action_internal_.at(idx);
+      mj_data_->ctrl[i] = action.getTotalFeedbackTorque(mj_data_->qpos[i + 7], mj_data_->qvel[i + 6]);
     }
   }
   {
