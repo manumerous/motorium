@@ -142,6 +142,11 @@ build-relwithdebinfo:
 
 
 test-all: $(addprefix test-,$(PACKAGES))
+	@echo ""
+	@echo "=========================================="
+	@echo "Test Results Summary:"
+	@echo "=========================================="
+	@cd ${build_dir} && source ${ros_source_file} && colcon test-result --all
 
 $(addprefix test-,$(PACKAGES)):
 	$(call default-test-package,$(patsubst test-%,%,$@))
