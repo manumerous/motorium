@@ -159,13 +159,13 @@ TEST_F(RobotStateTest, JointStateAccessors) {
   JointState js;
   js.position = 0.8;
   js.velocity = 0.2;
-  js.measured_effort = 5.0;
+  js.effort = 5.0;
   state.setJointState(joint2_idx, js);
 
   auto ret_js = state.getJointState(joint2_idx);
   EXPECT_DOUBLE_EQ(ret_js.position, 0.8);
   EXPECT_DOUBLE_EQ(ret_js.velocity, 0.2);
-  EXPECT_DOUBLE_EQ(ret_js.measured_effort, 5.0);
+  EXPECT_DOUBLE_EQ(ret_js.effort, 5.0);
 }
 
 TEST_F(RobotStateTest, VectorAccessors) {

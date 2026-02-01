@@ -37,9 +37,14 @@ namespace motorium::model {
 struct JointState {
   scalar_t position = 0.0;
   scalar_t velocity = 0.0;
-  scalar_t measured_effort = 0.0;
+  scalar_t effort = 0.0;
 
   JointState() = default;
+};
+
+class RobotJointState : public JointIdMap<JointState> {
+ public:
+  explicit RobotJointState(const RobotDescription& robot_description) : JointIdMap(robot_description) {}
 };
 
 struct RootState {
@@ -112,7 +117,7 @@ class RobotState {
 
  private:
   RootState root_state_;
-  JointIdMap<JointState> joint_state_map_;
+  RobotJointState joint_state_map_;
 
   scalar_t time_;
 
