@@ -13,8 +13,8 @@ cc_library(
 )
 
 cc_test(
-    name = "ImplicitPDControllerTest",
-    srcs = ["test/ImplicitPDControllerTest.cpp"],
+    name = "test_implicit_pd_controller",
+    srcs = ["test/testImplicitPDController.cpp"],
     deps = [
         ":motorium_control",
         "//motorium/motorium_model",
