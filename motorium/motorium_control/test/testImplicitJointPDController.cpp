@@ -28,7 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
 #include <gtest/gtest.h>
-#include <motorium_control/ImplicitPDController.h>
+#include <motorium_control/ImplicitJointPDController.h>
 #include <motorium_model/RobotDescription.h>
 #include <motorium_model/RobotJointFeedbackAction.h>
 #include <motorium_model/RobotState.h>
@@ -37,7 +37,7 @@ using namespace motorium;
 using namespace motorium::control;
 using namespace motorium::model;
 
-class ImplicitPDControllerTest : public ::testing::Test {
+class ImplicitJointPDControllerTest : public ::testing::Test {
  protected:
   void SetUp() override {
     // Create a dummy robot description with 2 joints
@@ -53,8 +53,8 @@ class ImplicitPDControllerTest : public ::testing::Test {
   std::unique_ptr<RobotDescription> robot_description_;
 };
 
-TEST_F(ImplicitPDControllerTest, InitializationValidConfig) {
-  ImplicitPDControllerConfig config;
+TEST_F(ImplicitJointPDControllerTest, InitializationValidConfig) {
+  ImplicitJointPDControllerConfig config;
   config.joint_names = {"joint1"};
   vector_t kp(1);
   kp << 10.0;
@@ -63,22 +63,22 @@ TEST_F(ImplicitPDControllerTest, InitializationValidConfig) {
   config.kp = kp;
   config.kd = kd;
 
-  ImplicitPDController controller(*robot_description_, config);
+  ImplicitJointPDController controller(*robot_description_, config);
 }
 
-TEST_F(ImplicitPDControllerTest, InitializationInvalidConfigSize) {
-  ImplicitPDControllerConfig config;
+TEST_F(ImplicitJointPDControllerTest, InitializationInvalidConfigSize) {
+  ImplicitJointPDControllerConfig config;
   config.joint_names = {"joint1"};
   vector_t kp(1);
   kp << 10.0;
   config.kp = kp;
   config.kd = vector_t(0);  // Mismatch
 
-  EXPECT_DEATH(ImplicitPDController(*robot_description_, config), "Size mismatch");
+  EXPECT_DEATH(ImplicitJointPDController(*robot_description_, config), "Size mismatch");
 }
 
-TEST_F(ImplicitPDControllerTest, InitializationMissingJoint) {
-  ImplicitPDControllerConfig config;
+TEST_F(ImplicitJointPDControllerTest, InitializationMissingJoint) {
+  ImplicitJointPDControllerConfig config;
   config.joint_names = {"missing_joint"};
   vector_t kp(1);
   kp << 10.0;
@@ -87,11 +87,11 @@ TEST_F(ImplicitPDControllerTest, InitializationMissingJoint) {
   config.kp = kp;
   config.kd = kd;
 
-  EXPECT_THROW(ImplicitPDController(*robot_description_, config), std::out_of_range);
+  EXPECT_THROW(ImplicitJointPDController(*robot_description_, config), std::out_of_range);
 }
 
-TEST_F(ImplicitPDControllerTest, ComputeAction) {
-  ImplicitPDControllerConfig config;
+TEST_F(ImplicitJointPDControllerTest, ComputeAction) {
+  ImplicitJointPDControllerConfig config;
   config.joint_names = {"joint1", "joint2"};
   vector_t kp(2);
   kp << 10.0, 20.0;
@@ -100,7 +100,7 @@ TEST_F(ImplicitPDControllerTest, ComputeAction) {
   config.kp = kp;
   config.kd = kd;
 
-  ImplicitPDController controller(*robot_description_, config);
+  ImplicitJointPDController controller(*robot_description_, config);
 
   RobotState state(*robot_description_);
   RobotJointFeedbackAction action(*robot_description_);
@@ -118,9 +118,9 @@ TEST_F(ImplicitPDControllerTest, ComputeAction) {
   EXPECT_DOUBLE_EQ(action[idx2].kd, 2.0);
 }
 
-TEST_F(ImplicitPDControllerTest, PartialControl) {
+TEST_F(ImplicitJointPDControllerTest, PartialControl) {
   // Control only joint2
-  ImplicitPDControllerConfig config;
+  ImplicitJointPDControllerConfig config;
   config.joint_names = {"joint2"};
   vector_t kp(1);
   kp << 5.0;
@@ -129,7 +129,7 @@ TEST_F(ImplicitPDControllerTest, PartialControl) {
   config.kp = kp;
   config.kd = kd;
 
-  ImplicitPDController controller(*robot_description_, config);
+  ImplicitJointPDController controller(*robot_description_, config);
 
   RobotState state(*robot_description_);
   RobotJointFeedbackAction action(*robot_description_);

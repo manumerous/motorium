@@ -35,16 +35,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace motorium::control {
 
-struct ImplicitPDControllerConfig {
+struct ImplicitJointPDControllerConfig {
   std::vector<std::string> joint_names;
   vector_t kp;
   vector_t kd;
 };
 
-class ImplicitPDController : public ControllerBase {
+class ImplicitJointPDController : public ControllerBase {
  public:
-  ImplicitPDController(const model::RobotDescription& robot_description, const ImplicitPDControllerConfig& config);
-  ~ImplicitPDController() override = default;
+  ImplicitJointPDController(const model::RobotDescription& robot_description, const ImplicitJointPDControllerConfig& config);
+  ~ImplicitJointPDController() override = default;
 
   void validateConfig() const;
 
@@ -54,7 +54,7 @@ class ImplicitPDController : public ControllerBase {
                                  model::RobotJointFeedbackAction& joint_action) override;
 
  private:
-  ImplicitPDControllerConfig config_;
+  ImplicitJointPDControllerConfig config_;
   std::vector<joint_index_t> joint_indices_;
 };
 

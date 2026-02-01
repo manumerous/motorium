@@ -27,31 +27,32 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
-#include <motorium_control/ImplicitPDController.h>
+#include <motorium_control/ImplicitJointPDController.h>
 
 #include <motorium_core/Check.h>
 
 namespace motorium::control {
 
-ImplicitPDController::ImplicitPDController(const model::RobotDescription& robot_description, const ImplicitPDControllerConfig& config)
+ImplicitJointPDController::ImplicitJointPDController(const model::RobotDescription& robot_description,
+                                                     const ImplicitJointPDControllerConfig& config)
     : ControllerBase(robot_description), config_(config), joint_indices_(robot_description.getJointIndices(config_.joint_names)) {
   validateConfig();
 }
 
-void ImplicitPDController::validateConfig() const {
-  MT_CHECK(!config_.joint_names.empty()) << "[ImplicitPDController] Configuration error: Joint names list is empty.";
+void ImplicitJointPDController::validateConfig() const {
+  MT_CHECK(!config_.joint_names.empty()) << "[ImplicitJointPDController] Configuration error: Joint names list is empty.";
   // vector_t::size() returns Eigen::Index (long). std::vector::size() returns size_t (ulong).
   // Cast to compare safe.
   MT_CHECK(static_cast<long>(config_.joint_names.size()) == config_.kp.size())
-      << "[ImplicitPDController] Configuration error: Size mismatch between joint_names and kp.";
+      << "[ImplicitJointPDController] Configuration error: Size mismatch between joint_names and kp.";
   MT_CHECK(static_cast<long>(config_.joint_names.size()) == config_.kd.size())
-      << "[ImplicitPDController] Configuration error: Size mismatch between joint_names and kd.";
+      << "[ImplicitJointPDController] Configuration error: Size mismatch between joint_names and kd.";
 }
 
-void ImplicitPDController::computeJointControlAction([[maybe_unused]] scalar_t time,
-                                                     const model::RobotState& current_state,
-                                                     const model::RobotState& desired_state,
-                                                     model::RobotJointFeedbackAction& joint_action) {
+void ImplicitJointPDController::computeJointControlAction([[maybe_unused]] scalar_t time,
+                                                          const model::RobotState& current_state,
+                                                          const model::RobotState& desired_state,
+                                                          model::RobotJointFeedbackAction& joint_action) {
   for (size_t i = 0; i < joint_indices_.size(); ++i) {
     const auto joint_index = joint_indices_[i];
     if (joint_action.contains(joint_index)) {
