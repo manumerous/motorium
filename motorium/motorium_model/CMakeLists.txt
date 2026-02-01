@@ -39,7 +39,7 @@ set(dependencies
 ## Library ##
 #############
 
-add_library(${PROJECT_NAME}
+add_library(${PROJECT_NAME} SHARED
         src/RobotDescription.cpp
         src/RobotState.cpp
 )
@@ -70,9 +70,6 @@ if (BUILD_TESTING)
         ${URDFDOM_LIBRARIES}
         ${PROJECT_NAME}
         )
-        ament_target_dependencies(${PROJECT_NAME}
-        ${dependencies}
-)
 
         ament_add_gtest(test_fixed_id_array test/testFixedIDArray.cpp)
         target_link_libraries(test_fixed_id_array
@@ -106,5 +103,5 @@ install(DIRECTORY include/${PROJECT_NAME}
 
 ament_export_include_directories(include)
 ament_export_libraries(${PROJECT_NAME})
-ament_export_dependencies(${dependencies} )
+ament_export_dependencies(${dependencies})
 ament_package()
