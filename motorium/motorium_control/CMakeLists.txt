@@ -38,6 +38,7 @@ set(dependencies
 
 add_library(${PROJECT_NAME}
         src/ImplicitJointPDController.cpp
+        src/ExplicitJointPDController.cpp
 )
 ament_target_dependencies(${PROJECT_NAME}
         ${dependencies}
@@ -62,6 +63,11 @@ if (BUILD_TESTING)
 
         ament_add_gtest(test_implicit_pd_controller test/testImplicitJointPDController.cpp)
         target_link_libraries(test_implicit_pd_controller
+                ${PROJECT_NAME}
+        )
+
+        ament_add_gtest(test_explicit_pd_controller test/testExplicitJointPDController.cpp)
+        target_link_libraries(test_explicit_pd_controller
                 ${PROJECT_NAME}
         )
 
