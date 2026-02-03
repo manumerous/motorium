@@ -314,8 +314,11 @@ TEST_F(FixedIDArrayTest, ToEigenVectorAndFromEigenVectorRoundTrip) {
   EXPECT_DOUBLE_EQ(array[2].xyz, 6.6);
 
   // Second test: Apply a random matrix transformation
-  // Create a random 3x3 matrix
-  motorium::matrix3_t transform = motorium::matrix3_t::Random();
+  // Create a fixed 3x3 matrix for reproducible tests
+  motorium::matrix3_t transform;
+  transform << 0.5, 0.2, 0.1,
+               0.3, 0.7, 0.4,
+               0.2, 0.1, 0.9;
 
   // Extract current values
   vec = array.toEigenVector<std::vector<size_t>, double>(indices, extractor);
