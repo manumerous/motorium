@@ -35,11 +35,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace motorium::model {
 
 struct JointState {
-  scalar_t position = 0.0;
-  scalar_t velocity = 0.0;
-  scalar_t measured_effort = 0.0;
+  scalar_t q = 0.0;
+  scalar_t v = 0.0;
+  scalar_t effort = 0.0;
 
   JointState() = default;
+};
+
+class RobotJointState : public JointIdMap<JointState> {
+ public:
+  explicit RobotJointState(const RobotDescription& robot_description) : JointIdMap(robot_description) {}
 };
 
 struct RootState {
@@ -75,28 +80,49 @@ class RobotState {
   void setRootLinearVelocityInLocalFrame(const vector3_t& linear_velocity) { root_state_.linear_velocity_ = linear_velocity; }
   void setRootAngularVelocityInLocalFrame(const vector3_t& angular_velocity) { root_state_.angular_velocity_ = angular_velocity; }
 
-  void setJointPosition(size_t joint_id, scalar_t joint_position) { joint_state_map_.at(joint_id).position = joint_position; }
+  void setJointPosition(size_t joint_id, scalar_t q) { joint_state_map_.at(joint_id).q = q; }
 
-  scalar_t getJointPosition(size_t joint_id) const { return joint_state_map_.at(joint_id).position; }
+  scalar_t getJointPosition(size_t joint_id) const { return joint_state_map_.at(joint_id).q; }
 
-  void setJointVelocity(size_t joint_id, scalar_t jointVelocity) { joint_state_map_.at(joint_id).velocity = jointVelocity; }
+  void setJointVelocity(size_t joint_id, scalar_t v) { joint_state_map_.at(joint_id).v = v; }
 
-  scalar_t getJointVelocity(size_t joint_id) const { return joint_state_map_.at(joint_id).velocity; }
+  scalar_t getJointVelocity(size_t joint_id) const { return joint_state_map_.at(joint_id).v; }
+
+  void setJointEffort(size_t joint_id, scalar_t effort) { joint_state_map_.at(joint_id).effort = effort; }
+
+  scalar_t getJointEffort(size_t joint_id) const { return joint_state_map_.at(joint_id).effort; }
 
   //  Get a vector_t of joint positions given a vector of joint IDs
 
-  vector_t getJointPositions(std::vector<joint_index_t> joint_ids) const {
-    return joint_state_map_.toVector(joint_ids, [](const JointState& js) { return js.position; });
+  vector_t getJointPositions(const std::vector<joint_index_t>& joint_ids) const {
+    return joint_state_map_.toVector(joint_ids, [](const JointState& js) { return js.q; });
+  }
+
+  void setJointPositions(const std::vector<joint_index_t>& joint_ids, const vector_t& positions) {
+    joint_state_map_.fromVector(joint_ids, positions, [](JointState& js, scalar_t q) { js.q = q; });
   }
 
   //  Get a vector_t of joint velocities given a vector of joint IDs
-  vector_t getJointVelocities(std::vector<joint_index_t> joint_ids) const {
-    return joint_state_map_.toVector(joint_ids, [](const JointState& js) { return js.velocity; });
+  vector_t getJointVelocities(const std::vector<joint_index_t>& joint_ids) const {
+    return joint_state_map_.toVector(joint_ids, [](const JointState& js) { return js.v; });
+  }
+
+  void setJointVelocities(const std::vector<joint_index_t>& joint_ids, const vector_t& velocities) {
+    joint_state_map_.fromVector(joint_ids, velocities, [](JointState& js, scalar_t v) { js.v = v; });
+  }
+
+  //  Get a vector_t of joint efforts given a vector of joint IDs
+  vector_t getJointEfforts(const std::vector<joint_index_t>& joint_ids) const {
+    return joint_state_map_.toVector(joint_ids, [](const JointState& js) { return js.effort; });
+  }
+
+  void setJointEfforts(const std::vector<joint_index_t>& joint_ids, const vector_t& efforts) {
+    joint_state_map_.fromVector(joint_ids, efforts, [](JointState& js, scalar_t effort) { js.effort = effort; });
   }
 
   void setJointState(size_t joint_id, const JointState& joint_state) { joint_state_map_.at(joint_id) = joint_state; }
 
-  JointState getJointState(size_t joint_id) const { return joint_state_map_.at(joint_id); }
+  const JointState& getJointState(size_t joint_id) const { return joint_state_map_.at(joint_id); }
 
   bool getContactFlag(size_t index) const { return contact_flags_.at(index); }
 
@@ -112,7 +138,7 @@ class RobotState {
 
  private:
   RootState root_state_;
-  JointIdMap<JointState> joint_state_map_;
+  RobotJointState joint_state_map_;
 
   scalar_t time_;
 

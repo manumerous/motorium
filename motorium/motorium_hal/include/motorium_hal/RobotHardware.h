@@ -30,7 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include <motorium_hal/DriverBase.h>
-#include <motorium_model/RobotJointAction.h>
+#include <motorium_model/RobotJointFeedbackAction.h>
 #include <motorium_model/RobotState.h>
 
 #include "motorium_model/RobotDescription.h"
@@ -54,9 +54,9 @@ class RobotHardware {
     }
   }
 
-  void setJointAction(const model::RobotJointAction& action) {
+  void setJointFeedbackAction(const model::RobotJointFeedbackAction& action) {
     for (const auto& driver : drivers_) {
-      driver->setJointAction(action);
+      driver->setJointFeedbackAction(action);
     }
   }
 

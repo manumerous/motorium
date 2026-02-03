@@ -353,7 +353,7 @@ void MujocoSimInterface::updateMetrics() {
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoSimInterface::setJointAction(const model::RobotJointAction& action) {
+void MujocoSimInterface::setJointFeedbackAction(const model::RobotJointFeedbackAction& action) {
   std::lock_guard<std::mutex> lock(action_mutex_);
   action_internal_ = action;
 }
@@ -364,8 +364,8 @@ void MujocoSimInterface::simulationStep() {
 
     for (size_t i = 0; i < num_actuators_; ++i) {
       joint_index_t idx = active_robot_actuator_indices_[i];
-      const motorium::model::JointAction& jointAction = action_internal_.at(idx);
-      mj_data_->ctrl[i] = jointAction.getTotalFeedbackTorque(mj_data_->qpos[i + 7], mj_data_->qvel[i + 6]);
+      const motorium::model::JointFeedbackAction& action = action_internal_.at(idx);
+      mj_data_->ctrl[i] = action.getTotalFeedbackTorque(mj_data_->qpos[i + 7], mj_data_->qvel[i + 6]);
     }
   }
   {

@@ -43,9 +43,9 @@ void RobotState::setConfigurationToZero() {
   root_state_.setConfigurationToZero();
 
   for (auto& joint : joint_state_map_) {
-    joint.position = 0.0;
-    joint.velocity = 0.0;
-    joint.measured_effort = 0.0;
+    joint.q = 0.0;
+    joint.v = 0.0;
+    joint.effort = 0.0;
   }
 
   std::fill(contact_flags_.begin(), contact_flags_.end(),

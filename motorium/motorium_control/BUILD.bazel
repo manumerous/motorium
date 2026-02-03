@@ -2,7 +2,7 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
 cc_library(
     name = "motorium_control",
-    srcs = ["src/ImplicitPDController.cpp"],
+    srcs = ["src/JointPDController.cpp"],
     hdrs = glob(["include/**/*.h"]),
     includes = ["include"],
     visibility = ["//visibility:public"],
@@ -14,7 +14,17 @@ cc_library(
 
 cc_test(
     name = "test_implicit_pd_controller",
-    srcs = ["test/testImplicitPDController.cpp"],
+    srcs = ["test/testImplicitJointPDController.cpp"],
+    deps = [
+        ":motorium_control",
+        "//motorium/motorium_model",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "test_explicit_pd_controller",
+    srcs = ["test/testExplicitJointPDController.cpp"],
     deps = [
         ":motorium_control",
         "//motorium/motorium_model",

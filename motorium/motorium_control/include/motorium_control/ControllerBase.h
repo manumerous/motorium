@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <motorium_core/Types.h>
 #include <motorium_model/RobotDescription.h>
-#include <motorium_model/RobotJointAction.h>
+#include <motorium_model/RobotJointFeedbackAction.h>
 #include <motorium_model/RobotState.h>
 
 namespace motorium::control {
@@ -43,8 +43,9 @@ class ControllerBase {
 
   // Computes [commands] given [joints] states and configs.
   virtual void computeJointControlAction(scalar_t time,
-                                         const model::RobotState& robot_state,
-                                         model::RobotJointAction& robot_joint_action) = 0;
+                                         const model::RobotState& current_state,
+                                         const model::RobotState& desired_state,
+                                         model::RobotJointFeedbackAction& joint_action) = 0;
 };
 
 }  // namespace motorium::control

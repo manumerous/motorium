@@ -26,5 +26,5 @@ For humans, configuring robot control systems via names is convenient, butString
 
 ### Hardware Abstraction Layer (HAL)
 The modular HAL allows the same controller code to run on simulated and real hardware without modification.
-- **`RobotHardware`**: The central interface exposing `RobotState` and `RobotJointAction` to the control loop.
+- **`RobotHardware`**: The central interface exposing `RobotState` and `RobotJointFeedbackAction` to the control loop.
 - **`DriverBase`**: Abstract base class for implementing specific backend drivers (e.g., MuJoCo simulation, EtherCAT masters, CAN bus interfaces).

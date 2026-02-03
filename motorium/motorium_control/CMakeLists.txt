@@ -37,7 +37,7 @@ set(dependencies
 #############
 
 add_library(${PROJECT_NAME}
-        src/ImplicitPDController.cpp
+        src/JointPDController.cpp
 )
 ament_target_dependencies(${PROJECT_NAME}
         ${dependencies}
@@ -60,8 +60,13 @@ target_include_directories(${PROJECT_NAME}
 if (BUILD_TESTING)
         find_package(ament_cmake_gtest REQUIRED)
 
-        ament_add_gtest(test_implicit_pd_controller test/testImplicitPDController.cpp)
+        ament_add_gtest(test_implicit_pd_controller test/testImplicitJointPDController.cpp)
         target_link_libraries(test_implicit_pd_controller
+                ${PROJECT_NAME}
+        )
+
+        ament_add_gtest(test_explicit_pd_controller test/testExplicitJointPDController.cpp)
+        target_link_libraries(test_explicit_pd_controller
                 ${PROJECT_NAME}
         )
 

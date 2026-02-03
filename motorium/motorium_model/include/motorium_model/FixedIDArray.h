@@ -44,6 +44,14 @@ namespace motorium::model {
 // contiguous storage and extraction of per-ID data into Eigen vectors it is
 // optimized for realtime programming.
 
+// Helper trait to detect std::optional
+template <typename T>
+struct is_optional : std::false_type {};
+template <typename T>
+struct is_optional<std::optional<T>> : std::true_type {};
+template <typename T>
+inline constexpr bool is_optional_v = is_optional<T>::value;
+
 // Define an extractor that gets a scalar value out of T for eigen vectorization
 // when T is itself a composite type (e.g. struct).
 template <typename E, typename T, typename ScalarType>
@@ -52,6 +60,15 @@ concept IDMapExtractor =
      requires(E e, const T& val) { { e(*val) } -> std::convertible_to<ScalarType>; }) ||
     (!requires(const T& val) { val.has_value(); } &&
      requires(E e, const T& val) { { e(val) } -> std::convertible_to<ScalarType>; });
+
+// Define an inserter that sets a scalar value into T for eigen vectorization
+// when T is itself a composite type (e.g. struct).
+template <typename I, typename T, typename ScalarType>
+concept IDMapInserter =
+    (requires(const T& val) { val.has_value(); *val; } &&
+     requires(I i, T& val, ScalarType s) { i(*val, s); }) ||
+    (!requires(const T& val) { val.has_value(); } &&
+     requires(I i, T& val, ScalarType s) { i(val, s); });
 
 template <typename T>
 class FixedIDArray {
@@ -107,31 +124,55 @@ class FixedIDArray {
 
   const T& operator[](size_t element_id) const { return at(element_id); }
 
-  // Uses a default value in case T is a std::optional that is a nullopt.
   template <typename Range, typename ScalarType>
   Eigen::Matrix<ScalarType, Eigen::Dynamic, 1> toEigenVector(const Range& range,
                                                              IDMapExtractor<T, ScalarType> auto extractor,
                                                              ScalarType default_value = ScalarType{}) const {
     Eigen::Matrix<ScalarType, Eigen::Dynamic, 1> vector(std::ranges::size(range));
-
     size_t index = 0;
-    for (const auto& id : range) {
-      const T& val = this->at(id);
-      if constexpr (requires { val.has_value(); }) {
-        // T is optional-like (has has_value method)
+
+    if constexpr (is_optional_v<T>) {
+      for (const auto& id : range) {
+        const T& val = this->at(id);
         if (val.has_value()) {
           vector(index) = extractor(*val);
         } else {
           vector(index) = default_value;
         }
-      } else {
-        // T is not optional, always use the value
+
+        ++index;
+      }
+    } else {
+      for (const auto& id : range) {
+        const T& val = this->at(id);
+
         vector(index) = extractor(val);
+        ++index;
+      }
+    }
+
+    return vector;
+  }
+
+  template <typename Range, typename ScalarType>
+  void fromEigenVector(const Range& range,
+                       const Eigen::Matrix<ScalarType, Eigen::Dynamic, 1>& vector,
+                       IDMapInserter<T, ScalarType> auto inserter) {
+    MT_CHECK(std::ranges::size(range) == vector.size());
+    size_t index = 0;
+
+    for (const auto& id : range) {
+      T& val = this->at(id);
+
+      if constexpr (is_optional_v<T>) {
+        inserter(val.value(), vector(index));  // Throws std::bad_optional_access if val is nullopt
+      } else {
+        inserter(val, vector(index));
       }
       ++index;
     }
-    return vector;
   }
+
   // Expose span's iterators as your own
   using iterator = typename std::span<T>::iterator;
   using const_iterator = typename std::span<const T>::iterator;

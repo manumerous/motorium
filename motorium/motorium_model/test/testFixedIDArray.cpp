@@ -30,6 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <gtest/gtest.h>
 #include <numeric>
 
+#include "motorium_core/Types.h"
 #include "motorium_model/FixedIDArray.h"
 
 using namespace motorium::model;
@@ -38,8 +39,23 @@ namespace {
 
 // Helper struct for testing non-trivial types
 struct TestStruct {
-  double value = 0.0;
-  bool operator==(const TestStruct& other) const { return value == other.value; }
+  double xyz = 0.0;
+  bool operator==(const TestStruct& other) const { return xyz == other.xyz; }
+};
+
+// Helper class with getter/setter for testing
+class TestClass {
+ public:
+  TestClass() : data_(0.0) {}
+  explicit TestClass(double val) : data_(val) {}
+
+  double getData() const { return data_; }
+  void setData(double val) { data_ = val; }
+
+  bool operator==(const TestClass& other) const { return data_ == other.data_; }
+
+ private:
+  double data_;
 };
 
 }  // namespace
@@ -148,11 +164,11 @@ TEST_F(FixedIDArrayTest, ToEigenVectorWorksWithOptional) {
 
 TEST_F(FixedIDArrayTest, ToEigenVectorWorksWithStruct) {
   FixedIDArray<TestStruct> array(2);
-  array[0].value = 5.5;
-  array[1].value = 6.6;
+  array[0].xyz = 5.5;
+  array[1].xyz = 6.6;
 
   std::vector<size_t> indices = {1};
-  auto extractor = [](const TestStruct& s) { return s.value; };
+  auto extractor = [](const TestStruct& s) { return s.xyz; };
 
   auto vec = array.toEigenVector<std::vector<size_t>, double>(indices, extractor);
 
@@ -166,11 +182,152 @@ TEST_F(FixedIDArrayTest, ToEigenVectorWorksWithStructAndOptional) {
   array[1] = std::nullopt;
 
   std::vector<size_t> indices = {0, 1};
-  auto extractor = [](const TestStruct& s) { return s.value; };
+  auto extractor = [](const TestStruct& s) { return s.xyz; };
 
   auto vec = array.toEigenVector<std::vector<size_t>, double>(indices, extractor, -1.0);  // Default -1.0 for nullopt
 
   ASSERT_EQ(vec.size(), 2);
   EXPECT_DOUBLE_EQ(vec(0), 5.5);
   EXPECT_DOUBLE_EQ(vec(1), -1.0);
+}
+
+// ============================================================================
+// fromEigenVector Tests
+// ============================================================================
+
+TEST_F(FixedIDArrayTest, FromEigenVectorWorksForScalar) {
+  FixedIDArray<double> array(3);
+  array[0] = 0.0;
+  array[1] = 0.0;
+  array[2] = 0.0;
+
+  std::vector<size_t> indices = {0, 2};
+  motorium::vector_t vec(2);
+  vec << 1.5, 3.7;
+
+  auto inserter = [](double& target, double value) { target = value; };
+  array.fromEigenVector<std::vector<size_t>, double>(indices, vec, inserter);
+
+  EXPECT_DOUBLE_EQ(array[0], 1.5);
+  EXPECT_DOUBLE_EQ(array[1], 0.0);  // Unchanged
+  EXPECT_DOUBLE_EQ(array[2], 3.7);
+}
+
+TEST_F(FixedIDArrayTest, FromEigenVectorWorksForStruct) {
+  FixedIDArray<TestStruct> array(3);
+  array[0].xyz = 0.0;
+  array[1].xyz = 0.0;
+  array[2].xyz = 0.0;
+
+  std::vector<size_t> indices = {1, 2};
+  motorium::vector_t vec(2);
+  vec << 2.5, 4.8;
+
+  auto inserter = [](TestStruct& target, double value) { target.xyz = value; };
+  array.fromEigenVector<std::vector<size_t>, double>(indices, vec, inserter);
+
+  EXPECT_DOUBLE_EQ(array[0].xyz, 0.0);  // Unchanged
+  EXPECT_DOUBLE_EQ(array[1].xyz, 2.5);
+  EXPECT_DOUBLE_EQ(array[2].xyz, 4.8);
+}
+
+TEST_F(FixedIDArrayTest, FromEigenVectorWorksForClassWithSetterGetter) {
+  FixedIDArray<TestClass> array(3);
+  array[0].setData(0.0);
+  array[1].setData(0.0);
+  array[2].setData(0.0);
+
+  std::vector<size_t> indices = {0, 1, 2};
+  motorium::vector_t vec(3);
+  vec << 10.5, 20.3, 30.7;
+
+  auto inserter = [](TestClass& target, double value) { target.setData(value); };
+  array.fromEigenVector<std::vector<size_t>, double>(indices, vec, inserter);
+
+  EXPECT_DOUBLE_EQ(array[0].getData(), 10.5);
+  EXPECT_DOUBLE_EQ(array[1].getData(), 20.3);
+  EXPECT_DOUBLE_EQ(array[2].getData(), 30.7);
+}
+
+TEST_F(FixedIDArrayTest, FromEigenVectorWorksForOptionalStruct) {
+  FixedIDArray<std::optional<TestStruct>> array(5);
+  array[0] = TestStruct{1.0};  // Initialized
+  array[1] = TestStruct{2.0};  // Initialized
+  array[2] = TestStruct{3.0};  // Initialized
+  array[3] = std::nullopt;
+  array[4] = std::nullopt;
+
+  std::vector<size_t> indices = {0, 2};
+  motorium::vector_t vec(2);
+  vec << 99.5, 88.3;
+
+  auto inserter = [](TestStruct& target, double value) { target.xyz = value; };
+  array.fromEigenVector<std::vector<size_t>, double>(indices, vec, inserter);
+
+  ASSERT_TRUE(array[0].has_value());
+  EXPECT_DOUBLE_EQ(array[0]->xyz, 99.5);
+
+  ASSERT_TRUE(array[1].has_value());
+  EXPECT_DOUBLE_EQ(array[1]->xyz, 2.0);  // Unchanged
+
+  ASSERT_TRUE(array[2].has_value());
+  EXPECT_DOUBLE_EQ(array[2]->xyz, 88.3);
+}
+
+TEST_F(FixedIDArrayTest, FromEigenVectorFailsForNulloptStruct) {
+  FixedIDArray<std::optional<TestStruct>> array(5);
+  array[0] = TestStruct{1.0};  // Initialized
+  array[1] = TestStruct{2.0};  // Initialized
+  array[2] = TestStruct{3.0};  // Initialized
+  array[3] = std::nullopt;
+  array[4] = std::nullopt;
+
+  std::vector<size_t> indices = {0, 4};
+  motorium::vector_t vec(2);
+  vec << 99.5, 88.3;
+
+  auto inserter = [](TestStruct& target, double value) { target.xyz = value; };
+  EXPECT_THROW((array.fromEigenVector<std::vector<size_t>, double>(indices, vec, inserter)), std::bad_optional_access);
+}
+
+TEST_F(FixedIDArrayTest, ToEigenVectorAndFromEigenVectorRoundTrip) {
+  FixedIDArray<TestStruct> array(3);
+  array[0].xyz = 1.1;
+  array[1].xyz = 2.2;
+  array[2].xyz = 3.3;
+
+  std::vector<size_t> indices = {0, 1, 2};
+
+  // Extract to vector
+  auto extractor = [](const TestStruct& s) { return s.xyz; };
+  auto vec = array.toEigenVector<std::vector<size_t>, double>(indices, extractor);
+
+  // Modify vector
+  vec *= 2.0;
+
+  // Write back to array
+  auto inserter = [](TestStruct& target, double value) { target.xyz = value; };
+  array.fromEigenVector<std::vector<size_t>, double>(indices, vec, inserter);
+
+  EXPECT_DOUBLE_EQ(array[0].xyz, 2.2);
+  EXPECT_DOUBLE_EQ(array[1].xyz, 4.4);
+  EXPECT_DOUBLE_EQ(array[2].xyz, 6.6);
+
+  // Second test: Apply a random matrix transformation
+  // Create a fixed 3x3 matrix for reproducible tests
+  motorium::matrix3_t transform;
+  transform << 0.5, 0.2, 0.1, 0.3, 0.7, 0.4, 0.2, 0.1, 0.9;
+
+  // Extract current values
+  vec = array.toEigenVector<std::vector<size_t>, double>(indices, extractor);
+
+  // Apply transformation
+  motorium::vector3_t transformed = transform * vec;
+
+  // Write back transformed values
+  array.fromEigenVector<std::vector<size_t>, double>(indices, transformed, inserter);
+
+  EXPECT_NEAR(array[0].xyz, transformed(0), 1e-10);
+  EXPECT_NEAR(array[1].xyz, transformed(1), 1e-10);
+  EXPECT_NEAR(array[2].xyz, transformed(2), 1e-10);
 }
