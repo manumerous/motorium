@@ -35,16 +35,26 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace motorium::control {
 
-struct ImplicitJointPDControllerConfig {
+struct JointPDControllerConfig {
   std::vector<std::string> joint_names;
   vector_t kp;
   vector_t kd;
+
+  void validate() const;
 };
 
-class ImplicitJointPDController : public ControllerBase {
+/*
+@brief
+Implicit PD Controller does not compute the feedback therms itself but forwards gains and setpoints to be evaluated at the driver. This way
+the feedback can happen at potentially higher loop rates. Explicit PD Controller computes the feedback therms itself and forwards the
+feedback torques to the driver.
+*/
+
+template <bool IsImplicit = true>
+class JointPDController : public ControllerBase {
  public:
-  ImplicitJointPDController(const model::RobotDescription& robot_description, const ImplicitJointPDControllerConfig& config);
-  ~ImplicitJointPDController() override = default;
+  JointPDController(const model::RobotDescription& robot_description, const JointPDControllerConfig& config);
+  ~JointPDController() override = default;
 
   void validateConfig() const;
 
@@ -54,8 +64,18 @@ class ImplicitJointPDController : public ControllerBase {
                                  model::RobotJointFeedbackAction& joint_action) override;
 
  private:
-  ImplicitJointPDControllerConfig config_;
+  JointPDControllerConfig config_;
   std::vector<joint_index_t> joint_indices_;
+
+  void computeImplicitPD(const model::RobotState& desired_state, model::RobotJointFeedbackAction& joint_action);
+
+  void computeExplicitPD(const model::RobotState& current_state,
+                         const model::RobotState& desired_state,
+                         model::RobotJointFeedbackAction& joint_action);
 };
+
+// Type aliases
+using ImplicitJointPDController = JointPDController<true>;
+using ExplicitJointPDController = JointPDController<false>;
 
 }  // namespace motorium::control

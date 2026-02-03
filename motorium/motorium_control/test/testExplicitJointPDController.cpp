@@ -37,7 +37,7 @@ using namespace motorium;
 using namespace motorium::control;
 using namespace motorium::model;
 
-class ImplicitJointPDControllerTest : public ::testing::Test {
+class JointPDControllerTest : public ::testing::Test {
  protected:
   void SetUp() override {
     // Create a dummy robot description with 2 joints
@@ -53,7 +53,7 @@ class ImplicitJointPDControllerTest : public ::testing::Test {
   std::unique_ptr<RobotDescription> robot_description_;
 };
 
-TEST_F(ImplicitJointPDControllerTest, InitializationValidConfig) {
+TEST_F(JointPDControllerTest, InitializationValidConfig) {
   JointPDControllerConfig config;
   config.joint_names = {"joint1"};
   vector_t kp(1);
@@ -63,10 +63,10 @@ TEST_F(ImplicitJointPDControllerTest, InitializationValidConfig) {
   config.kp = kp;
   config.kd = kd;
 
-  ImplicitJointPDController controller(*robot_description_, config);
+  ExplicitJointPDController controller(*robot_description_, config);
 }
 
-TEST_F(ImplicitJointPDControllerTest, InitializationInvalidConfigSize) {
+TEST_F(JointPDControllerTest, InitializationInvalidConfigSize) {
   JointPDControllerConfig config;
   config.joint_names = {"joint1"};
   vector_t kp(1);
@@ -74,23 +74,10 @@ TEST_F(ImplicitJointPDControllerTest, InitializationInvalidConfigSize) {
   config.kp = kp;
   config.kd = vector_t(0);  // Mismatch
 
-  EXPECT_DEATH(ImplicitJointPDController(*robot_description_, config), "Size mismatch");
+  EXPECT_DEATH(ExplicitJointPDController(*robot_description_, config), "Size mismatch");
 }
 
-TEST_F(ImplicitJointPDControllerTest, InitializationMissingJoint) {
-  JointPDControllerConfig config;
-  config.joint_names = {"missing_joint"};
-  vector_t kp(1);
-  kp << 10.0;
-  vector_t kd(1);
-  kd << 1.0;
-  config.kp = kp;
-  config.kd = kd;
-
-  EXPECT_THROW(ImplicitJointPDController(*robot_description_, config), std::out_of_range);
-}
-
-TEST_F(ImplicitJointPDControllerTest, ComputeAction) {
+TEST_F(JointPDControllerTest, ComputeAction) {
   JointPDControllerConfig config;
   config.joint_names = {"joint1", "joint2"};
   vector_t kp(2);
@@ -100,49 +87,52 @@ TEST_F(ImplicitJointPDControllerTest, ComputeAction) {
   config.kp = kp;
   config.kd = kd;
 
-  ImplicitJointPDController controller(*robot_description_, config);
+  ExplicitJointPDController controller(*robot_description_, config);
 
-  RobotState state(*robot_description_);
+  RobotState current_state(*robot_description_);
+  RobotState desired_state(*robot_description_);
   RobotJointFeedbackAction action(*robot_description_);
 
-  controller.computeJointControlAction(0.0, state, state, action);
+  // Set current state
+  joint_index_t idx1 = robot_description_->getJointIndex("joint1");
+  joint_index_t idx2 = robot_description_->getJointIndex("joint2");
+
+  auto makeJointState = [](scalar_t q, scalar_t v, scalar_t effort) {
+    JointState js;
+    js.q = q;
+    js.v = v;
+    js.effort = effort;
+    return js;
+  };
+
+  current_state.setJointState(idx1, makeJointState(0.1, 0.0, 0.0));  // q=0.1
+  current_state.setJointState(idx2, makeJointState(0.2, 0.0, 0.0));  // q=0.2
+
+  // Set desired state
+  desired_state.setJointState(idx1, makeJointState(0.2, 1.0, 5.0));   // q=0.2, v=1.0, effort=5.0
+  desired_state.setJointState(idx2, makeJointState(0.3, 2.0, 10.0));  // q=0.3, v=2.0, effort=10.0
+
+  controller.computeJointControlAction(0.0, current_state, desired_state, action);
 
   // Check joint1
-  joint_index_t idx1 = robot_description_->getJointIndex("joint1");
-  EXPECT_DOUBLE_EQ(action[idx1].kp, 10.0);
-  EXPECT_DOUBLE_EQ(action[idx1].kd, 1.0);
+  // q_err = 0.2 - 0.1 = 0.1
+  // v_err = 1.0 - 0.0 = 1.0
+  // feedback = 10 * 0.1 + 1 * 1.0 = 1 + 1 = 2.0
+  // total = 5.0 + 2.0 = 7.0
+  EXPECT_DOUBLE_EQ(action[idx1].q_des, 0.2);
+  EXPECT_DOUBLE_EQ(action[idx1].v_des, 1.0);
+  EXPECT_DOUBLE_EQ(action[idx1].feed_forward_effort, 7.0);
+  EXPECT_DOUBLE_EQ(action[idx1].kp, 0.0);
+  EXPECT_DOUBLE_EQ(action[idx1].kd, 0.0);
 
   // Check joint2
-  joint_index_t idx2 = robot_description_->getJointIndex("joint2");
-  EXPECT_DOUBLE_EQ(action[idx2].kp, 20.0);
-  EXPECT_DOUBLE_EQ(action[idx2].kd, 2.0);
-}
-
-TEST_F(ImplicitJointPDControllerTest, PartialControl) {
-  // Control only joint2
-  JointPDControllerConfig config;
-  config.joint_names = {"joint2"};
-  vector_t kp(1);
-  kp << 5.0;
-  vector_t kd(1);
-  kd << 0.5;
-  config.kp = kp;
-  config.kd = kd;
-
-  ImplicitJointPDController controller(*robot_description_, config);
-
-  RobotState state(*robot_description_);
-  RobotJointFeedbackAction action(*robot_description_);
-
-  // Initialize action with zeros
-  joint_index_t idx1 = robot_description_->getJointIndex("joint1");
-  joint_index_t idx2 = robot_description_->getJointIndex("joint2");
-  action[idx1].kp = 0.0;
-  action[idx2].kp = 0.0;
-
-  controller.computeJointControlAction(0.0, state, state, action);
-
-  EXPECT_DOUBLE_EQ(action[idx1].kp, 0.0);  // Should be untouched
-  EXPECT_DOUBLE_EQ(action[idx2].kp, 5.0);
-  EXPECT_DOUBLE_EQ(action[idx2].kd, 0.5);
+  // q_err = 0.3 - 0.2 = 0.1
+  // v_err = 2.0 - 0.0 = 2.0
+  // feedback = 20 * 0.1 + 2 * 2.0 = 2 + 4 = 6.0
+  // total = 10.0 + 6.0 = 16.0
+  EXPECT_DOUBLE_EQ(action[idx2].q_des, 0.3);
+  EXPECT_DOUBLE_EQ(action[idx2].v_des, 2.0);
+  EXPECT_DOUBLE_EQ(action[idx2].feed_forward_effort, 16.0);
+  EXPECT_DOUBLE_EQ(action[idx2].kp, 0.0);
+  EXPECT_DOUBLE_EQ(action[idx2].kd, 0.0);
 }

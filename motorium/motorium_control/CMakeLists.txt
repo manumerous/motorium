@@ -37,8 +37,7 @@ set(dependencies
 #############
 
 add_library(${PROJECT_NAME}
-        src/ImplicitJointPDController.cpp
-        src/ExplicitJointPDController.cpp
+        src/JointPDController.cpp
 )
 ament_target_dependencies(${PROJECT_NAME}
         ${dependencies}
