@@ -45,8 +45,8 @@ struct JointPDControllerConfig {
 
 /*
 @brief
-Implicit PD Controller does not compute the feedback therms itself but forwards gains and setpoints to be evaluated at the driver. This way
-the feedback can happen at potentially higher loop rates. Explicit PD Controller computes the feedback therms itself and forwards the
+Implicit PD Controller does not compute the feedback terms itself but forwards gains and setpoints to be evaluated at the driver. This way
+the feedback can happen at potentially higher loop rates. Explicit PD Controller computes the feedback terms itself and forwards the
 feedback torques to the driver.
 */
 

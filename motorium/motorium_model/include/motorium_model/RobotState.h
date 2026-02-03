@@ -111,6 +111,15 @@ class RobotState {
     joint_state_map_.fromVector(joint_ids, velocities, [](JointState& js, scalar_t v) { js.v = v; });
   }
 
+  //  Get a vector_t of joint efforts given a vector of joint IDs
+  vector_t getJointEfforts(const std::vector<joint_index_t>& joint_ids) const {
+    return joint_state_map_.toVector(joint_ids, [](const JointState& js) { return js.effort; });
+  }
+
+  void setJointEfforts(const std::vector<joint_index_t>& joint_ids, const vector_t& efforts) {
+    joint_state_map_.fromVector(joint_ids, efforts, [](JointState& js, scalar_t effort) { js.effort = effort; });
+  }
+
   void setJointState(size_t joint_id, const JointState& joint_state) { joint_state_map_.at(joint_id) = joint_state; }
 
   const JointState& getJointState(size_t joint_id) const { return joint_state_map_.at(joint_id); }
