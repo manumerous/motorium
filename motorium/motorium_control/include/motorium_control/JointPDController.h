@@ -56,8 +56,6 @@ class JointPDController : public ControllerBase {
   JointPDController(const model::RobotDescription& robot_description, const JointPDControllerConfig& config);
   ~JointPDController() override = default;
 
-  void validateConfig() const;
-
   void computeJointControlAction(scalar_t time,
                                  const model::RobotState& current_state,
                                  const model::RobotState& desired_state,
