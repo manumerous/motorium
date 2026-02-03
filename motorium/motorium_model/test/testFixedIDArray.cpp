@@ -316,9 +316,7 @@ TEST_F(FixedIDArrayTest, ToEigenVectorAndFromEigenVectorRoundTrip) {
   // Second test: Apply a random matrix transformation
   // Create a fixed 3x3 matrix for reproducible tests
   motorium::matrix3_t transform;
-  transform << 0.5, 0.2, 0.1,
-               0.3, 0.7, 0.4,
-               0.2, 0.1, 0.9;
+  transform << 0.5, 0.2, 0.1, 0.3, 0.7, 0.4, 0.2, 0.1, 0.9;
 
   // Extract current values
   vec = array.toEigenVector<std::vector<size_t>, double>(indices, extractor);
