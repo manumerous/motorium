@@ -158,7 +158,7 @@ class FixedIDArray {
   void fromEigenVector(const Range& range,
                        const Eigen::Matrix<ScalarType, Eigen::Dynamic, 1>& vector,
                        IDMapInserter<T, ScalarType> auto inserter) {
-    MT_DCHECK(std::ranges::size(range) == vector.size());
+    MT_CHECK(std::ranges::size(range) == vector.size());
     size_t index = 0;
 
     for (const auto& id : range) {
