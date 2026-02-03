@@ -132,6 +132,7 @@ TEST_F(ImplicitJointPDControllerTest, PartialControl) {
   ImplicitJointPDController controller(*robot_description_, config);
 
   RobotState state(*robot_description_);
+  RobotState state_desired(*robot_description_);
   RobotJointFeedbackAction action(*robot_description_);
 
   // Initialize action with zeros
@@ -140,9 +141,22 @@ TEST_F(ImplicitJointPDControllerTest, PartialControl) {
   action[idx1].kp = 0.0;
   action[idx2].kp = 0.0;
 
-  controller.computeJointControlAction(0.0, state, state, action);
+  // Set random initial state
+  vector_t positions(2);
+  positions << 0.1, 0.2;
+  state.setJointPositions({idx1, idx2}, positions);
+
+  vector_t velocities(2);
+  velocities << 0.3, 0.4;
+  state.setJointVelocities({idx1, idx2}, velocities);
+
+  controller.computeJointControlAction(0.0, state, state_desired, action);
 
   EXPECT_DOUBLE_EQ(action[idx1].kp, 0.0);  // Should be untouched
   EXPECT_DOUBLE_EQ(action[idx2].kp, 5.0);
   EXPECT_DOUBLE_EQ(action[idx2].kd, 0.5);
+
+  // Check that no torque is added
+  EXPECT_DOUBLE_EQ(action[idx1].feed_forward_effort, 0.0);
+  EXPECT_DOUBLE_EQ(action[idx2].feed_forward_effort, 0.0);
 }
