@@ -165,6 +165,7 @@ class FixedIDArray {
       T& val = this->at(id);
 
       if constexpr (is_optional_v<T>) {
+        MT_DCHECK(val.has_value()) << std::format("fromEigenVector: optional at index {} is empty", index);
         inserter(val.value(), vector(index));  // Throws std::bad_optional_access if val is nullopt
       } else {
         inserter(val, vector(index));
