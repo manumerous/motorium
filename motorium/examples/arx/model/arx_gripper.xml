@@ -1,0 +1,45 @@
+<mujoco model="arx_gripper">
+    <asset>
+        <mesh name="gripper_left" file="gripper_left.STL"/>
+        <mesh name="gripper_right" file="gripper_right.STL"/>
+        <mesh name="link6_collision" file="link6_collision.STL"/>
+        <mesh name="link6_visual" file="link6_visual.STL"/>
+    </asset>
+
+    <worldbody>
+        <body name="gripper">
+            <geom type="mesh" rgba="0.3 0.3 0.3 0" mesh="link6_collision" group="1" pos="-0.095376 0.03125 0.0777" euler="3.14159 0 0"/>
+            <geom type="mesh" rgba="0.2 0.2 0.2 1" mesh="link6_visual" contype="0" conaffinity="0" group="2" pos="-0.100376 0.03125 0.0777" euler="3.14159 0 0"/>
+            <body name="gripper_left" pos="0.0 0.03 0.071" quat="0.5 -0.5 0.5 -0.5">
+                <inertial pos="0 0 0" mass="0.05" diaginertia="1e-5 1e-5 1e-5"/>
+                <joint name="gripper_left_joint" type="slide" pos="0 0 0" axis="0 0 -1" range="-0.0 0.046 " limited="true"/>
+                <geom type="mesh" rgba="0.2 0.2 0.2 1" mesh="gripper_left" quat="0.5 0.5 0.5 -0.5" friction="1.0 0.005 0.0001"   />
+            </body>
+            <body name="gripper_right" pos="0.0364 0.03 0.071" quat="0.5 -0.5 0.5 -0.5">
+                <inertial pos="0 0 0" mass="0.05" diaginertia="1e-5 1e-5 1e-5"/>
+                <joint name="gripper_right_joint" type="slide" pos="0 0 0" axis="0 0 1" range="-0.0 0.046 " limited="true"/>
+                <geom type="mesh" rgba="0.2 0.2 0.2 1" mesh="gripper_right" quat="0.5 0.5 0.5 -0.5" friction="1.0 0.005 0.0001"  />
+            </body>
+        </body>
+    </worldbody>
+
+    <actuator>
+        <position name="gripper_left_joint" joint="gripper_left_joint" kp="500.0" dampratio="1.1" forcerange="-3 3"/>
+        <position name="gripper_right_joint" joint="gripper_right_joint" kp="500.0" dampratio="1.1" forcerange="-3 3"/>
+        <general name="gripper_left_joint_grav_comp" joint="gripper_left_joint" 
+             gaintype="fixed" gainprm="0"
+             biastype="affine" biasprm="0 0 0 0 0 1"
+             dyntype="none" />
+        <general name="gripper_right_joint_grav_comp" joint="gripper_right_joint" 
+             gaintype="fixed" gainprm="0"
+             biastype="affine" biasprm="0 0 0 0 0 1"
+             dyntype="none" />
+    </actuator>
+
+    <contact>
+        <exclude name="exclude self collision" 
+        body1="gripper_left"
+        body2="gripper_right"
+        />
+    </contact>
+</mujoco>

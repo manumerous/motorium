@@ -1,0 +1,13 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+
+cc_binary(
+    name = "arm_mujoco_sim",
+    srcs = ["arm_mujoco_sim.cpp"],
+    data = glob(["model/**"]),
+    deps = [
+        "//motorium/motorium_model",
+        "//motorium/motorium_mujoco",
+    ],
+    # Add this to link against system OpenGL and X11
+    linkopts = ["-lGL", "-lX11", "-lGLX"],
+)

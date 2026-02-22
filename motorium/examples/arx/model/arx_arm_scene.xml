@@ -1,0 +1,32 @@
+<mujoco model="arx_arm_scene">
+  <compiler angle="radian" meshdir="meshes/"/>
+  <option integrator="RK4" iterations="50" solver="Newton" gravity="0 0 -9.81"/>
+
+  <!-- Include arm model: merges its asset / worldbody / actuator / contact sections -->
+  <include file="arx_arm.xml"/>
+
+  <!-- Include gripper model: merges its asset / worldbody / actuator / contact sections.
+       The gripper body lands at the world level; the weld equality below attaches it to link6. -->
+  <!-- <include file="arx_gripper.xml"/> -->
+
+  <!-- ── Scene elements ──────────────────────────────────────────────── -->
+  <asset>
+    <texture name="grid" type="2d" builtin="checker" width="512" height="512"
+             rgb1="0.1 0.1 0.1" rgb2="0.2 0.2 0.2"/>
+    <material name="grid" texture="grid" texrepeat="4 4" reflectance="0.2"/>
+  </asset>
+
+  <worldbody>
+    <light pos="0 0 2.0" dir="0 0 -1" directional="true"/>
+    <light pos="1 -1 1.5" dir="-1 1 -1" directional="true"/>
+    <geom name="floor" type="plane" size="2 2 0.1" material="grid" pos="0 0 0"/>
+  </worldbody>
+
+  <!-- ── Attach gripper to the end-effector of the arm ───────────────── -->
+  <!-- The gripper body was included at the world level above.
+       This weld constrains it to move rigidly with link6. -->
+  <!-- <equality>
+    <weld name="gripper_to_arm" body1="gripper" body2="link6" relpose="0 0 0  1 0 0 0"/>
+  </equality> -->
+
+</mujoco>
