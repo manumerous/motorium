@@ -37,7 +37,6 @@
                 <inertial pos="0.0471798 0.00010297 -0.000138511" quat="0.495436 0.504523 -0.504523 0.495436" mass="0.462245" diaginertia="0.000910182 0.00068 0.000359818"/>
                 <joint name="joint6" pos="0 0 0" axis="1 0 0" range="-5 5" actuatorfrcrange="-100 100"/>
                 <site name="gripper" pos="0.0 0.0 0.0" quat="0.5 -0.5 0.5 -0.5"/>
-                <site name="attachment_site" pos="0.0 0.0 0.0" quat="0.5 -0.5 0.5 -0.5"/>
               </body>
             </body>
           </body>

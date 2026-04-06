@@ -69,8 +69,6 @@ class MujocoSimInterface : public hal::DriverBase {
   /** Destructor */
   ~MujocoSimInterface();
 
-  void initSim();
-
   void start() override;
 
   void stop() override;
@@ -93,6 +91,8 @@ class MujocoSimInterface : public hal::DriverBase {
   const MujocoSimConfig& getConfig() const { return config_; }
 
  private:
+  void initSim();
+
   void setupJointIndexMaps(const model::RobotDescription& robot_description);
 
   void setSimState(const model::RobotState& robot_state);

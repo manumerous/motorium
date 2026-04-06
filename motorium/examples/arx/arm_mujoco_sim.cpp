@@ -20,14 +20,10 @@
 // Bounds are intentionally wide — the XML actuator limits already constrain
 // the actual motion; these are only used for RobotDescription bookkeeping.
 static const std::vector<motorium::model::JointDescription> kArmJoints = {
-    {"joint1", {-10.0, 10.0}, {-10.0, 10.0}, {-100.0, 100.0}},
-    {"joint2", {-10.0, 10.0}, {-10.0, 10.0}, {-100.0, 100.0}},
-    {"joint3", {-10.0, 10.0}, {-10.0, 10.0}, {-100.0, 100.0}},
-    {"joint4", {-10.0, 10.0}, {-10.0, 10.0}, {-100.0, 100.0}},
-    {"joint5", {-10.0, 10.0}, {-10.0, 10.0}, {-100.0, 100.0}},
-    {"joint6", {-5.0, 5.0},   {-10.0, 10.0}, {-100.0, 100.0}},
-    {"gripper_left_joint",  {0.0, 0.046}, {-10.0, 10.0}, {-3.0, 3.0}},
-    {"gripper_right_joint", {0.0, 0.046}, {-10.0, 10.0}, {-3.0, 3.0}},
+    {"joint1", {-10.0, 10.0}, {-10.0, 10.0}, {-100.0, 100.0}},        {"joint2", {-10.0, 10.0}, {-10.0, 10.0}, {-100.0, 100.0}},
+    {"joint3", {-10.0, 10.0}, {-10.0, 10.0}, {-100.0, 100.0}},        {"joint4", {-10.0, 10.0}, {-10.0, 10.0}, {-100.0, 100.0}},
+    {"joint5", {-10.0, 10.0}, {-10.0, 10.0}, {-100.0, 100.0}},        {"joint6", {-5.0, 5.0}, {-10.0, 10.0}, {-100.0, 100.0}},
+    {"gripper_left_joint", {0.0, 0.046}, {-10.0, 10.0}, {-3.0, 3.0}}, {"gripper_right_joint", {0.0, 0.046}, {-10.0, 10.0}, {-3.0, 3.0}},
 };
 
 int main(int argc, char** argv) {
@@ -45,17 +41,17 @@ int main(int argc, char** argv) {
 
   // ── Sim config ─────────────────────────────────────────────────────────
   motorium::mujoco::MujocoSimConfig config;
-  config.scenePath       = scene_path;
-  config.initStatePtr_   = nullptr;   // zero init; arm starts at rest
-  config.dt              = 0.001;     // 1 kHz physics
+  config.scenePath = scene_path;
+  config.initStatePtr_ = nullptr;  // zero init; arm starts at rest
+  config.dt = 0.001;               // 1 kHz physics
   config.renderFrequencyHz = 60.0;
-  config.headless        = false;
-  config.verbose         = true;
+  config.headless = false;
+  config.verbose = true;
 
   // ── Create and start simulation ────────────────────────────────────────
   std::cout << "[arm_mujoco_sim] Starting simulation...\n";
   motorium::mujoco::MujocoSimInterface sim(config, robot_description);
-  sim.initSim();
+
   sim.start();
 
   std::cout << "[arm_mujoco_sim] Simulation running. Close the viewer window to exit.\n";
