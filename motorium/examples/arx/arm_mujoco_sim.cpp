@@ -4,6 +4,7 @@
 // Usage (Bazel):
 //   bazel run //motorium/examples/arx:arm_mujoco_sim
 
+#include <cmath>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -11,6 +12,7 @@
 #include <vector>
 
 #include "motorium_model/RobotDescription.h"
+#include "motorium_model/RobotJointFeedbackAction.h"
 #include "motorium_model/RobotState.h"
 #include "motorium_mujoco/MujocoSimInterface.h"
 
@@ -20,11 +22,9 @@
 // Bounds are intentionally wide — the XML actuator limits already constrain
 // the actual motion; these are only used for RobotDescription bookkeeping.
 static const std::vector<motorium::model::JointDescription> kArmJoints = {
-    {"joint1", {-10.0, 10.0}, {-10.0, 10.0}, {-100.0, 100.0}},        {"joint2", {-10.0, 10.0}, {-10.0, 10.0}, {-100.0, 100.0}},
-    {"joint3", {-10.0, 10.0}, {-10.0, 10.0}, {-100.0, 100.0}},        {"joint4", {-10.0, 10.0}, {-10.0, 10.0}, {-100.0, 100.0}},
-    {"joint5", {-10.0, 10.0}, {-10.0, 10.0}, {-100.0, 100.0}},        {"joint6", {-5.0, 5.0}, {-10.0, 10.0}, {-100.0, 100.0}},
-    {"gripper_left_joint", {0.0, 0.046}, {-10.0, 10.0}, {-3.0, 3.0}}, {"gripper_right_joint", {0.0, 0.046}, {-10.0, 10.0}, {-3.0, 3.0}},
-};
+    {"joint1", {-10.0, 10.0}, {-10.0, 10.0}, {-100.0, 100.0}}, {"joint2", {-10.0, 10.0}, {-10.0, 10.0}, {-100.0, 100.0}},
+    {"joint3", {-10.0, 10.0}, {-10.0, 10.0}, {-100.0, 100.0}}, {"joint4", {-10.0, 10.0}, {-10.0, 10.0}, {-100.0, 100.0}},
+    {"joint5", {-10.0, 10.0}, {-10.0, 10.0}, {-100.0, 100.0}}, {"joint6", {-5.0, 5.0}, {-10.0, 10.0}, {-100.0, 100.0}}};
 
 int main(int argc, char** argv) {
   // ── Scene path ─────────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
   motorium::mujoco::MujocoSimConfig config;
   config.scenePath = scene_path;
   config.initStatePtr_ = nullptr;  // zero init; arm starts at rest
-  config.dt = 0.001;               // 1 kHz physics
+  config.dt = 0.0002;              // 5 kHz physics
   config.renderFrequencyHz = 60.0;
   config.headless = false;
   config.verbose = true;
@@ -52,14 +52,43 @@ int main(int argc, char** argv) {
   std::cout << "[arm_mujoco_sim] Starting simulation...\n";
   motorium::mujoco::MujocoSimInterface sim(config, robot_description);
 
+  motorium::model::RobotJointFeedbackAction action(robot_description);
+
+  // Helper: set gains for a joint. kd = 2 * dampratio * sqrt(kp)
+  auto setJointGains = [&](const std::string& name, double q_des, double v_des, double kp, double dampratio, double ff = 0.0) {
+    auto& a = action.at(robot_description.getJointIndex(name));
+    a.q_des = q_des;
+    a.v_des = v_des;
+    a.kp = kp;
+    a.kd = 2.0 * dampratio * std::sqrt(kp);
+    a.feed_forward_effort = ff;
+  };
+
+  //                     name       q_des        v_des       kp     dampratio
+  // setJointGains("joint1", 3.14, 0.0, 50.0, 0.7);
+  // setJointGains("joint2", 0.0, 0.0, 250.0, 0.9);
+  // setJointGains("joint3", 0.0, 0.0, 350.0, 0.8);
+  // setJointGains("joint4", 0.0, 0.0, 100.0, 1.1);
+  // setJointGains("joint5", 0.0, 0.0, 10.0, 0.7);
+  // setJointGains("joint6", 0.0, 0.0, 5.0, 1.4);
+
+  setJointGains("joint1", 0.0, 0.0, 200.0, 0.7);
+  setJointGains("joint2", 0.0, 0.0, 250.0, 1.1);
+  setJointGains("joint3", 0.0, 0.0, 250.0, 1.1);
+  setJointGains("joint4", 0.0, 0.0, 100.0, 1.1);
+  setJointGains("joint5", 0.0, 0.0, 10.0, 0.7);
+  setJointGains("joint6", 0.0, 0.0, 5.0, 1.4);
+
   sim.start();
+  std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
   std::cout << "[arm_mujoco_sim] Simulation running. Close the viewer window to exit.\n";
 
   // Block the main thread; the renderer and physics run on their own threads.
   // Press ESC in the MuJoCo viewer to close the window.
   while (true) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    sim.setJointFeedbackAction(action);
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
 
   sim.stop();

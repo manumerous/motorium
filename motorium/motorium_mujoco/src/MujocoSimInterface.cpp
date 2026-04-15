@@ -229,26 +229,53 @@ void MujocoSimInterface::printModelInfo() {
     std::cerr << std::endl;
   }
 
-  std::string jointName(&mj_model_->names[mj_model_->name_jntadr[0]]);
+  // Map joint type to (nq, nv) dimensions
+  auto jointDims = [](int type) -> std::pair<int, int> {
+    switch (type) {
+      case mjJNT_FREE:
+        return {7, 6};
+      case mjJNT_BALL:
+        return {4, 3};
+      case mjJNT_SLIDE:
+        return {1, 1};
+      case mjJNT_HINGE:
+        return {1, 1};
+      default:
+        return {0, 0};
+    }
+  };
 
-  // Print the information
-  std::cerr << "Joint Name: " << jointName << std::endl;
-  std::cerr << "Position: " << mj_data_->qpos[0] << " " << mj_data_->qpos[1] << " " << mj_data_->qpos[2] << " " << mj_data_->qpos[3] << " "
-            << mj_data_->qpos[4] << " " << mj_data_->qpos[5] << " " << mj_data_->qpos[6] << std::endl;
-  std::cerr << "Velocity: " << mj_data_->qvel[0] << " " << mj_data_->qvel[1] << " " << mj_data_->qvel[2] << " " << mj_data_->qvel[3] << " "
-            << mj_data_->qvel[4] << " " << mj_data_->qvel[5] << std::endl;
+  auto jointTypeName = [](int type) -> std::string {
+    switch (type) {
+      case mjJNT_FREE:
+        return "FREE";
+      case mjJNT_BALL:
+        return "BALL";
+      case mjJNT_SLIDE:
+        return "SLIDE";
+      case mjJNT_HINGE:
+        return "HINGE";
+      default:
+        return "UNKNOWN";
+    }
+  };
 
-  // Print joint names, positions, and velocities
-  for (int i = 1; i < mj_model_->njnt; ++i) {
-    // Get the joint name
+  for (int i = 0; i < mj_model_->njnt; ++i) {
     std::string jointName(&mj_model_->names[mj_model_->name_jntadr[i]]);
+    int type = mj_model_->jnt_type[i];
+    int qpos_start = mj_model_->jnt_qposadr[i];
+    int qvel_start = mj_model_->jnt_dofadr[i];
+    auto [nq, nv] = jointDims(type);
 
-    // Get the joint position and velocity
-    double jointPos = mj_data_->qpos[i + 6];
-    double jointVel = mj_data_->qvel[i + 5];
+    std::cerr << "Joint[" << i << "] Name: " << jointName << ", Type: " << jointTypeName(type) << "\n";
 
-    // Print the information
-    std::cerr << "Joint Name: " << jointName << ", Position: " << jointPos << ", Velocity: " << jointVel << std::endl;
+    std::cerr << "  Position (" << nq << "):";
+    for (int q = 0; q < nq; ++q) std::cerr << " " << mj_data_->qpos[qpos_start + q];
+    std::cerr << "\n";
+
+    std::cerr << "  Velocity (" << nv << "):";
+    for (int v = 0; v < nv; ++v) std::cerr << " " << mj_data_->qvel[qvel_start + v];
+    std::cerr << "\n";
   }
 
   // Calculate total mass
@@ -370,6 +397,8 @@ void MujocoSimInterface::simulationStep() {
       joint_index_t idx = active_robot_actuator_indices_[i];
       const motorium::model::JointFeedbackAction& action = action_internal_.at(idx);
       mj_data_->ctrl[i] = action.getTotalFeedbackTorque(mj_data_->qpos[i + 7], mj_data_->qvel[i + 6]);
+      // std::cerr << "joint" << idx << " pos: " << mj_data_->qpos[i + 7] << std::endl;
+      // std::cerr << "joint" << idx << " ctrl: " << mj_data_->ctrl[i] << std::endl;
     }
   }
   {
