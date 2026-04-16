@@ -111,8 +111,8 @@ class MujocoSimInterface : public hal::DriverBase {
   size_t nq_base_offset_ = 0;
   size_t nv_base_offset_ = 0;
 
-  mjtNum* qpos_init_;  // position                                         (nq x 1)
-  mjtNum* qvel_init_;
+  std::vector<mjtNum> qpos_init_;  // position                                         (nq x 1)
+  std::vector<mjtNum> qvel_init_;
   model::RobotJointFeedbackAction action_internal_;
   mutable std::mutex action_mutex_;
 
@@ -126,11 +126,8 @@ class MujocoSimInterface : public hal::DriverBase {
 
   mjModel* mj_model_ = NULL;
   mjData* mj_data_ = NULL;
-  mjContact* mj_contact_ = NULL;
 
-  bool sim_initialized_;
-  const bool headless_;
-  const bool verbose_;
+  bool sim_initialized_{false};
 
   mutable std::mutex mj_mutex_;  // Used to access mujoco model and data
                                  // accross simulation and render threads.
@@ -140,12 +137,6 @@ class MujocoSimInterface : public hal::DriverBase {
   FPSTracker simFps_{"mujoco_sim"};
   std::chrono::high_resolution_clock::time_point last_realtime_;
   Metrics metrics_{};
-
-  size_t right_foot_sensor_addr_;
-  size_t left_foot_sensor_addr_;
-
-  size_t right_foot_touch_sensor_addr_;
-  size_t left_foot_touch_sensor_addr_;
 };
 
 }  // namespace motorium::mujoco

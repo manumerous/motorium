@@ -43,11 +43,7 @@ MjState::MjState(const mjModel* mj_model) : data(mj_makeData(mj_model)) {}
 /******************************************************************************************************/
 
 MujocoSimInterface::MujocoSimInterface(const MujocoSimConfig& config, const model::RobotDescription& robot_description)
-    : DriverBase(robot_description, "mujoco_sim"),
-      config_(config),
-      action_internal_(robot_description),
-      headless_(config.headless),
-      verbose_(config.verbose) {
+    : DriverBase(robot_description, "mujoco_sim"), config_(config), action_internal_(robot_description) {
   last_realtime_ = std::chrono::high_resolution_clock::now();
   const int errstr_sz = 1000;  // Define the size of the error buffer
   char errstr[errstr_sz];      // Declare the error string buffer
@@ -65,8 +61,6 @@ MujocoSimInterface::MujocoSimInterface(const MujocoSimConfig& config, const mode
   /* initialize random seed: */
   srand(time(NULL));
 
-  mj_contact_ = mj_data_->contact;
-
   // assert(num_active_joints_ == neo_definitions::FULL_NEO_JOINT_DIM);
 
   mj_model_->opt.timestep = config_.dt;
@@ -80,7 +74,7 @@ MujocoSimInterface::MujocoSimInterface(const MujocoSimConfig& config, const mode
     nv_base_offset_ = 6;
   }
 
-  if (verbose_) {
+  if (config_.verbose) {
     std::cerr << "is_floating_base_: " << is_floating_base_ << std::endl;
     printModelInfo();
   }
@@ -106,12 +100,12 @@ MujocoSimInterface::MujocoSimInterface(const MujocoSimConfig& config, const mode
     mj_model_->dof_damping[i] = defaultJointDamping;
   }
 
-  qpos_init_ = new mjtNum[mj_model_->nq];
-  qvel_init_ = new mjtNum[mj_model_->nv];
+  qpos_init_.resize(mj_model_->nq);
+  qvel_init_.resize(mj_model_->nv);
 
   // Safe init state for resets
-  memcpy(qpos_init_, mj_data_->qpos, mj_model_->nq * sizeof(mjtNum));
-  memcpy(qvel_init_, mj_data_->qvel, mj_model_->nv * sizeof(mjtNum));
+  memcpy(qpos_init_.data(), mj_data_->qpos, mj_model_->nq * sizeof(mjtNum));
+  memcpy(qvel_init_.data(), mj_data_->qvel, mj_model_->nv * sizeof(mjtNum));
 }
 
 /******************************************************************************************************/
@@ -122,8 +116,6 @@ MujocoSimInterface::~MujocoSimInterface() {
   stop();
   mj_deleteData(mj_data_);
   mj_deleteModel(mj_model_);
-  delete[] qpos_init_;
-  delete[] qvel_init_;
 }
 
 /******************************************************************************************************/
@@ -131,8 +123,8 @@ MujocoSimInterface::~MujocoSimInterface() {
 /******************************************************************************************************/
 
 void MujocoSimInterface::reset() {
-  memcpy(mj_data_->qpos, qpos_init_, mj_model_->nq * sizeof(mjtNum));
-  memcpy(mj_data_->qvel, qvel_init_, mj_model_->nv * sizeof(mjtNum));
+  memcpy(mj_data_->qpos, qpos_init_.data(), mj_model_->nq * sizeof(mjtNum));
+  memcpy(mj_data_->qvel, qvel_init_.data(), mj_model_->nv * sizeof(mjtNum));
 }
 
 /******************************************************************************************************/
@@ -193,7 +185,7 @@ void MujocoSimInterface::setupJointIndexMaps(const model::RobotDescription& robo
 
   num_active_joints_ = active_robot_joint_indices_.size();
   num_actuators_ = active_robot_actuator_indices_.size();
-  if (verbose_) {
+  if (config_.verbose) {
     std::cerr << "Initialized " << num_active_joints_ << " active Joints" << std::endl;
     std::cerr << "Initialized " << num_actuators_ << " active Actuators" << std::endl;
   }
@@ -453,7 +445,7 @@ void MujocoSimInterface::initSim() {
   simulationStep();
   sim_initialized_ = true;
 
-  if (!headless_) {
+  if (!config_.headless) {
     renderer_.reset(new MujocoRenderer(this));
     renderer_->launchRenderThread();
   }
