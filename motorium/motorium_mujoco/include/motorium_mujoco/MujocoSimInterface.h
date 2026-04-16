@@ -107,6 +107,10 @@ class MujocoSimInterface : public hal::DriverBase {
 
   MujocoSimConfig config_;
 
+  bool is_floating_base_;
+  size_t nq_base_offset_ = 0;
+  size_t nv_base_offset_ = 0;
+
   mjtNum* qpos_init_;  // position                                         (nq x 1)
   mjtNum* qvel_init_;
   model::RobotJointFeedbackAction action_internal_;

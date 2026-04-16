@@ -86,6 +86,12 @@ MujocoSimInterface::MujocoSimInterface(const MujocoSimConfig& config, const mode
   }
   setSimState(initRobotState);
 
+  const bool isFloatingBase = (mj_model_->njnt > 0 && mj_model_->jnt_type[0] == mjJNT_FREE);
+  if (isFloatingBase) {
+    nq_base_offset_ = 7;
+    nv_base_offset_ = 6;
+  }
+
   // Add default joint damping
   scalar_t defaultJointDamping = 10.0;
 
@@ -93,23 +99,6 @@ MujocoSimInterface::MujocoSimInterface(const MujocoSimConfig& config, const mode
     std::string mjJointName(&mj_model_->names[mj_model_->name_jntadr[mj_model_->dof_jntid[i]]]);
     std::cerr << "mjJointName: " << mjJointName << std::endl;
     mj_model_->dof_damping[i] = defaultJointDamping;
-  }
-
-  for (int i = 0; i < mj_model_->nsensor; i++) {
-    std::string sensorName(&mj_model_->names[mj_model_->name_sensoradr[i]]);
-
-    if (sensorName == "right_foot_touch_sensor") {
-      right_foot_touch_sensor_addr_ = mj_model_->sensor_adr[i];
-    }
-    if (sensorName == "left_foot_touch_sensor") {
-      left_foot_touch_sensor_addr_ = mj_model_->sensor_adr[i];
-    }
-    if (sensorName == "right_foot_force_sensor") {
-      right_foot_sensor_addr_ = mj_model_->sensor_adr[i];
-    }
-    if (sensorName == "left_foot_force_sensor") {
-      left_foot_sensor_addr_ = mj_model_->sensor_adr[i];
-    }
   }
 
   qpos_init_ = new mjtNum[mj_model_->nq];
@@ -292,33 +281,36 @@ void MujocoSimInterface::printModelInfo() {
 
 void MujocoSimInterface::setSimState(const model::RobotState& robot_state) {
   // Root Pose
-  vector3_t rootPosition = robot_state.getRootPositionInWorldFrame();
-  quaternion_t quat_l_to_w = robot_state.getRootRotationLocalToWorldFrame();
 
-  mj_data_->qpos[0] = rootPosition[0];
-  mj_data_->qpos[1] = rootPosition[1];
-  mj_data_->qpos[2] = rootPosition[2];
-  mj_data_->qpos[3] = quat_l_to_w.w();
-  mj_data_->qpos[4] = quat_l_to_w.x();
-  mj_data_->qpos[5] = quat_l_to_w.y();
-  mj_data_->qpos[6] = quat_l_to_w.z();
+  if (is_floating_base_) {
+    vector3_t rootPosition = robot_state.getRootPositionInWorldFrame();
+    quaternion_t quat_l_to_w = robot_state.getRootRotationLocalToWorldFrame();
 
-  // Root Velocity
+    mj_data_->qpos[0] = rootPosition[0];
+    mj_data_->qpos[1] = rootPosition[1];
+    mj_data_->qpos[2] = rootPosition[2];
+    mj_data_->qpos[3] = quat_l_to_w.w();
+    mj_data_->qpos[4] = quat_l_to_w.x();
+    mj_data_->qpos[5] = quat_l_to_w.y();
+    mj_data_->qpos[6] = quat_l_to_w.z();
 
-  vector3_t root_vel_lin_world_frame = quat_l_to_w * robot_state.getRootLinearVelocityInLocalFrame();
-  vector3_t root_vel_ang_local_frame = robot_state.getRootAngularVelocityInLocalFrame();
+    // Root Velocity
 
-  mj_data_->qvel[0] = root_vel_lin_world_frame[0];
-  mj_data_->qvel[1] = root_vel_lin_world_frame[1];
-  mj_data_->qvel[2] = root_vel_lin_world_frame[2];
-  mj_data_->qvel[3] = root_vel_ang_local_frame[0];
-  mj_data_->qvel[4] = root_vel_ang_local_frame[1];
-  mj_data_->qvel[5] = root_vel_ang_local_frame[2];
+    vector3_t root_vel_lin_world_frame = quat_l_to_w * robot_state.getRootLinearVelocityInLocalFrame();
+    vector3_t root_vel_ang_local_frame = robot_state.getRootAngularVelocityInLocalFrame();
+
+    mj_data_->qvel[0] = root_vel_lin_world_frame[0];
+    mj_data_->qvel[1] = root_vel_lin_world_frame[1];
+    mj_data_->qvel[2] = root_vel_lin_world_frame[2];
+    mj_data_->qvel[3] = root_vel_ang_local_frame[0];
+    mj_data_->qvel[4] = root_vel_ang_local_frame[1];
+    mj_data_->qvel[5] = root_vel_ang_local_frame[2];
+  }
 
   // Joint State
   for (size_t i = 0; i < num_active_joints_; ++i) {
-    mj_data_->qpos[i + 7] = robot_state.getJointPosition(active_robot_joint_indices_[i]);
-    mj_data_->qvel[i + 6] = robot_state.getJointVelocity(active_robot_joint_indices_[i]);
+    mj_data_->qpos[i + nq_base_offset_] = robot_state.getJointPosition(active_robot_joint_indices_[i]);
+    mj_data_->qvel[i + nv_base_offset_] = robot_state.getJointVelocity(active_robot_joint_indices_[i]);
   }
 }
 
@@ -330,29 +322,30 @@ void MujocoSimInterface::updateRobotState(model::RobotState& robot_state) {
   std::lock_guard<std::mutex> lock(mj_mutex_);
   // Update mujoco joint angles
   for (size_t i = 0; i < num_active_joints_; ++i) {
-    robot_state.setJointPosition(active_robot_joint_indices_[i], mj_data_->qpos[i + 7]);
-    robot_state.setJointVelocity(active_robot_joint_indices_[i], mj_data_->qvel[i + 6]);
+    robot_state.setJointPosition(active_robot_joint_indices_[i], mj_data_->qpos[i + nq_base_offset_]);
+    robot_state.setJointVelocity(active_robot_joint_indices_[i], mj_data_->qvel[i + nv_base_offset_]);
   }
 
-  // Initialize in order w, x,y ,z
-  quaternion_t quat_l_to_w = quaternion_t(mj_data_->qpos[3], mj_data_->qpos[4], mj_data_->qpos[5], mj_data_->qpos[6]);
-  vector3_t pelvisAngularVelLocal = vector3_t(mj_data_->qvel[3], mj_data_->qvel[4], mj_data_->qvel[5]);
+  // Body 0 is "world", body 1 is the first real link.
+  constexpr int kRootBodyId = 1;
+  vector3_t rootPos(mj_data_->xpos[kRootBodyId * 3 + 0], mj_data_->xpos[kRootBodyId * 3 + 1], mj_data_->xpos[kRootBodyId * 3 + 2]);
+  // xquat is stored as (w, x, y, z)
+  quaternion_t quat_l_to_w(mj_data_->xquat[kRootBodyId * 4 + 0], mj_data_->xquat[kRootBodyId * 4 + 1], mj_data_->xquat[kRootBodyId * 4 + 2],
+                           mj_data_->xquat[kRootBodyId * 4 + 3]);
 
-  // Fix later
-  // bool leftFootContact =
-  // (mj_data_->sensordata[left_foot_touch_sensor_addr_] > 0.1); bool
-  // rightFootContact = (mj_data_->sensordata[right_foot_touch_sensor_addr_]
-  // > 0.1);
-  bool leftFootContact = true;
-  bool rightFootContact = true;
-
-  robot_state.setRootPositionInWorldFrame(vector3_t(mj_data_->qpos[0], mj_data_->qpos[1], mj_data_->qpos[2]));
+  robot_state.setRootPositionInWorldFrame(rootPos);
   robot_state.setRootRotationLocalToWorldFrame(quat_l_to_w);
-  // Rotate the angular velocity from world frame to local frame.
-  robot_state.setRootLinearVelocityInLocalFrame(quat_l_to_w.inverse() * vector3_t(mj_data_->qvel[0], mj_data_->qvel[1], mj_data_->qvel[2]));
-  robot_state.setRootAngularVelocityInLocalFrame(pelvisAngularVelLocal);
-  robot_state.setContactFlag(0, leftFootContact);
-  robot_state.setContactFlag(1, rightFootContact);
+
+  if (is_floating_base_) {
+    vector3_t angVelLocal = vector3_t(mj_data_->qvel[3], mj_data_->qvel[4], mj_data_->qvel[5]);
+    robot_state.setRootLinearVelocityInLocalFrame(quat_l_to_w.inverse() *
+                                                  vector3_t(mj_data_->qvel[0], mj_data_->qvel[1], mj_data_->qvel[2]));
+    robot_state.setRootAngularVelocityInLocalFrame(angVelLocal);
+  } else {
+    // Fixed base has 0 velocity.
+    robot_state.setRootLinearVelocityInLocalFrame(vector3_t::Zero());
+    robot_state.setRootAngularVelocityInLocalFrame(vector3_t::Zero());
+  }
 
   robot_state.setTime(mj_data_->time);  // Todo: should mujoco be the source of time?
 }
@@ -396,7 +389,7 @@ void MujocoSimInterface::simulationStep() {
     for (size_t i = 0; i < num_actuators_; ++i) {
       joint_index_t idx = active_robot_actuator_indices_[i];
       const motorium::model::JointFeedbackAction& action = action_internal_.at(idx);
-      mj_data_->ctrl[i] = action.getTotalFeedbackTorque(mj_data_->qpos[i + 7], mj_data_->qvel[i + 6]);
+      mj_data_->ctrl[i] = action.getTotalFeedbackTorque(mj_data_->qpos[i + nq_base_offset_], mj_data_->qvel[i + nv_base_offset_]);
       // std::cerr << "joint" << idx << " pos: " << mj_data_->qpos[i + 7] << std::endl;
       // std::cerr << "joint" << idx << " ctrl: " << mj_data_->ctrl[i] << std::endl;
     }
