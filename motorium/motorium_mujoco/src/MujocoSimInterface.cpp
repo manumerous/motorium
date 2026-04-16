@@ -31,6 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <cerrno>
 #include <cstring>
+#include <iostream>
 #include <stdexcept>
 
 namespace motorium::mujoco {
@@ -72,7 +73,17 @@ MujocoSimInterface::MujocoSimInterface(const MujocoSimConfig& config, const mode
 
   time_step_micro_ = static_cast<size_t>(config_.dt * 1000000);
 
-  if (verbose_) printModelInfo();
+  is_floating_base_ = (mj_model_->njnt > 0 && mj_model_->jnt_type[0] == mjJNT_FREE);
+
+  if (is_floating_base_) {
+    nq_base_offset_ = 7;
+    nv_base_offset_ = 6;
+  }
+
+  if (verbose_) {
+    std::cerr << "is_floating_base_: " << is_floating_base_ << std::endl;
+    printModelInfo();
+  }
 
   setupJointIndexMaps(robot_description);
 
@@ -85,12 +96,6 @@ MujocoSimInterface::MujocoSimInterface(const MujocoSimConfig& config, const mode
     initRobotState.setRootPositionInWorldFrame(vector3_t(0.0, 0.0, 1.0));
   }
   setSimState(initRobotState);
-
-  const bool isFloatingBase = (mj_model_->njnt > 0 && mj_model_->jnt_type[0] == mjJNT_FREE);
-  if (isFloatingBase) {
-    nq_base_offset_ = 7;
-    nv_base_offset_ = 6;
-  }
 
   // Add default joint damping
   scalar_t defaultJointDamping = 10.0;
@@ -150,8 +155,9 @@ void MujocoSimInterface::copyMjState(MjState& state) const {
 /******************************************************************************************************/
 
 void MujocoSimInterface::setupJointIndexMaps(const model::RobotDescription& robot_description) {
+  const int start_joint_index = is_floating_base_ ? 1 : 0;
   // Mujoco to Robot joints
-  for (int i = 1; i < mj_model_->njnt; ++i) {
+  for (int i = start_joint_index; i < mj_model_->njnt; ++i) {
     // Get the joint name
     const std::string jointName(&mj_model_->names[mj_model_->name_jntadr[i]]);
     if (robot_description.containsJoint(jointName)) {

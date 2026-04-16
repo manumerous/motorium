@@ -119,6 +119,8 @@ class MujocoSimInterface : public hal::DriverBase {
   size_t time_step_micro_;
   size_t num_active_joints_;
   size_t num_actuators_;
+
+  // Keeping tack of active joints/actuators to allow for the use of e.g passive or mimic joints
   std::vector<std::string> active_joint_names_;
   std::vector<std::string> active_actuator_names_;
   std::vector<joint_index_t> active_robot_joint_indices_;
@@ -127,7 +129,6 @@ class MujocoSimInterface : public hal::DriverBase {
   mjModel* mj_model_ = NULL;
   mjData* mj_data_ = NULL;
   mjContact* mj_contact_ = NULL;
-  // mjfSensor mujocoSenor_;
 
   bool sim_initialized_;
   const bool headless_;
