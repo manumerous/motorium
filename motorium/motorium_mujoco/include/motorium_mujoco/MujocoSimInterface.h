@@ -121,8 +121,6 @@ class MujocoSimInterface : public hal::DriverBase {
   size_t num_actuators_;
 
   // Keeping tack of active joints/actuators to allow for the use of e.g passive or mimic joints
-  std::vector<std::string> active_joint_names_;
-  std::vector<std::string> active_actuator_names_;
   std::vector<joint_index_t> active_robot_joint_indices_;
   std::vector<joint_index_t> active_robot_actuator_indices_;
 

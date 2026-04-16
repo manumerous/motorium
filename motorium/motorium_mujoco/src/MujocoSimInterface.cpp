@@ -155,13 +155,15 @@ void MujocoSimInterface::copyMjState(MjState& state) const {
 /******************************************************************************************************/
 
 void MujocoSimInterface::setupJointIndexMaps(const model::RobotDescription& robot_description) {
+  std::vector<std::string> active_joint_names;
+
   const int start_joint_index = is_floating_base_ ? 1 : 0;
   // Mujoco to Robot joints
   for (int i = start_joint_index; i < mj_model_->njnt; ++i) {
     // Get the joint name
     const std::string jointName(&mj_model_->names[mj_model_->name_jntadr[i]]);
     if (robot_description.containsJoint(jointName)) {
-      active_joint_names_.emplace_back(jointName);
+      active_joint_names.emplace_back(jointName);
     } else {
       std::cerr << "WARNING: Joint contained in mujoco xml not exposed to "
                    "RobotHWInterface: "
@@ -169,14 +171,17 @@ void MujocoSimInterface::setupJointIndexMaps(const model::RobotDescription& robo
     }
   }
 
-  active_robot_joint_indices_ = robot_description.getJointIndices(active_joint_names_);
+  active_robot_joint_indices_ = robot_description.getJointIndices(active_joint_names);
 
   // Mujoco to robot actuators
+
+  std::vector<std::string> active_actuator_names;
+
   for (int i = 0; i < mj_model_->nu; ++i) {
     const std::string actuator_name = mj_id2name(mj_model_, mjOBJ_ACTUATOR, i);
 
     if (robot_description.containsJoint(actuator_name)) {
-      active_actuator_names_.emplace_back(actuator_name);
+      active_actuator_names.emplace_back(actuator_name);
     } else {
       std::cerr << "WARNING: Actuator contained in mujoco xml not be commanded "
                    "through RobotHWInterface: "
@@ -184,7 +189,7 @@ void MujocoSimInterface::setupJointIndexMaps(const model::RobotDescription& robo
     }
   }
 
-  active_robot_actuator_indices_ = robot_description.getJointIndices(active_actuator_names_);
+  active_robot_actuator_indices_ = robot_description.getJointIndices(active_actuator_names);
 
   num_active_joints_ = active_robot_joint_indices_.size();
   num_actuators_ = active_robot_actuator_indices_.size();
