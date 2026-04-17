@@ -5,11 +5,13 @@
 //   bazel run //motorium/examples/arx:arm_mujoco_sim
 
 #include <cmath>
+#include <filesystem>
 #include <iostream>
-#include <memory>
 #include <string>
 #include <thread>
 #include <vector>
+
+#include "tools/cpp/runfiles/runfiles.h"
 
 #include "motorium_model/RobotDescription.h"
 #include "motorium_model/RobotJointFeedbackAction.h"
@@ -28,10 +30,23 @@ static const std::vector<motorium::model::JointDescription> kArmJoints = {
 
 int main(int argc, char** argv) {
   // ── Scene path ─────────────────────────────────────────────────────────
-  // Default to the Bazel runfiles-relative path; override via argv[1].
-  std::string scene_path = "/home/manu/src/motorium_ws/src/motorium/motorium/examples/arx/model/arx_arm_scene.xml";
+  std::string scene_path;
   if (argc > 1) {
     scene_path = argv[1];
+  } else {
+    std::string error;
+    auto runfiles = bazel::tools::cpp::runfiles::Runfiles::Create(argv[0], &error);
+    if (!runfiles) {
+      std::cerr << "[arm_mujoco_sim] ERROR: Could not initialize runfiles: " << error << "\n"
+                << "  Pass the scene path as argv[1] to override.\n";
+      return 1;
+    }
+    scene_path = runfiles->Rlocation("_main/motorium/examples/arx/model/arx_arm_scene.xml");
+    if (!std::filesystem::exists(scene_path)) {
+      std::cerr << "[arm_mujoco_sim] ERROR: arx_arm_scene.xml not found via runfiles at: " << scene_path << "\n"
+                << "  Pass the scene path as argv[1] to override.\n";
+      return 1;
+    }
   }
 
   std::cout << "[arm_mujoco_sim] Loading scene: " << scene_path << "\n";

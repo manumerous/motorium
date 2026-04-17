@@ -7,6 +7,7 @@ cc_binary(
     deps = [
         "//motorium/motorium_model",
         "//motorium/motorium_mujoco",
+        "@bazel_tools//tools/cpp/runfiles",
     ],
     # Add this to link against system OpenGL and X11
     linkopts = ["-lGL", "-lX11", "-lGLX"],
