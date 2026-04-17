@@ -207,6 +207,7 @@ void renderMetrics(const mjrContext* con, const mjrRect& viewport, const MjState
   // Real-time tracking
   metrics << "RTF: " << std::fixed << std::setprecision(3) << state.metrics.rtf_tick << "\n";
   metrics << "Drift[ms]: " << std::fixed << std::setprecision(3) << state.metrics.drift_tick * 1e3 << "\n";
+  metrics << "Rolling Drift RMSE[ms]: " << std::fixed << std::setprecision(3) << state.metrics.drift_rolling_rmse * 1e3 << "\n";
   metrics << "Cummulative Drift[ms]: " << std::fixed << std::setprecision(3) << state.metrics.drift_cumulative * 1e3;
 
   mjr_overlay(mjFONT_NORMAL, mjGRID_TOPLEFT, viewport, metrics.str().c_str(), nullptr, con);

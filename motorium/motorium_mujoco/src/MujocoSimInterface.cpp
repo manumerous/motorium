@@ -30,6 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "motorium_mujoco/MujocoSimInterface.h"
 
 #include <cerrno>
+#include <cmath>
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
@@ -354,6 +355,9 @@ void MujocoSimInterface::updateMetrics() {
   metrics_.drift_cumulative += metrics_.drift_tick;
 
   metrics_.rtf_tick = config_.dt / realElapsedTime;
+
+  drift_mean_sq_ = (1.0 - config_.dt) * drift_mean_sq_ + config_.dt * (metrics_.drift_tick * metrics_.drift_tick);
+  metrics_.drift_rolling_rmse = std::sqrt(drift_mean_sq_);
 }
 
 /******************************************************************************************************/
@@ -405,12 +409,15 @@ void MujocoSimInterface::simulationStep() {
 void MujocoSimInterface::simulationLoop(std::stop_token st) {
   simFps_.reset();
   metrics_.reset();
+  drift_mean_sq_ = 0.0;
+  last_realtime_ = std::chrono::high_resolution_clock::now();
   auto nextWakeup = std::chrono::steady_clock::now();
   while (!st.stop_requested()) {
     simulationStep();
 
-    // Sleep in case sim loop is faster than specified sim rate.
-    nextWakeup += std::chrono::microseconds(time_step_micro_);
+    // Sleep in case sim loop is faster than specified sim rate. adding cummulative drift as a feedback termto prevent it's accumulation.
+    nextWakeup +=
+        std::chrono::microseconds(time_step_micro_) + std::chrono::microseconds(static_cast<long long>(metrics_.drift_cumulative * 1e5));
     std::this_thread::sleep_until(nextWakeup);
   }
 }

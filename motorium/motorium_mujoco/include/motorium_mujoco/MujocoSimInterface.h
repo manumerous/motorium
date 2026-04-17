@@ -137,6 +137,8 @@ class MujocoSimInterface : public hal::DriverBase {
   FPSTracker simFps_{"mujoco_sim"};
   std::chrono::high_resolution_clock::time_point last_realtime_;
   Metrics metrics_{};
+
+  double drift_mean_sq_{0.0};
 };
 
 }  // namespace motorium::mujoco
