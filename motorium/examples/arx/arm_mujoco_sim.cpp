@@ -110,6 +110,7 @@ int main(int argc, char** argv) {
     joint1_action.q_des = sin(2.0 * M_PI * state.getTime()) + 0.5;
     joint2_action.q_des = sin(2.0 * M_PI * state.getTime()) + 0.5;
     sim.setJointFeedbackAction(action);
+    std::cout << "[arm_mujoco_sim] State: " << state.getRootPositionInWorldFrame().transpose() << "\n";
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
 
