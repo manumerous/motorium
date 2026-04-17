@@ -365,8 +365,7 @@ TEST(RobotDescriptionArxXmlTest, ArxArmXml) {
   const char* srcdir = std::getenv("TEST_SRCDIR");
   ASSERT_NE(srcdir, nullptr) << "TEST_SRCDIR not set — run via bazel test";
 
-  const std::string xml_path =
-      std::string(srcdir) + "/_main/motorium/motorium_model/test/resources/arx_test.xml";
+  const std::string xml_path = std::string(srcdir) + "/_main/motorium/motorium_model/test/resources/arx_test.xml";
 
   RobotDescription desc(xml_path);
 

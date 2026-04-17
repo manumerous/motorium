@@ -58,7 +58,7 @@ struct JointDescription {
 class RobotDescription {
  public:
   // Accepts a .urdf or .xml (MuJoCo) path. The extension and file content are
-  // both validated at construction time. 
+  // both validated at construction time.
   explicit RobotDescription(const std::string& model_path);
 
   explicit RobotDescription(const std::vector<JointDescription>& jointDescriptions);
