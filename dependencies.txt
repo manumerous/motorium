@@ -10,6 +10,7 @@ libxrandr-dev
 libxinerama-dev
 libxcursor-dev
 libxi-dev
+libpugixml-dev
 ninja-build
 ccache
 black
