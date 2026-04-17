@@ -203,19 +203,6 @@ void MujocoSimInterface::printModelInfo() {
   for (int i = 0; i < mj_model_->nbody; ++i) {
     std::string bodyName(&mj_model_->names[mj_model_->name_bodyadr[i]]);
     std::cerr << "Body " << i << ": " << bodyName << std::endl;
-
-    std::cerr << "  Position: ";
-    for (size_t j = 0; j < 3; ++j) {
-      std::cerr << mj_data_->xpos[i * 3 + j] << " ";
-    }
-    std::cerr << std::endl;
-
-    // Print orientation quaternion
-    std::cerr << "  Orientation (Quaternion): ";
-    for (size_t j = 0; j < 4; ++j) {
-      std::cerr << mj_data_->xquat[i * 4 + j] << " ";
-    }
-    std::cerr << std::endl;
   }
 
   // Map joint type to (nq, nv) dimensions
