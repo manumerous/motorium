@@ -294,7 +294,6 @@ void MujocoRenderer::renderLoop() {
 
     // Copy physics data to render data
     simInterface_->copyMjState(simState_);
-    mj_forward(simInterface_->getModel(), simState_.data);
 
     mjv_updateScene(simInterface_->getModel(), simState_.data, &mujoco_options_, nullptr, nullptr, mjCAT_ALL, &mujoco_scene_);
 

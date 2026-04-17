@@ -416,8 +416,8 @@ void MujocoSimInterface::simulationLoop(std::stop_token st) {
     simulationStep();
 
     // Sleep in case sim loop is faster than specified sim rate. adding cummulative drift as a feedback termto prevent it's accumulation.
-    nextWakeup +=
-        std::chrono::microseconds(time_step_micro_) + std::chrono::microseconds(static_cast<long long>(metrics_.drift_cumulative * 1e5));
+    nextWakeup += std::chrono::microseconds(time_step_micro_) +
+                  std::chrono::microseconds(static_cast<long long>(metrics_.drift_cumulative * 1e5));  // Integrator gain.
     std::this_thread::sleep_until(nextWakeup);
   }
 }
