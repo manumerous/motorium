@@ -57,7 +57,9 @@ struct JointDescription {
 
 class RobotDescription {
  public:
-  explicit RobotDescription(const std::string& urdfPath);
+  // Accepts a .urdf or .xml (MuJoCo) path. The extension and file content are
+  // both validated at construction time. 
+  explicit RobotDescription(const std::string& model_path);
 
   explicit RobotDescription(const std::vector<JointDescription>& jointDescriptions);
 
@@ -85,8 +87,8 @@ class RobotDescription {
   };
 
   size_t getNumJoints() const { return joint_name_description_map_.size(); }
-  const std::string& getURDFPath() const { return urdf_path_; }
-  const std::string getURDFName() const;
+  const std::string& getModelPath() const { return model_path_; }
+  const std::string getModelName() const;
 
   joint_index_t getJointIndex(const std::string& joint_name) const {
     return joint_name_description_map_.at(validateName(joint_name)).first;
@@ -110,7 +112,8 @@ class RobotDescription {
     }
     return name;
   }
-  const std::string urdf_path_;
+
+  const std::string model_path_;
   absl::flat_hash_map<std::string, std::pair<joint_index_t, JointDescription>> joint_name_description_map_;
 
   std::vector<joint_index_t> joint_indices_;

@@ -11,4 +11,10 @@ cc_library(
     visibility = ["//visibility:public"],
 )
 
+cc_library(
+    name = "pugixml",
+    linkopts = ["-lpugixml"],
+    visibility = ["//visibility:public"],
+)
+
 

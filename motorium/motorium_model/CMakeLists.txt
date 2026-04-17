@@ -16,6 +16,7 @@ find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(URDFDOM REQUIRED urdfdom)
+pkg_check_modules(PUGIXML REQUIRED pugixml)
 
 find_package(absl REQUIRED)
 
@@ -48,6 +49,7 @@ ament_target_dependencies(${PROJECT_NAME}
 )
 target_link_libraries(${PROJECT_NAME}
         ${URDFDOM_LIBRARIES}
+        ${PUGIXML_LIBRARIES}
         absl::flat_hash_map
         absl::log
         absl::check

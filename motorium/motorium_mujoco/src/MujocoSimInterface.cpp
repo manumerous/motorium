@@ -58,9 +58,6 @@ MujocoSimInterface::MujocoSimInterface(const MujocoSimConfig& config, const mode
   // Create data
   mj_data_ = mj_makeData(mj_model_);
 
-  /* initialize random seed: */
-  srand(time(NULL));
-
   // assert(num_active_joints_ == neo_definitions::FULL_NEO_JOINT_DIM);
 
   mj_model_->opt.timestep = config_.dt;
@@ -92,12 +89,12 @@ MujocoSimInterface::MujocoSimInterface(const MujocoSimConfig& config, const mode
   setSimState(initRobotState);
 
   // Add default joint damping
-  scalar_t defaultJointDamping = 10.0;
-
-  for (int i = 6; i < mj_model_->nv; ++i) {
+  for (int i = nv_base_offset_; i < mj_model_->nv; ++i) {
     std::string mjJointName(&mj_model_->names[mj_model_->name_jntadr[mj_model_->dof_jntid[i]]]);
-    std::cerr << "mjJointName: " << mjJointName << std::endl;
-    mj_model_->dof_damping[i] = defaultJointDamping;
+    if (config_.verbose) {
+      std::cerr << "Adding joint damping to " << mjJointName << " with value " << config_.defaultJointDamping << std::endl;
+    }
+    mj_model_->dof_damping[i] = config_.defaultJointDamping;
   }
 
   qpos_init_.resize(mj_model_->nq);
@@ -404,7 +401,7 @@ void MujocoSimInterface::simulationStep() {
     updateMetrics();
 
     // Auto reset logic.
-    if (false) {
+    if (reset_requested_) {
       reset();
       for (size_t i = 0; i < num_actuators_; ++i) {
         mj_data_->ctrl[i] = 0.0;

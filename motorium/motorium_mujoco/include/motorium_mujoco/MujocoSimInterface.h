@@ -60,6 +60,7 @@ struct MujocoSimConfig {
   double renderFrequencyHz{60.0};
   bool headless{false};
   bool verbose{false};
+  double defaultJointDamping{1.0};
 };
 
 class MujocoSimInterface : public hal::DriverBase {
@@ -128,6 +129,7 @@ class MujocoSimInterface : public hal::DriverBase {
   mjData* mj_data_ = NULL;
 
   bool sim_initialized_{false};
+  bool reset_requested_{false};
 
   mutable std::mutex mj_mutex_;  // Used to access mujoco model and data
                                  // accross simulation and render threads.

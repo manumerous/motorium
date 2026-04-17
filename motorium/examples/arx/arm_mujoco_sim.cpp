@@ -84,9 +84,16 @@ int main(int argc, char** argv) {
 
   std::cout << "[arm_mujoco_sim] Simulation running. Close the viewer window to exit.\n";
 
+  motorium::model::RobotState state(robot_description);
+
   // Block the main thread; the renderer and physics run on their own threads.
   // Press ESC in the MuJoCo viewer to close the window.
   while (true) {
+    sim.updateRobotState(state);
+    auto& joint1_action = action.at(robot_description.getJointIndex("joint2"));
+    auto& joint2_action = action.at(robot_description.getJointIndex("joint3"));
+    joint1_action.q_des = sin(2.0 * M_PI * state.getTime()) + 0.5;
+    joint2_action.q_des = sin(2.0 * M_PI * state.getTime()) + 0.5;
     sim.setJointFeedbackAction(action);
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
