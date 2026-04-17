@@ -98,8 +98,6 @@ class MujocoSimInterface : public hal::DriverBase {
 
   void setSimState(const model::RobotState& robot_state);
 
-  void updateThreadSafeRobotState();
-
   void simulationLoop(std::stop_token st);
 
   void printModelInfo();

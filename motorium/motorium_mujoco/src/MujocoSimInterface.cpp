@@ -378,10 +378,6 @@ void MujocoSimInterface::setJointFeedbackAction(const model::RobotJointFeedbackA
   action_internal_ = action;
 }
 
-void MujocoSimInterface::updateThreadSafeRobotState() {
-  // Placeholder: thread-safe state can be updated here if needed (e.g. for copyMjState consumers).
-}
-
 void MujocoSimInterface::simulationStep() {
   {
     std::lock_guard<std::mutex> lock(action_mutex_);
@@ -397,7 +393,6 @@ void MujocoSimInterface::simulationStep() {
   {
     std::lock_guard<std::mutex> lock(mj_mutex_);
     mj_step(mj_model_, mj_data_);
-    updateThreadSafeRobotState();
     updateMetrics();
 
     // Auto reset logic.
@@ -407,7 +402,6 @@ void MujocoSimInterface::simulationStep() {
         mj_data_->ctrl[i] = 0.0;
       }
       mj_step(mj_model_, mj_data_);
-      updateThreadSafeRobotState();
       simFps_.reset();
       metrics_.reset();
       updateMetrics();
