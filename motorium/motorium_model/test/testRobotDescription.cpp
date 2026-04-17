@@ -360,12 +360,24 @@ TEST_F(RobotDescriptionXmlTest, UnsupportedExtensionThrows) {
   EXPECT_THROW({ RobotDescription desc(bad.string()); }, std::runtime_error);
 }
 
+// ─── Faulty arx XML files ────────────────────────────────────────────────────
+
+// Resolves a test resource path for both Bazel (TEST_SRCDIR) and colcon (TEST_RESOURCES_DIR).
+static std::string arxResourcePath(const std::string& filename) {
+  const char* srcdir = std::getenv("TEST_SRCDIR");
+  if (srcdir) {
+    return std::string(srcdir) + "/_main/motorium/motorium_model/test/resources/" + filename;
+  }
+#ifdef TEST_RESOURCES_DIR
+  return std::string(TEST_RESOURCES_DIR) + "/" + filename;
+#else
+  throw std::runtime_error("Cannot locate test resources: no TEST_SRCDIR and TEST_RESOURCES_DIR not defined");
+#endif
+}
+
 // Test against the real arx arm model shipped as test resource.
 TEST(RobotDescriptionArxXmlTest, ArxArmXml) {
-  const char* srcdir = std::getenv("TEST_SRCDIR");
-  ASSERT_NE(srcdir, nullptr) << "TEST_SRCDIR not set — run via bazel test";
-
-  const std::string xml_path = std::string(srcdir) + "/_main/motorium/motorium_model/test/resources/arx_test.xml";
+  const std::string xml_path = arxResourcePath("arx_test.xml");
 
   RobotDescription desc(xml_path);
 
@@ -379,6 +391,26 @@ TEST(RobotDescriptionArxXmlTest, ArxArmXml) {
     EXPECT_DOUBLE_EQ(desc.getJointDescription(name).torque_bounds.min, -100.0);
     EXPECT_DOUBLE_EQ(desc.getJointDescription(name).torque_bounds.max, 100.0);
   }
+}
+
+// faulty_1: </actuator> replaced by <actuator> — unclosed tag, XML parse error.
+TEST(RobotDescriptionFaultyXmlTest, Faulty1UnclosedActuatorTag) {
+  EXPECT_THROW({ RobotDescription desc(arxResourcePath("arx_test_faulty_1.xml")); }, std::runtime_error);
+}
+
+// faulty_2: name=joint5" (missing opening quote) — malformed attribute, XML parse error.
+TEST(RobotDescriptionFaultyXmlTest, Faulty2MalformedJointNameAttribute) {
+  EXPECT_THROW({ RobotDescription desc(arxResourcePath("arx_test_faulty_2.xml")); }, std::runtime_error);
+}
+
+// faulty_3: <geom .../  (missing >) — truncated self-close tag, XML parse error.
+TEST(RobotDescriptionFaultyXmlTest, Faulty3TruncatedSelfCloseTag) {
+  EXPECT_THROW({ RobotDescription desc(arxResourcePath("arx_test_faulty_3.xml")); }, std::runtime_error);
+}
+
+// faulty_4: empty <worldbody> — valid XML but no joints found.
+TEST(RobotDescriptionFaultyXmlTest, Faulty4EmptyWorldbody) {
+  EXPECT_THROW({ RobotDescription desc(arxResourcePath("arx_test_faulty_4.xml")); }, std::runtime_error);
 }
 
 // ─── JointDescription validation ─────────────────────────────────────────────

@@ -21,7 +21,7 @@ cc_library(
 cc_test(
     name = "test_robot_description",
     srcs = ["test/testRobotDescription.cpp"],
-    data = ["test/resources/arx_test.xml"],
+    data = glob(["test/resources/*.xml"]),
     deps = [
         ":motorium_model",
         "@googletest//:gtest_main",

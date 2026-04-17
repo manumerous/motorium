@@ -72,6 +72,9 @@ if (BUILD_TESTING)
         ${URDFDOM_LIBRARIES}
         ${PROJECT_NAME}
         )
+        target_compile_definitions(test_robot_description PRIVATE
+            TEST_RESOURCES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/resources"
+        )
 
         ament_add_gtest(test_fixed_id_array test/testFixedIDArray.cpp)
         target_link_libraries(test_fixed_id_array
