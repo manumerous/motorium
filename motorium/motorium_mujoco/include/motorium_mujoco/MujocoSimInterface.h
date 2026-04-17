@@ -129,8 +129,10 @@ class MujocoSimInterface : public hal::DriverBase {
   bool sim_initialized_{false};
   bool reset_requested_{false};
 
+  // TODO: Move to non-blocking buffer in the future.
   mutable std::mutex mj_mutex_;  // Used to access mujoco model and data
                                  // accross simulation and render threads.
+
   std::jthread simulate_thread_;
   std::unique_ptr<MujocoRenderer> renderer_;
 
