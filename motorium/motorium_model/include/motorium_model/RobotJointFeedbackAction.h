@@ -41,7 +41,7 @@ struct JointFeedbackAction {
   scalar_t kd = 0;
   scalar_t feed_forward_effort = 0;
 
-  scalar_t getTotalFeedbackTorque(scalar_t q, scalar_t qd) const { return (kp * (q_des - q) + kd * (v_des - qd) + feed_forward_effort); }
+  scalar_t getTotalFeedbackTorque(scalar_t q, scalar_t v) const { return (kp * (q_des - q) + kd * (v_des - v) + feed_forward_effort); }
 };
 
 class RobotJointFeedbackAction : public JointIdMap<JointFeedbackAction> {

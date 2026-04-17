@@ -60,6 +60,7 @@ struct MujocoSimConfig {
   double renderFrequencyHz{60.0};
   bool headless{false};
   bool verbose{false};
+  double defaultJointDamping{1.0};
 };
 
 class MujocoSimInterface : public hal::DriverBase {
@@ -68,8 +69,6 @@ class MujocoSimInterface : public hal::DriverBase {
 
   /** Destructor */
   ~MujocoSimInterface();
-
-  void initSim();
 
   void start() override;
 
@@ -93,11 +92,11 @@ class MujocoSimInterface : public hal::DriverBase {
   const MujocoSimConfig& getConfig() const { return config_; }
 
  private:
+  void initSim();
+
   void setupJointIndexMaps(const model::RobotDescription& robot_description);
 
   void setSimState(const model::RobotState& robot_state);
-
-  void updateThreadSafeRobotState();
 
   void simulationLoop(std::stop_token st);
 
@@ -107,30 +106,33 @@ class MujocoSimInterface : public hal::DriverBase {
 
   MujocoSimConfig config_;
 
-  mjtNum* qpos_init_;  // position                                         (nq x 1)
-  mjtNum* qvel_init_;
+  bool is_floating_base_{false};
+  size_t nq_base_offset_{0};
+  size_t nv_base_offset_{0};
+
+  std::vector<mjtNum> qpos_init_;  // position                                         (nq x 1)
+  std::vector<mjtNum> qvel_init_;
   model::RobotJointFeedbackAction action_internal_;
   mutable std::mutex action_mutex_;
 
   size_t time_step_micro_;
   size_t num_active_joints_;
   size_t num_actuators_;
-  std::vector<std::string> active_joint_names_;
-  std::vector<std::string> active_actuator_names_;
+
+  // Keeping tack of active joints/actuators to allow for the use of e.g passive or mimic joints
   std::vector<joint_index_t> active_robot_joint_indices_;
   std::vector<joint_index_t> active_robot_actuator_indices_;
 
   mjModel* mj_model_ = NULL;
   mjData* mj_data_ = NULL;
-  mjContact* mj_contact_ = NULL;
-  // mjfSensor mujocoSenor_;
 
-  bool sim_initialized_;
-  const bool headless_;
-  const bool verbose_;
+  bool sim_initialized_{false};
+  bool reset_requested_{false};
 
+  // TODO: Move to non-blocking buffer in the future.
   mutable std::mutex mj_mutex_;  // Used to access mujoco model and data
                                  // accross simulation and render threads.
+
   std::jthread simulate_thread_;
   std::unique_ptr<MujocoRenderer> renderer_;
 
@@ -138,11 +140,7 @@ class MujocoSimInterface : public hal::DriverBase {
   std::chrono::high_resolution_clock::time_point last_realtime_;
   Metrics metrics_{};
 
-  size_t right_foot_sensor_addr_;
-  size_t left_foot_sensor_addr_;
-
-  size_t right_foot_touch_sensor_addr_;
-  size_t left_foot_touch_sensor_addr_;
+  double drift_mean_sq_{0.0};
 };
 
 }  // namespace motorium::mujoco
