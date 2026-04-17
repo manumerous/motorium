@@ -99,6 +99,10 @@ class RobotDescription {
   friend std::ostream& operator<<(std::ostream& os, const RobotDescription& robot);
 
  private:
+  void initializeFromUrdf(const std::string& urdf_path, const std::string& preview);
+
+  void initializeFromMujocoXml(const std::string& mujoco_xml_path, const std::string& preview);
+
   inline joint_index_t validateIndex(joint_index_t index) const {
     if (index >= joint_indices_.size()) {
       throw std::out_of_range("Joint index " + std::to_string(index) + " out of bounds of RobotDescription.");
