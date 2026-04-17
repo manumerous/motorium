@@ -29,8 +29,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "motorium_model/RobotDescription.h"
 
-#include <pugixml.hpp>
 #include <urdfdom/urdf_parser/urdf_parser.h>
+#include <pugixml.hpp>
 
 #include <filesystem>
 #include <fstream>
@@ -107,18 +107,51 @@ RobotDescription::RobotDescription(const std::string& model_path) : model_path_(
       throw std::runtime_error("Failed to parse MuJoCo XML: " + model_path + ". Error: " + result.description());
     }
 
-    // Build joint name → torque limits from <actuator> children.
-    // Matches any actuator element that has a joint= and forcerange= attribute.
-    std::unordered_map<std::string, std::pair<double, double>> joint_torque_limits;
+    // Per-joint actuator info extracted from <actuator> children.
+    struct ActuatorInfo {
+      double force_min = -std::numeric_limits<double>::infinity();
+      double force_max = std::numeric_limits<double>::infinity();
+      double ctrl_min = -std::numeric_limits<double>::infinity();
+      double ctrl_max = std::numeric_limits<double>::infinity();
+      bool has_forcerange = false;
+      bool has_ctrlrange = false;
+      bool ctrl_limited = false;
+      bool is_direct_torque = false;  // true for <motor> or gain="1" actuators
+    };
+
+    std::unordered_map<std::string, ActuatorInfo> actuator_info_map;
     for (const pugi::xml_node& actuator : doc.child("mujoco").child("actuator").children()) {
       const std::string joint_name = actuator.attribute("joint").as_string();
-      const std::string force_range = actuator.attribute("forcerange").as_string();
-      if (joint_name.empty() || force_range.empty()) continue;
+      if (joint_name.empty()) continue;
 
-      double fmin = 0.0, fmax = 0.0;
-      std::istringstream ss(force_range);
-      ss >> fmin >> fmax;
-      joint_torque_limits[joint_name] = {fmin, fmax};
+      ActuatorInfo info;
+
+      // forcerange
+      const std::string force_range = actuator.attribute("forcerange").as_string();
+      if (!force_range.empty()) {
+        std::istringstream ss(force_range);
+        ss >> info.force_min >> info.force_max;
+        info.has_forcerange = true;
+      }
+
+      // ctrlrange — only relevant when ctrllimited="true"
+      const std::string ctrl_range = actuator.attribute("ctrlrange").as_string();
+      const std::string ctrl_limited_str = actuator.attribute("ctrllimited").as_string();
+      info.ctrl_limited = (ctrl_limited_str == "true");
+      if (!ctrl_range.empty()) {
+        std::istringstream ss(ctrl_range);
+        ss >> info.ctrl_min >> info.ctrl_max;
+        info.has_ctrlrange = true;
+      }
+
+      // Determine if this is a direct-torque actuator.
+      // <motor> elements are direct-torque by definition.
+      // General actuators with gain="1" (or default gain) also qualify.
+      const std::string element_name = actuator.name();
+      const double gain = actuator.attribute("gain").as_double(0.0);
+      info.is_direct_torque = (element_name == "motor") || (gain == 1.0);
+
+      actuator_info_map[joint_name] = info;
     }
 
     // Walk all <joint> nodes anywhere inside <worldbody>, skip free/ball joints.
@@ -140,17 +173,50 @@ RobotDescription::RobotDescription(const std::string& model_path) : model_path_(
         ss >> joint_desc.position_bounds.min >> joint_desc.position_bounds.max;
       }
 
-      // Joint-level actuatorfrcrange takes priority over actuator forcerange.
+      // Compute torque bounds as the intersection (tightest envelope) of all
+      // applicable sources:
+      //   1. actuatorfrcrange on the <joint> element
+      //   2. forcerange on the matching <actuator> element
+      //   3. ctrlrange on the matching <actuator> element (only when
+      //      ctrllimited="true" and the actuator is a direct-torque motor)
+      // This is to ensure that there is no case where the read out torque bounds are stricter in
+      // sim than what will be applied on the hardware.
+
+      double t_min = -std::numeric_limits<double>::infinity();
+      double t_max = std::numeric_limits<double>::infinity();
+
+      auto narrow = [&](double lo, double hi) {
+        t_min = std::max(t_min, lo);
+        t_max = std::min(t_max, hi);
+      };
+
+      // Source 1: actuatorfrcrange on <joint>
       const std::string frc_range = joint_node.attribute("actuatorfrcrange").as_string();
       if (!frc_range.empty()) {
+        double frc_min = 0.0, frc_max = 0.0;
         std::istringstream fss(frc_range);
-        fss >> joint_desc.torque_bounds.min >> joint_desc.torque_bounds.max;
-      } else {
-        const auto it = joint_torque_limits.find(joint_name);
-        if (it != joint_torque_limits.end()) {
-          joint_desc.torque_bounds.min = it->second.first;
-          joint_desc.torque_bounds.max = it->second.second;
+        fss >> frc_min >> frc_max;
+        narrow(frc_min, frc_max);
+      }
+
+      // Source 2 & 3: from the matching actuator
+      const auto it = actuator_info_map.find(joint_name);
+      if (it != actuator_info_map.end()) {
+        const ActuatorInfo& info = it->second;
+
+        if (info.has_forcerange) {
+          narrow(info.force_min, info.force_max);
         }
+
+        if (info.has_ctrlrange && info.ctrl_limited && info.is_direct_torque) {
+          narrow(info.ctrl_min, info.ctrl_max);
+        }
+      }
+
+      // Only override defaults if at least one source provided bounds.
+      if (t_min > -std::numeric_limits<double>::infinity() || t_max < std::numeric_limits<double>::infinity()) {
+        joint_desc.torque_bounds.min = t_min;
+        joint_desc.torque_bounds.max = t_max;
       }
 
       joint_name_description_map_[joint_name] = std::make_pair(joint_id, joint_desc);
