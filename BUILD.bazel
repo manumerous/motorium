@@ -17,11 +17,4 @@ cc_library(
     visibility = ["//visibility:public"],
 )
 
-cc_library(
-    name = "magic_enum",
-    hdrs = glob(["third_party/magic_enum/include/magic_enum/*.hpp"]),
-    includes = ["third_party/magic_enum/include"],
-    visibility = ["//visibility:public"],
-)
-
 

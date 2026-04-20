@@ -8,6 +8,6 @@ cc_library(
     deps = [
         "//motorium/motorium_model",
         "@eigen//:eigen",
-        "//:magic_enum",
+        "@magic_enum//:magic_enum",
     ],
 )
