@@ -49,6 +49,8 @@ namespace motorium::hal {
 enum class HalState {
   UNCONFIGURED,
   CONFIGURED,
+  READY,
+  STOPPING,
   ACTIVE,
   FAULT,
 };

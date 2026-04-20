@@ -131,7 +131,7 @@ TEST_F(RobotHALTest, ConstructorThrowsOnDuplicateJointInDriver) {
       std::invalid_argument);
 }
 
-TEST_F(RobotHALTest, ConstructorThrowsOnDuplicateManagedJointInDriver) {
+TEST_F(RobotHALTest, ConstructorKillsOnDuplicateManagedJointInDriver) {
   std::vector<JointDescription> joint_descs;
   for (const auto& name : {"joint1", "joint2"}) {
     JointDescription jd;
@@ -140,18 +140,18 @@ TEST_F(RobotHALTest, ConstructorThrowsOnDuplicateManagedJointInDriver) {
   }
   RobotDescription desc(joint_descs);
   auto d = std::make_shared<TestDriver>(desc, "driver", std::vector<std::string>{"joint1", "joint1"});
-  EXPECT_THROW(RobotHAL(xml_path_, {d}), std::runtime_error);
+  EXPECT_DEATH(RobotHAL(xml_path_, {d}), "");
 }
 
-TEST_F(RobotHALTest, ConstructorThrowsOnNullDriver) {
+TEST_F(RobotHALTest, ConstructorKillsOnNullDriver) {
   auto d = makeDriver("driver", {"joint1", "joint2"});
-  EXPECT_THROW(RobotHAL(xml_path_, {d, nullptr}), std::runtime_error);
+  EXPECT_DEATH(RobotHAL(xml_path_, {d, nullptr}), "");
 }
 
-TEST_F(RobotHALTest, ConstructorThrowsOnOverlappingDrivers) {
+TEST_F(RobotHALTest, ConstructorKillsOnOverlappingDrivers) {
   auto d1 = makeDriver("driver1", {"joint1", "joint2"});
   auto d2 = makeDriver("driver2", {"joint2"});  // joint2 covered twice
-  EXPECT_THROW(RobotHAL(xml_path_, {d1, d2}), std::runtime_error);
+  EXPECT_DEATH(RobotHAL(xml_path_, {d1, d2}), "");
 }
 
 // ─── getRobotDescription ──────────────────────────────────────────────────────
@@ -219,6 +219,32 @@ TEST_F(RobotHALTest, StateIsFaultWhenAnyDriverInFault) {
   // d2 remains UNINITIALIZED, but d1 goes FAULT
   d1->triggerTransition(DriverState::FAULT);
   EXPECT_EQ(hal.getState(), HalState::FAULT);
+}
+
+TEST_F(RobotHALTest, StateIsReadyWhenAllDriversReady) {
+  auto d1 = makeDriver("d1", {"joint1"});
+  auto d2 = makeDriver("d2", {"joint2"});
+  RobotHAL hal(xml_path_, {d1, d2});
+
+  for (auto* d : {d1.get(), d2.get()}) {
+    d->triggerTransition(DriverState::CONFIGURED);
+    d->triggerTransition(DriverState::READY);
+  }
+  EXPECT_EQ(hal.getState(), HalState::READY);
+}
+
+TEST_F(RobotHALTest, StateIsStoppingWhenAnyDriverStopping) {
+  auto d1 = makeDriver("d1", {"joint1"});
+  auto d2 = makeDriver("d2", {"joint2"});
+  RobotHAL hal(xml_path_, {d1, d2});
+
+  for (auto* d : {d1.get(), d2.get()}) {
+    d->triggerTransition(DriverState::CONFIGURED);
+    d->triggerTransition(DriverState::READY);
+    d->triggerTransition(DriverState::RUNNING);
+  }
+  d1->triggerTransition(DriverState::STOPPING);
+  EXPECT_EQ(hal.getState(), HalState::STOPPING);
 }
 
 // ─── update ─────────────────────────────────────────────────────────────────

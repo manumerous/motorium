@@ -50,17 +50,23 @@ void RobotHAL::update(const model::RobotJointFeedbackAction& action, model::Robo
 }
 
 HalState RobotHAL::getState() const {
+  bool any_stopping = false;
+  bool any_uninitialized = false;
+  bool any_configured = false;
   bool all_running = true;
-  bool all_at_least_configured = true;
   for (const auto& driver : drivers_) {
     DriverState ds = driver->getState();
     if (ds == DriverState::FAULT) return HalState::FAULT;
+    if (ds == DriverState::STOPPING) any_stopping = true;
+    if (ds == DriverState::UNINITIALIZED) any_uninitialized = true;
+    if (ds == DriverState::CONFIGURED) any_configured = true;
     if (ds != DriverState::RUNNING) all_running = false;
-    if (ds == DriverState::UNINITIALIZED) all_at_least_configured = false;
   }
+  if (any_stopping) return HalState::STOPPING;
+  if (any_uninitialized) return HalState::UNCONFIGURED;
+  if (any_configured) return HalState::CONFIGURED;
   if (all_running) return HalState::ACTIVE;
-  if (all_at_least_configured) return HalState::CONFIGURED;
-  return HalState::UNCONFIGURED;
+  return HalState::READY;
 }
 
 void RobotHAL::startDrivers() {
@@ -78,13 +84,9 @@ void RobotHAL::stopDrivers() {
 void RobotHAL::validateDriverCoverage() {
   std::unordered_set<std::string> managed;
   for (const auto& driver : drivers_) {
-    if (!driver) {
-      throw std::runtime_error("[RobotHAL] Bad Configuration: Driver list contains a null driver.");
-    }
+    MT_CHECK(driver != nullptr) << "[RobotHAL] Bad Configuration: Driver list contains a null driver.";
     for (const auto& joint : driver->getManagedJointNames()) {
-      if (!managed.insert(joint).second) {
-        throw std::runtime_error("[RobotHAL] Bad Configuration: Joint '" + joint + "' is managed by multiple drivers.");
-      }
+      MT_CHECK(managed.insert(joint).second) << "[RobotHAL] Bad Configuration: Joint '" << joint << "' is managed by multiple drivers.";
     }
   }
   for (const auto& joint : robot_description_.getJointNames()) {
