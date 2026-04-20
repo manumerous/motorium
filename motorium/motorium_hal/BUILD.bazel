@@ -1,4 +1,4 @@
-load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
 cc_library(
     name = "motorium_hal",
@@ -6,8 +6,19 @@ cc_library(
     includes = ["include"],
     visibility = ["//visibility:public"],
     deps = [
+        "//motorium/motorium_core",
         "//motorium/motorium_model",
         "@eigen//:eigen",
         "@magic_enum//:magic_enum",
+    ],
+)
+
+cc_test(
+    name = "test_driver_base",
+    srcs = ["test/testDriverBase.cpp"],
+    deps = [
+        ":motorium_hal",
+        "//motorium/motorium_model",
+        "@googletest//:gtest_main",
     ],
 )

@@ -13,6 +13,7 @@ find_package(ament_index_cpp REQUIRED)
 find_package(motorium_model REQUIRED)
 find_package(magic_enum REQUIRED)
 
+find_package(motorium_core REQUIRED)
 find_package(GTest REQUIRED)
 
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
@@ -30,6 +31,7 @@ include_directories(
 set(dependencies
         ament_cmake
         ament_index_cpp
+        motorium_core
         motorium_model
         magic_enum
 )
@@ -51,6 +53,14 @@ install(DIRECTORY include/${PROJECT_NAME}
 # install(DIRECTORY launch rviz
 #   DESTINATION share/${PROJECT_NAME}
 # )
+
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+
+  ament_add_gtest(test_driver_base test/testDriverBase.cpp)
+  target_include_directories(test_driver_base PRIVATE include ${EIGEN3_INCLUDE_DIRS})
+  ament_target_dependencies(test_driver_base motorium_model motorium_core magic_enum)
+endif()
 
 ament_export_include_directories(include)
 # ament_export_libraries(${PROJECT_NAME})
