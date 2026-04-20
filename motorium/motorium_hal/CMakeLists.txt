@@ -39,14 +39,32 @@ set(dependencies
 )
 
 #############
+## Library ##
+#############
+
+add_library(${PROJECT_NAME}
+  src/DriverBase.cpp
+  src/RobotHAL.cpp
+)
+ament_target_dependencies(${PROJECT_NAME} ${dependencies})
+target_link_libraries(${PROJECT_NAME}
+  absl::log absl::check absl::flat_hash_map
+  magic_enum::magic_enum
+)
+target_include_directories(${PROJECT_NAME} PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+
+#############
 ## Install ##
 #############
 
-# install(TARGETS ${PROJECT_NAME}
-#         ARCHIVE DESTINATION lib
-#         LIBRARY DESTINATION lib
-#         RUNTIME DESTINATION bin
-# )
+install(TARGETS ${PROJECT_NAME}
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
+)
 
 install(DIRECTORY include/${PROJECT_NAME}
         DESTINATION include/
@@ -62,15 +80,15 @@ if(BUILD_TESTING)
   ament_add_gtest(test_driver_base test/testDriverBase.cpp)
   target_include_directories(test_driver_base PRIVATE include ${EIGEN3_INCLUDE_DIRS})
   ament_target_dependencies(test_driver_base motorium_model motorium_core magic_enum absl)
-  target_link_libraries(test_driver_base absl::log absl::check absl::flat_hash_map magic_enum::magic_enum)
+  target_link_libraries(test_driver_base ${PROJECT_NAME} absl::log absl::check absl::flat_hash_map magic_enum::magic_enum)
 
   ament_add_gtest(test_robot_hal test/testRobotHAL.cpp)
   target_include_directories(test_robot_hal PRIVATE include ${EIGEN3_INCLUDE_DIRS})
   ament_target_dependencies(test_robot_hal motorium_model motorium_core magic_enum absl)
-  target_link_libraries(test_robot_hal absl::log absl::check absl::flat_hash_map magic_enum::magic_enum)
+  target_link_libraries(test_robot_hal ${PROJECT_NAME} absl::log absl::check absl::flat_hash_map magic_enum::magic_enum)
 endif()
 
 ament_export_include_directories(include)
-# ament_export_libraries(${PROJECT_NAME})
+ament_export_libraries(${PROJECT_NAME})
 ament_export_dependencies(${dependencies})
 ament_package()

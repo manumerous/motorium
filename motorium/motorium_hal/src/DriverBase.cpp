@@ -27,60 +27,34 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
-#pragma once
-
-#include <memory>
-#include <stdexcept>
-#include <string>
-#include <unordered_set>
-#include <vector>
-
-#include <motorium_core/Check.h>
 #include <motorium_hal/DriverBase.h>
-#include <motorium_model/RobotDescription.h>
-#include <motorium_model/RobotJointFeedbackAction.h>
-#include <motorium_model/RobotState.h>
-#include <magic_enum/magic_enum.hpp>
 
 namespace motorium::hal {
 
-// Unified interface to interact with real/simulated robot hardware.
-
-enum class HalState {
-  UNCONFIGURED,
-  CONFIGURED,
-  ACTIVE,
-  FAULT,
-};
-
-inline std::string_view toString(HalState state) {
-  return magic_enum::enum_name(state);
+bool isLegalTransition(DriverState from, DriverState to) {
+  switch (from) {
+    case DriverState::UNINITIALIZED:
+      return to == DriverState::CONFIGURED;
+    case DriverState::CONFIGURED:
+      return to == DriverState::READY || to == DriverState::FAULT;
+    case DriverState::READY:
+      return to == DriverState::RUNNING || to == DriverState::FAULT;
+    case DriverState::RUNNING:
+      return to == DriverState::STOPPING || to == DriverState::FAULT;
+    case DriverState::STOPPING:
+      return to == DriverState::READY;
+    case DriverState::FAULT:
+      return to == DriverState::CONFIGURED;
+    default:
+      return false;
+  }
 }
 
-class RobotHAL {
- public:
-  RobotHAL(const std::string& model_path, std::vector<std::shared_ptr<hal::DriverBase>> drivers);
-
-  RobotHAL(const RobotHAL&) = delete;
-  RobotHAL& operator=(const RobotHAL&) = delete;
-  RobotHAL(RobotHAL&&) = delete;
-  RobotHAL& operator=(RobotHAL&&) = delete;
-
-  const model::RobotDescription& getRobotDescription() const;
-
-  void update(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state);
-
-  // Computed on the fly to prevent stale state from diverging with driver states.
-  HalState getState() const;
-
-  void startDrivers();
-  void stopDrivers();
-
- private:
-  void validateDriverCoverage();
-
-  const model::RobotDescription robot_description_;
-  std::vector<std::shared_ptr<hal::DriverBase>> drivers_;
-};
+void DriverBase::transitionTo(DriverState next) {
+  const DriverState current = state_.load();
+  MT_CHECK(isLegalTransition(current, next)) << "[" << name_ << "] Illegal state transition: " << toString(current) << " -> "
+                                             << toString(next);
+  state_.store(next);
+}
 
 }  // namespace motorium::hal

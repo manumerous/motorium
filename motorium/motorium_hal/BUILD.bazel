@@ -2,6 +2,10 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
 cc_library(
     name = "motorium_hal",
+    srcs = [
+        "src/DriverBase.cpp",
+        "src/RobotHAL.cpp",
+    ],
     hdrs = glob(["include/**/*.h"]),
     includes = ["include"],
     visibility = ["//visibility:public"],

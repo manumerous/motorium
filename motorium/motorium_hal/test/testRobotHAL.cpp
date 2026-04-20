@@ -29,7 +29,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <gtest/gtest.h>
 #include <motorium_hal/RobotHAL.h>
-#include <motorium_model/RobotDescription.h>
 #include <motorium_model/RobotJointFeedbackAction.h>
 #include <motorium_model/RobotState.h>
 
@@ -48,7 +47,10 @@ class TestDriver : public DriverBase {
 
   void start() override { transitionTo(DriverState::CONFIGURED); }
   void stop() override { transitionTo(DriverState::FAULT); }
-  void updateRobotState(motorium::model::RobotState& state) override { update_count_++; (void)state; }
+  void updateRobotState(motorium::model::RobotState& state) override {
+    update_count_++;
+    (void)state;
+  }
   void setJointFeedbackAction(const motorium::model::RobotJointFeedbackAction&) override { action_count_++; }
   void reset() override {}
 
@@ -59,8 +61,9 @@ class TestDriver : public DriverBase {
 };
 
 // Writes a minimal MuJoCo XML with the given joint names to a temp file.
-static std::string writeTempXml(const std::filesystem::path& dir, const std::string& filename,
-                                 const std::vector<std::string>& joint_names) {
+static std::string writeTempXml(const std::filesystem::path& dir,
+                                const std::string& filename,
+                                const std::vector<std::string>& joint_names) {
   std::filesystem::path path = dir / filename;
   std::ofstream f(path);
   f << "<mujoco model=\"test_robot\">\n<worldbody>\n<body name=\"root\">\n";
@@ -86,14 +89,7 @@ class RobotHALTest : public ::testing::Test {
   void TearDown() override { std::filesystem::remove_all(temp_dir_); }
 
   std::shared_ptr<TestDriver> makeDriver(const std::string& name, std::vector<std::string> joints) {
-    std::vector<JointDescription> joint_descs;
-    for (const auto& j : joints) {
-      JointDescription jd;
-      jd.name = j;
-      joint_descs.push_back(jd);
-    }
-    RobotDescription desc(joint_descs);
-    return std::make_shared<TestDriver>(desc, name, std::move(joints));
+    return std::make_shared<TestDriver>(joints, name);
   }
 
   std::filesystem::path temp_dir_;
@@ -119,7 +115,8 @@ TEST_F(RobotHALTest, ConstructorKillsOnUncoveredJoint) {
 }
 
 TEST_F(RobotHALTest, ConstructorThrowsOnDuplicateJointInDriver) {
-  EXPECT_THROW(makeDriver("driver", {"joint1", "joint1"}), std::invalid_argument);
+  auto d = makeDriver("driver", {"joint1", "joint1"});
+  EXPECT_THROW(RobotHAL(xml_path_, {d}), std::runtime_error);
 }
 
 TEST_F(RobotHALTest, ConstructorThrowsOnNullDriver) {

@@ -80,7 +80,7 @@ TEST_F(DriverBaseTest, AllJointsManaged) {
 }
 
 TEST_F(DriverBaseTest, ExplicitSubsetJointsManaged) {
-  TestDriver driver(*robot_description_, "test_driver", {"joint2"});
+  TestDriver driver(std::vector<std::string>{"joint2"}, "test_driver");
   const auto& joints = driver.getManagedJointNames();
   ASSERT_EQ(joints.size(), 1u);
   EXPECT_EQ(joints[0], "joint2");
@@ -103,7 +103,7 @@ TEST_F(DriverBaseTest, LegalTransitionSequence) {
 }
 
 TEST_F(DriverBaseTest, FaultTransitionFromRunning) {
-  TestDriver driver(*robot_description_, "test_driver");
+  TestDriver driver(std::vector<std::string>{"joint1", "joint2"}, "test_driver");
   driver.triggerTransition(DriverState::CONFIGURED);
   driver.triggerTransition(DriverState::READY);
   driver.triggerTransition(DriverState::RUNNING);

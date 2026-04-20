@@ -54,24 +54,7 @@ inline std::string_view toString(DriverState state) {
   return magic_enum::enum_name(state);
 }
 
-inline bool isLegalTransition(DriverState from, DriverState to) {
-  switch (from) {
-    case DriverState::UNINITIALIZED:
-      return to == DriverState::CONFIGURED;
-    case DriverState::CONFIGURED:
-      return to == DriverState::READY || to == DriverState::FAULT;
-    case DriverState::READY:
-      return to == DriverState::RUNNING || to == DriverState::FAULT;
-    case DriverState::RUNNING:
-      return to == DriverState::STOPPING || to == DriverState::FAULT;
-    case DriverState::STOPPING:
-      return to == DriverState::READY;
-    case DriverState::FAULT:
-      return to == DriverState::CONFIGURED;
-    default:
-      return false;
-  }
-}
+bool isLegalTransition(DriverState from, DriverState to);
 
 class DriverBase {
  public:
@@ -80,10 +63,8 @@ class DriverBase {
       : name_(name), managed_joint_names_(robot_description.getJointNames()) {}
 
   // Active on an explicit subset of joints.
-  DriverBase(const model::RobotDescription& robot_description, const std::string& name, std::vector<std::string> managed_joint_names)
-      : name_(name), managed_joint_names_(std::move(managed_joint_names)) {
-    (void)robot_description;
-  }
+  DriverBase(std::vector<std::string> managed_joint_names, const std::string& name)
+      : name_(name), managed_joint_names_(std::move(managed_joint_names)) {}
 
   virtual ~DriverBase() = default;
 
@@ -98,12 +79,7 @@ class DriverBase {
   DriverState getState() const { return state_.load(); }
 
  protected:
-  void transitionTo(DriverState next) {
-    const DriverState current = state_.load();
-    MT_CHECK(isLegalTransition(current, next)) << "[" << name_ << "] Illegal state transition: " << toString(current) << " -> "
-                                               << toString(next);
-    state_.store(next);
-  }
+  void transitionTo(DriverState next);
 
   std::string name_;
   // Todo: generalize to devices (joints, IMU's, haptic sensors, etc.)
