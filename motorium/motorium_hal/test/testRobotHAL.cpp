@@ -46,9 +46,14 @@ class TestDriver : public DriverBase {
  public:
   using DriverBase::DriverBase;
 
-  void start() override { transitionTo(DriverState::CONFIGURED); }
-  void stop() override { transitionTo(DriverState::FAULT); }
-  void updateRobotState(motorium::model::RobotState& state) override {
+  void start() override { transitionTo(DriverState::CONFIGURED);
+    transitionTo(DriverState::READY);
+    transitionTo(DriverState::RUNNING);
+  }
+  void stop() override {
+    if (getState() == DriverState::RUNNING) transitionTo(DriverState::STOPPING);
+  }
+  void updateRobotStateImpl(motorium::model::RobotState& state) override {
     update_count_++;
     (void)state;
   }
@@ -257,6 +262,7 @@ TEST_F(RobotHALTest, updateCallsAllDrivers) {
   RobotState state(hal.getRobotDescription());
   RobotJointFeedbackAction action(hal.getRobotDescription());
 
+  hal.startDrivers();
   hal.update(action, state);
 
   EXPECT_EQ(d1->action_count_, 1);

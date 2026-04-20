@@ -75,7 +75,7 @@ class DriverBase {
 
   virtual void start() = 0;
   virtual void stop() = 0;
-  virtual void updateRobotState(model::RobotState& robot_state) = 0;
+  void updateRobotState(model::RobotState& robot_state);
   virtual void setJointFeedbackAction(const model::RobotJointFeedbackAction& action) = 0;
   virtual void reset() = 0;
 
@@ -85,6 +85,8 @@ class DriverBase {
 
  protected:
   void transitionTo(DriverState next);
+
+  virtual void updateRobotStateImpl(model::RobotState& robot_state) = 0; 
 
   std::string name_;
   // Todo: generalize to devices (joints, IMU's, haptic sensors, etc.)

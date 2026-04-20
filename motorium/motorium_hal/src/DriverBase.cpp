@@ -61,6 +61,13 @@ void DriverBase::transitionTo(DriverState next) {
   }
 }
 
+void DriverBase::updateRobotState(model::RobotState& robot_state) {
+  if (state_.load() != DriverState::RUNNING) {
+    return;
+  }
+  updateRobotStateImpl(robot_state);
+}
+
 void DriverBase::validateManagedJointNames(const model::RobotDescription& robot_description) const {
   for (const auto& joint_name : managed_joint_names_) {
     (void)robot_description.validateName(joint_name);

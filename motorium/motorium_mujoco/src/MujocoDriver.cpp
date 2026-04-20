@@ -308,7 +308,7 @@ void MujocoDriver::setSimState(const model::RobotState& robot_state) {
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoDriver::updateRobotState(model::RobotState& robot_state) {
+void MujocoDriver::updateRobotStateImpl(model::RobotState& robot_state) {
   std::lock_guard<std::mutex> lock(mj_mutex_);
   // Update mujoco joint angles
   for (size_t i = 0; i < num_active_joints_; ++i) {

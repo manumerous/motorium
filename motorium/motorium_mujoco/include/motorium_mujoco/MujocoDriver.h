@@ -74,7 +74,7 @@ class MujocoDriver : public hal::DriverBase {
 
   void stop() override;
 
-  void updateRobotState(model::RobotState& robot_state) override;
+  void updateRobotStateImpl(model::RobotState& robot_state) override;
 
   void setJointFeedbackAction(const model::RobotJointFeedbackAction& action) override;
 

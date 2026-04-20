@@ -39,9 +39,14 @@ class TestDriver : public DriverBase {
  public:
   using DriverBase::DriverBase;
 
-  void start() override { transitionTo(DriverState::CONFIGURED); }
-  void stop() override { transitionTo(DriverState::FAULT); }
-  void updateRobotState(motorium::model::RobotState&) override {}
+  void start() override { 
+    transitionTo(DriverState::CONFIGURED);
+    transitionTo(DriverState::READY);
+    transitionTo(DriverState::RUNNING); }
+  void stop() override {
+    if (getState() == DriverState::RUNNING) transitionTo(DriverState::STOPPING);
+  }
+  void updateRobotStateImpl(motorium::model::RobotState&) override {}
   void setJointFeedbackAction(const motorium::model::RobotJointFeedbackAction&) override {}
   void reset() override {}
 
@@ -128,7 +133,7 @@ TEST_F(DriverBaseTest, ConstructorThrowsOnInvalidJointName) {
 TEST_F(DriverBaseTest, IllegalTransitionKills) {
   TestDriver driver(*robot_description_, "test_driver");
   // UNINITIALIZED -> RUNNING is not a legal transition
-  EXPECT_DEATH(driver.triggerTransition(DriverState::RUNNING), "");
+  EXPECT_DEATH(driver.triggerTransition(DriverState::RUNNING), "Illegal state transition");
 }
 
 TEST_F(DriverBaseTest, ToStringCoversAllStates) {
@@ -139,3 +144,5 @@ TEST_F(DriverBaseTest, ToStringCoversAllStates) {
   EXPECT_EQ(toString(DriverState::STOPPING), "STOPPING");
   EXPECT_EQ(toString(DriverState::FAULT), "FAULT");
 }
+
+
