@@ -131,6 +131,18 @@ TEST_F(RobotHALTest, ConstructorThrowsOnDuplicateJointInDriver) {
       std::invalid_argument);
 }
 
+TEST_F(RobotHALTest, ConstructorThrowsOnDuplicateManagedJointInDriver) {
+  std::vector<JointDescription> joint_descs;
+  for (const auto& name : {"joint1", "joint2"}) {
+    JointDescription jd;
+    jd.name = name;
+    joint_descs.push_back(jd);
+  }
+  RobotDescription desc(joint_descs);
+  auto d = std::make_shared<TestDriver>(desc, std::vector<std::string>{"joint1", "joint1"}, "driver");
+  EXPECT_THROW(RobotHAL(xml_path_, {d}), std::runtime_error);
+}
+
 TEST_F(RobotHALTest, ConstructorThrowsOnNullDriver) {
   auto d = makeDriver("driver", {"joint1", "joint2"});
   EXPECT_THROW(RobotHAL(xml_path_, {d, nullptr}), std::runtime_error);
