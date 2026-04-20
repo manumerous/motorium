@@ -14,6 +14,7 @@ find_package(motorium_model REQUIRED)
 find_package(magic_enum REQUIRED)
 
 find_package(motorium_core REQUIRED)
+find_package(absl CONFIG REQUIRED)
 find_package(GTest REQUIRED)
 
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
@@ -34,6 +35,7 @@ set(dependencies
         motorium_core
         motorium_model
         magic_enum
+        absl
 )
 
 #############
@@ -59,7 +61,13 @@ if(BUILD_TESTING)
 
   ament_add_gtest(test_driver_base test/testDriverBase.cpp)
   target_include_directories(test_driver_base PRIVATE include ${EIGEN3_INCLUDE_DIRS})
-  ament_target_dependencies(test_driver_base motorium_model motorium_core magic_enum)
+  ament_target_dependencies(test_driver_base motorium_model motorium_core magic_enum absl)
+  target_link_libraries(test_driver_base absl::log absl::check absl::flat_hash_map magic_enum::magic_enum)
+
+  ament_add_gtest(test_robot_hal test/testRobotHAL.cpp)
+  target_include_directories(test_robot_hal PRIVATE include ${EIGEN3_INCLUDE_DIRS})
+  ament_target_dependencies(test_robot_hal motorium_model motorium_core magic_enum absl)
+  target_link_libraries(test_robot_hal absl::log absl::check absl::flat_hash_map magic_enum::magic_enum)
 endif()
 
 ament_export_include_directories(include)

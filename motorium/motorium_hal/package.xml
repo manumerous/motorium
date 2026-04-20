@@ -8,6 +8,7 @@
 
   <license>BSD</license>
 
+  <build_depend>absl_vendor</build_depend>
   <build_depend>motorium_core</build_depend>
   <build_depend>motorium_model</build_depend>
 

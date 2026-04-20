@@ -78,9 +78,14 @@ class RobotHAL {
     }
   }
 
+  RobotHAL(const RobotHAL&) = delete;
+  RobotHAL& operator=(const RobotHAL&) = delete;
+  RobotHAL(RobotHAL&&) = delete;
+  RobotHAL& operator=(RobotHAL&&) = delete;
+
   const model::RobotDescription& getRobotDescription() const { return robot_description_; }
 
-  void process(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) {
+  void update(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) {
     for (const auto& driver : drivers_) {
       driver->setJointFeedbackAction(action);
     }

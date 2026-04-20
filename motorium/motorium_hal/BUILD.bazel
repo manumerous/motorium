@@ -22,3 +22,13 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_test(
+    name = "test_robot_hal",
+    srcs = ["test/testRobotHAL.cpp"],
+    deps = [
+        ":motorium_hal",
+        "//motorium/motorium_model",
+        "@googletest//:gtest_main",
+    ],
+)

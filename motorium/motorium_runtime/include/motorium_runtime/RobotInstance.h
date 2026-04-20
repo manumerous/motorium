@@ -44,6 +44,11 @@ class RobotInstance {
                 std::vector<std::shared_ptr<hal::DriverBase>> drivers,
                 std::vector<std::shared_ptr<control::ControllerBase>> controllers);
 
+  RobotInstance(const RobotInstance&) = delete;
+  RobotInstance& operator=(const RobotInstance&) = delete;
+  RobotInstance(RobotInstance&&) = delete;
+  RobotInstance& operator=(RobotInstance&&) = delete;
+
   void start();
   void stop();
 
