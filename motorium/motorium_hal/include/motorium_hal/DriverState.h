@@ -29,27 +29,36 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include <memory>
+#include <stdexcept>
 #include <string>
-#include <vector>
 
-#include "motorium_control/ControllerBase.h"
-#include "motorium_hal/RobotHAL.h"
+#include <magic_enum/magic_enum.hpp>
 
-namespace motorium::runtime {
+namespace motorium::hal {
 
-class RobotInstance {
- public:
-  RobotInstance(const std::string& model_path,
-                std::vector<std::shared_ptr<hal::DriverBase>> drivers,
-                std::vector<std::shared_ptr<control::ControllerBase>> controllers);
-
-  void start();
-  void stop();
-
- private:
-  hal::RobotHAL robot_hal_;
-  std::vector<std::shared_ptr<control::ControllerBase>> controllers_;
+enum class DriverState {
+  UNINITIALIZED,
+  CONFIGURED,
+  READY,
+  RUNNING,
+  STOPPING,
+  FAULT,
 };
 
-}  // namespace motorium::runtime
+inline std::string_view toString(DriverState state) {
+  return magic_enum::enum_name(state);
+}
+
+inline bool isLegalTransition(DriverState from, DriverState to) {
+  switch (from) {
+    case DriverState::UNINITIALIZED: return to == DriverState::CONFIGURED;
+    case DriverState::CONFIGURED:   return to == DriverState::READY   || to == DriverState::FAULT;
+    case DriverState::READY:        return to == DriverState::RUNNING  || to == DriverState::FAULT;
+    case DriverState::RUNNING:      return to == DriverState::STOPPING || to == DriverState::FAULT;
+    case DriverState::STOPPING:     return to == DriverState::READY;
+    case DriverState::FAULT:        return to == DriverState::CONFIGURED;
+    default:                        return false;
+  }
+}
+
+}  // namespace motorium::hal

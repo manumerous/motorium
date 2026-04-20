@@ -29,6 +29,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
+#include <atomic>
+#include <string>
+#include <vector>
+
+#include <motorium_hal/DriverState.h>
 #include <motorium_model/RobotDescription.h>
 #include <motorium_model/RobotJointFeedbackAction.h>
 #include <motorium_model/RobotState.h>
@@ -37,20 +42,45 @@ namespace motorium::hal {
 
 class DriverBase {
  public:
-  DriverBase([[maybe_unused]] const model::RobotDescription& robot_description, const std::string& name) : name_(name){};
+  // Active on all joints in the description.
+  DriverBase(const model::RobotDescription& robot_description, const std::string& name)
+      : name_(name), managed_joint_names_(robot_description.getJointNames()) {}
+
+  // Active on an explicit subset of joints.
+  DriverBase(const model::RobotDescription& robot_description, const std::string& name,
+             std::vector<std::string> managed_joint_names)
+      : name_(name), managed_joint_names_(std::move(managed_joint_names)) {
+    (void)robot_description;
+  }
+
+  virtual ~DriverBase() = default;
 
   virtual void start() = 0;
-
   virtual void stop() = 0;
-
   virtual void updateRobotState(model::RobotState& robot_state) = 0;
-
   virtual void setJointFeedbackAction(const model::RobotJointFeedbackAction& action) = 0;
-
   virtual void reset() = 0;
 
+  const std::string& getName() const { return name_; }
+  const std::vector<std::string>& getManagedJointNames() const { return managed_joint_names_; }
+  DriverState getState() const { return state_.load(); }
+
  protected:
-  std::string name_ = {};
+  void transitionTo(DriverState next) {
+    const DriverState current = state_.load();
+    if (!isLegalTransition(current, next)) {
+      throw std::runtime_error("[" + name_ + "] Illegal state transition: " +
+                               std::string(toString(current)) + " -> " + std::string(toString(next)));
+    }
+    state_.store(next);
+  }
+
+  std::string name_;
+  // Todo: generalize to devices (joints, IMU's, haptic sensors, etc.)
+  std::vector<std::string> managed_joint_names_;
+
+ private:
+  std::atomic<DriverState> state_{DriverState::UNINITIALIZED};
 };
 
 }  // namespace motorium::hal

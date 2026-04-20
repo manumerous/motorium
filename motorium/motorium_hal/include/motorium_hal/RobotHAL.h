@@ -30,6 +30,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include <memory>
+#include <stdexcept>
+#include <unordered_set>
 #include <vector>
 
 #include <motorium_hal/DriverBase.h>
@@ -42,10 +44,22 @@ namespace motorium::hal {
 
 // Unified interface to interact with real/simulated robot hardware.
 
-class RobotHardware {
+class RobotHAL {
  public:
-  RobotHardware(const std::string& model_path, std::vector<std::shared_ptr<hal::DriverBase>> drivers)
-      : robot_description_(model_path), drivers_(std::move(drivers)) {};
+  RobotHAL(const std::string& model_path, std::vector<std::shared_ptr<hal::DriverBase>> drivers)
+      : robot_description_(model_path), drivers_(std::move(drivers)) {
+    std::unordered_set<std::string> managed;
+    for (const auto& driver : drivers_) {
+      for (const auto& joint : driver->getManagedJointNames()) {
+        managed.insert(joint);
+      }
+    }
+    for (const auto& joint : robot_description_.getJointNames()) {
+      if (managed.find(joint) == managed.end()) {
+        throw std::runtime_error("[RobotHAL] Bad Configuration: Joint '" + joint + "' is not managed by any driver.");
+      }
+    }
+  }
 
   const model::RobotDescription& getRobotDescription() const { return robot_description_; }
 
