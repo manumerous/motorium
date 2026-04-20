@@ -80,7 +80,7 @@ TEST_F(DriverBaseTest, AllJointsManaged) {
 }
 
 TEST_F(DriverBaseTest, ExplicitSubsetJointsManaged) {
-  TestDriver driver(std::vector<std::string>{"joint2"}, "test_driver");
+  TestDriver driver(*robot_description_, std::vector<std::string>{"joint2"}, "test_driver");
   const auto& joints = driver.getManagedJointNames();
   ASSERT_EQ(joints.size(), 1u);
   EXPECT_EQ(joints[0], "joint2");
@@ -103,12 +103,18 @@ TEST_F(DriverBaseTest, LegalTransitionSequence) {
 }
 
 TEST_F(DriverBaseTest, FaultTransitionFromRunning) {
-  TestDriver driver(std::vector<std::string>{"joint1", "joint2"}, "test_driver");
+  TestDriver driver(*robot_description_, std::vector<std::string>{"joint1", "joint2"}, "test_driver");
   driver.triggerTransition(DriverState::CONFIGURED);
   driver.triggerTransition(DriverState::READY);
   driver.triggerTransition(DriverState::RUNNING);
   driver.triggerTransition(DriverState::FAULT);
   EXPECT_EQ(driver.getState(), DriverState::FAULT);
+}
+
+TEST_F(DriverBaseTest, ConstructorThrowsOnInvalidJointName) {
+  EXPECT_THROW(
+      TestDriver(*robot_description_, std::vector<std::string>{"nonexistent_joint"}, "test_driver"),
+      std::out_of_range);
 }
 
 TEST_F(DriverBaseTest, IllegalTransitionKills) {

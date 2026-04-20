@@ -60,11 +60,15 @@ class DriverBase {
  public:
   // Active on all joints in the description.
   DriverBase(const model::RobotDescription& robot_description, const std::string& name)
-      : name_(name), managed_joint_names_(robot_description.getJointNames()) {}
+      : name_(name), managed_joint_names_(robot_description.getJointNames()) {
+    validateManagedJointNames(robot_description);
+  }
 
   // Active on an explicit subset of joints.
-  DriverBase(std::vector<std::string> managed_joint_names, const std::string& name)
-      : name_(name), managed_joint_names_(std::move(managed_joint_names)) {}
+  DriverBase(const model::RobotDescription& robot_description, std::vector<std::string> managed_joint_names, const std::string& name)
+      : name_(name), managed_joint_names_(std::move(managed_joint_names)) {
+    validateManagedJointNames(robot_description);
+  }
 
   virtual ~DriverBase() = default;
 
@@ -87,6 +91,8 @@ class DriverBase {
 
  private:
   std::atomic<DriverState> state_{DriverState::UNINITIALIZED};
+
+  void validateManagedJointNames(const model::RobotDescription& robot_description) const;
 };
 
 }  // namespace motorium::hal

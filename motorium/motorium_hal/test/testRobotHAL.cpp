@@ -29,6 +29,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <gtest/gtest.h>
 #include <motorium_hal/RobotHAL.h>
+#include <motorium_model/RobotDescription.h>
 #include <motorium_model/RobotJointFeedbackAction.h>
 #include <motorium_model/RobotState.h>
 
@@ -89,7 +90,14 @@ class RobotHALTest : public ::testing::Test {
   void TearDown() override { std::filesystem::remove_all(temp_dir_); }
 
   std::shared_ptr<TestDriver> makeDriver(const std::string& name, std::vector<std::string> joints) {
-    return std::make_shared<TestDriver>(joints, name);
+    std::vector<JointDescription> joint_descs;
+    for (const auto& j : joints) {
+      JointDescription jd;
+      jd.name = j;
+      joint_descs.push_back(jd);
+    }
+    RobotDescription desc(joint_descs);
+    return std::make_shared<TestDriver>(desc, joints, name);
   }
 
   std::filesystem::path temp_dir_;
@@ -115,8 +123,12 @@ TEST_F(RobotHALTest, ConstructorKillsOnUncoveredJoint) {
 }
 
 TEST_F(RobotHALTest, ConstructorThrowsOnDuplicateJointInDriver) {
-  auto d = makeDriver("driver", {"joint1", "joint1"});
-  EXPECT_THROW(RobotHAL(xml_path_, {d}), std::runtime_error);
+  EXPECT_THROW(
+      {
+        auto d = makeDriver("driver", {"joint1", "joint1"});
+        RobotHAL hal(xml_path_, {d});
+      },
+      std::invalid_argument);
 }
 
 TEST_F(RobotHALTest, ConstructorThrowsOnNullDriver) {

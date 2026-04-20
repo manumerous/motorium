@@ -57,4 +57,10 @@ void DriverBase::transitionTo(DriverState next) {
   state_.store(next);
 }
 
+void DriverBase::validateManagedJointNames(const model::RobotDescription& robot_description) const {
+  for (const auto& joint_name : managed_joint_names_) {
+    (void)robot_description.validateName(joint_name);
+  }
+}
+
 }  // namespace motorium::hal

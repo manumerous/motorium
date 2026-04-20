@@ -96,6 +96,13 @@ class RobotDescription {
 
   const std::string& getJointName(joint_index_t jointIndex) const { return joint_names_.at(validateIndex(jointIndex)); };
 
+  inline const std::string& validateName(const std::string& name) const {
+    if (!containsJoint(name)) {
+      throw std::out_of_range("Joint " + name + " not found in RobotDescription.");
+    }
+    return name;
+  }
+
   friend std::ostream& operator<<(std::ostream& os, const RobotDescription& robot);
 
  private:
@@ -110,12 +117,7 @@ class RobotDescription {
     return index;
   }
 
-  inline const std::string& validateName(const std::string& name) const {
-    if (!containsJoint(name)) {
-      throw std::out_of_range("Joint " + name + " not found in RobotDescription.");
-    }
-    return name;
-  }
+
 
   const std::string model_path_;
   absl::flat_hash_map<std::string, std::pair<joint_index_t, JointDescription>> joint_name_description_map_;
