@@ -86,7 +86,7 @@ class DriverBase {
  protected:
   void transitionTo(DriverState next);
 
-  virtual void updateRobotStateImpl(model::RobotState& robot_state) = 0; 
+  virtual void updateRobotStateImpl(model::RobotState& robot_state) = 0;
 
   std::string name_;
   // Todo: generalize to devices (joints, IMU's, haptic sensors, etc.)

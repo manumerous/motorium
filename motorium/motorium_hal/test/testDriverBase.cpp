@@ -39,10 +39,11 @@ class TestDriver : public DriverBase {
  public:
   using DriverBase::DriverBase;
 
-  void start() override { 
+  void start() override {
     transitionTo(DriverState::CONFIGURED);
     transitionTo(DriverState::READY);
-    transitionTo(DriverState::RUNNING); }
+    transitionTo(DriverState::RUNNING);
+  }
   void stop() override {
     if (getState() == DriverState::RUNNING) transitionTo(DriverState::STOPPING);
   }
@@ -144,5 +145,3 @@ TEST_F(DriverBaseTest, ToStringCoversAllStates) {
   EXPECT_EQ(toString(DriverState::STOPPING), "STOPPING");
   EXPECT_EQ(toString(DriverState::FAULT), "FAULT");
 }
-
-

@@ -46,7 +46,8 @@ class TestDriver : public DriverBase {
  public:
   using DriverBase::DriverBase;
 
-  void start() override { transitionTo(DriverState::CONFIGURED);
+  void start() override {
+    transitionTo(DriverState::CONFIGURED);
     transitionTo(DriverState::READY);
     transitionTo(DriverState::RUNNING);
   }
