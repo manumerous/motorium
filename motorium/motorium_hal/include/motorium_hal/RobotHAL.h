@@ -62,8 +62,14 @@ class RobotHAL {
       : robot_description_(model_path), drivers_(std::move(drivers)) {
     std::unordered_set<std::string> managed;
     for (const auto& driver : drivers_) {
+      if (!driver) {
+        throw std::runtime_error("[RobotHAL] Bad Configuration: Driver list contains a null driver.");
+      }
       for (const auto& joint : driver->getManagedJointNames()) {
-        managed.insert(joint);
+        if (!managed.insert(joint).second) {
+          throw std::runtime_error("[RobotHAL] Bad Configuration: Joint '" + joint +
+                                   "' is managed by multiple drivers.");
+        }
       }
     }
     for (const auto& joint : robot_description_.getJointNames()) {
