@@ -44,6 +44,17 @@ namespace motorium::hal {
 
 // Unified interface to interact with real/simulated robot hardware.
 
+enum class HalState {
+  UNCONFIGURED,
+  CONFIGURED,
+  ACTIVE,
+  FAULT,
+};
+
+inline std::string_view toString(HalState state) {
+  return magic_enum::enum_name(state);
+}
+
 class RobotHAL {
  public:
   RobotHAL(const std::string& model_path, std::vector<std::shared_ptr<hal::DriverBase>> drivers)
@@ -63,22 +74,36 @@ class RobotHAL {
 
   const model::RobotDescription& getRobotDescription() const { return robot_description_; }
 
-  void updateRobotState(model::RobotState& robot_state) const {
+  void process(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) {
+    for (const auto& driver : drivers_) {
+      driver->setJointFeedbackAction(action);
+    }
+
     for (const auto& driver : drivers_) {
       driver->updateRobotState(robot_state);
     }
   }
 
-  void setJointFeedbackAction(const model::RobotJointFeedbackAction& action) {
+  // Computed on the fly for now to prevent mismatch between driver states and hal state.
+  // This should be reevaluated depending o how often and where this function is called. 
+  // Currently computing the state triggers a cache sync for every driver. 
+  HalState getState() const {
+    bool all_running = true;
+    bool all_at_least_configured = true;
     for (const auto& driver : drivers_) {
-      driver->setJointFeedbackAction(action);
+      DriverState ds = driver->getState();
+      if (ds == DriverState::FAULT) return HalState::FAULT;
+      if (ds != DriverState::RUNNING) all_running = false;
+      if (ds == DriverState::UNINITIALIZED) all_at_least_configured = false;
     }
+    if (all_running) return HalState::ACTIVE;
+    if (all_at_least_configured) return HalState::CONFIGURED;
+    return HalState::UNCONFIGURED;
   }
 
   void startDrivers() {
     for (const auto& driver : drivers_) {
       driver->start();
-      // Todo check correct initialization of drivers and update robot state machine
     }
   }
 
@@ -89,7 +114,6 @@ class RobotHAL {
   }
 
  private:
-  // Todo add state machine that describes the state/health of the full robot.
   const model::RobotDescription robot_description_;
   std::vector<std::shared_ptr<hal::DriverBase>> drivers_;
 };

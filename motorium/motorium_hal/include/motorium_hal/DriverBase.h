@@ -40,6 +40,33 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace motorium::hal {
 
+  enum class DriverState {
+  UNINITIALIZED,
+  CONFIGURED,
+  READY,
+  RUNNING,
+  STOPPING,
+  FAULT,
+};
+
+inline std::string_view toString(DriverState state) {
+  return magic_enum::enum_name(state);
+}
+
+inline bool isLegalTransition(DriverState from, DriverState to) {
+  switch (from) {
+    case DriverState::UNINITIALIZED: return to == DriverState::CONFIGURED;
+    case DriverState::CONFIGURED:   return to == DriverState::READY   || to == DriverState::FAULT;
+    case DriverState::READY:        return to == DriverState::RUNNING  || to == DriverState::FAULT;
+    case DriverState::RUNNING:      return to == DriverState::STOPPING || to == DriverState::FAULT;
+    case DriverState::STOPPING:     return to == DriverState::READY;
+    case DriverState::FAULT:        return to == DriverState::CONFIGURED;
+    default:                        return false;
+  }
+}
+
+
+
 class DriverBase {
  public:
   // Active on all joints in the description.
