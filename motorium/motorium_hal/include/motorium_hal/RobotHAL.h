@@ -53,6 +53,7 @@ enum class HalState {
   FAULT,
 };
 
+// Returns a view into static storage (magic_enum::enum_name guarantees program lifetime).
 inline std::string_view toString(HalState state) {
   return magic_enum::enum_name(state);
 }

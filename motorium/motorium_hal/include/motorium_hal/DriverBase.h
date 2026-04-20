@@ -50,6 +50,7 @@ enum class DriverState {
   FAULT,
 };
 
+// Returns a view into static storage (magic_enum::enum_name guarantees program lifetime).
 inline std::string_view toString(DriverState state) {
   return magic_enum::enum_name(state);
 }
@@ -65,7 +66,7 @@ class DriverBase {
   }
 
   // Active on an explicit subset of joints.
-  DriverBase(const model::RobotDescription& robot_description, std::vector<std::string> managed_joint_names, const std::string& name)
+  DriverBase(const model::RobotDescription& robot_description, const std::string& name, std::vector<std::string> managed_joint_names)
       : name_(name), managed_joint_names_(std::move(managed_joint_names)) {
     validateManagedJointNames(robot_description);
   }

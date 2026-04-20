@@ -97,7 +97,7 @@ class RobotHALTest : public ::testing::Test {
       joint_descs.push_back(jd);
     }
     RobotDescription desc(joint_descs);
-    return std::make_shared<TestDriver>(desc, joints, name);
+    return std::make_shared<TestDriver>(desc, name, joints);
   }
 
   std::filesystem::path temp_dir_;
@@ -139,7 +139,7 @@ TEST_F(RobotHALTest, ConstructorThrowsOnDuplicateManagedJointInDriver) {
     joint_descs.push_back(jd);
   }
   RobotDescription desc(joint_descs);
-  auto d = std::make_shared<TestDriver>(desc, std::vector<std::string>{"joint1", "joint1"}, "driver");
+  auto d = std::make_shared<TestDriver>(desc, "driver", std::vector<std::string>{"joint1", "joint1"});
   EXPECT_THROW(RobotHAL(xml_path_, {d}), std::runtime_error);
 }
 
