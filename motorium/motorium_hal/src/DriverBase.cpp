@@ -42,7 +42,7 @@ bool isLegalTransition(DriverState from, DriverState to) {
     case DriverState::RUNNING:
       return to == DriverState::STOPPING || to == DriverState::FAULT;
     case DriverState::STOPPING:
-      return to == DriverState::READY;
+      return to == DriverState::READY || to == DriverState::FAULT;
     case DriverState::FAULT:
       return to == DriverState::CONFIGURED;
     default:

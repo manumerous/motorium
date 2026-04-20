@@ -111,6 +111,16 @@ TEST_F(DriverBaseTest, FaultTransitionFromRunning) {
   EXPECT_EQ(driver.getState(), DriverState::FAULT);
 }
 
+TEST_F(DriverBaseTest, FaultTransitionFromStopping) {
+  TestDriver driver(*robot_description_, "test_driver");
+  driver.triggerTransition(DriverState::CONFIGURED);
+  driver.triggerTransition(DriverState::READY);
+  driver.triggerTransition(DriverState::RUNNING);
+  driver.triggerTransition(DriverState::STOPPING);
+  driver.triggerTransition(DriverState::FAULT);
+  EXPECT_EQ(driver.getState(), DriverState::FAULT);
+}
+
 TEST_F(DriverBaseTest, ConstructorThrowsOnInvalidJointName) {
   EXPECT_THROW(TestDriver(*robot_description_, "test_driver", std::vector<std::string>{"nonexistent_joint"}), std::out_of_range);
 }
