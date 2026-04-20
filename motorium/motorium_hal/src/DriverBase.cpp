@@ -51,10 +51,14 @@ bool isLegalTransition(DriverState from, DriverState to) {
 }
 
 void DriverBase::transitionTo(DriverState next) {
-  const DriverState current = state_.load();
-  MT_CHECK(isLegalTransition(current, next)) << "[" << name_ << "] Illegal state transition: " << toString(current) << " -> "
+  DriverState current = state_.load();
+  while (true) {
+    MT_CHECK(isLegalTransition(current, next)) << "[" << name_ << "] Illegal state transition: " << toString(current) << " -> "
                                              << toString(next);
-  state_.store(next);
+    if (state_.compare_exchange_weak(current, next)) {
+      return;
+    }
+  }
 }
 
 void DriverBase::validateManagedJointNames(const model::RobotDescription& robot_description) const {
