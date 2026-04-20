@@ -33,11 +33,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <vector>
 
-#include <magic_enum/magic_enum.hpp>
 #include <motorium_core/Check.h>
 #include <motorium_model/RobotDescription.h>
 #include <motorium_model/RobotJointFeedbackAction.h>
 #include <motorium_model/RobotState.h>
+#include <magic_enum/magic_enum.hpp>
 
 namespace motorium::hal {
 
