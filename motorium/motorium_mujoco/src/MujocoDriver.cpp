@@ -441,7 +441,7 @@ void MujocoDriver::initSim() {
 void MujocoDriver::start() {
   if (!sim_initialized_) initSim();
   transitionTo(hal::DriverState::READY);
-    
+
   if (simulate_thread_.joinable()) {
     std::cerr << "WARNING: Tried to start simulation thread, but it is already running." << std::endl;
     return;

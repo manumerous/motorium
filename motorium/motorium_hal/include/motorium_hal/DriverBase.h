@@ -62,7 +62,7 @@ class DriverBase {
   // Active on all joints in the description.
   DriverBase(const model::RobotDescription& robot_description, const std::string& name)
       : name_(name), managed_joint_names_(robot_description.getJointNames()) {
-    // Skipps trivial validation. 
+    // Skipps trivial validation.
   }
 
   // Active on an explicit subset of joints.
