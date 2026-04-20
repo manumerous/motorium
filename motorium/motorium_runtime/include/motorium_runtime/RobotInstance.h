@@ -30,52 +30,26 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include <memory>
+#include <string>
 #include <vector>
 
-#include <motorium_hal/DriverBase.h>
-#include <motorium_model/RobotJointFeedbackAction.h>
-#include <motorium_model/RobotState.h>
+#include "motorium_control/ControllerBase.h"
+#include "motorium_hal/RobotHardware.h"
 
-#include "motorium_model/RobotDescription.h"
+namespace motorium::runtime {
 
-namespace motorium::hal {
-
-// Unified interface to interact with real/simulated robot hardware.
-
-class RobotHardware {
+class RobotInstance {
  public:
-  RobotHardware(const std::string& model_path, std::vector<std::shared_ptr<hal::DriverBase>> drivers)
-      : robot_description_(model_path), drivers_(std::move(drivers)){};
+  RobotInstance(const std::string& model_path,
+                std::vector<std::shared_ptr<hal::DriverBase>> drivers,
+                std::vector<std::shared_ptr<control::ControllerBase>> controllers);
 
-  const model::RobotDescription& getRobotDescription() const { return robot_description_; }
-
-  void updateRobotState(model::RobotState& robot_state) const {
-    for (const auto& driver : drivers_) {
-      driver->updateRobotState(robot_state);
-    }
-  }
-
-  void setJointFeedbackAction(const model::RobotJointFeedbackAction& action) {
-    for (const auto& driver : drivers_) {
-      driver->setJointFeedbackAction(action);
-    }
-  }
-
-  void startDrivers() {
-    for (const auto& driver : drivers_) {
-      driver->start();
-    }
-  }
-
-  void stopDrivers() {
-    for (const auto& driver : drivers_) {
-      driver->stop();
-    }
-  }
+  void start();
+  void stop();
 
  private:
-  const model::RobotDescription robot_description_;
-  std::vector<std::shared_ptr<hal::DriverBase>> drivers_;
+  hal::RobotHardware robot_hal_;
+  std::vector<std::shared_ptr<control::ControllerBase>> controllers_;
 };
 
-}  // namespace motorium::hal
+}  // namespace motorium::runtime

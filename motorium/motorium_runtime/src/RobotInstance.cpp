@@ -27,55 +27,21 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
-#pragma once
+#include "motorium_runtime/RobotInstance.h"
 
-#include <memory>
-#include <vector>
+namespace motorium::runtime {
 
-#include <motorium_hal/DriverBase.h>
-#include <motorium_model/RobotJointFeedbackAction.h>
-#include <motorium_model/RobotState.h>
+RobotInstance::RobotInstance(const std::string& model_path,
+                             std::vector<std::shared_ptr<hal::DriverBase>> drivers,
+                             std::vector<std::shared_ptr<control::ControllerBase>> controllers)
+    : robot_hal_(model_path, std::move(drivers)), controllers_(std::move(controllers)) {}
 
-#include "motorium_model/RobotDescription.h"
+void RobotInstance::start() {
+  robot_hal_.startDrivers();
+}
 
-namespace motorium::hal {
+void RobotInstance::stop() {
+  robot_hal_.stopDrivers();
+}
 
-// Unified interface to interact with real/simulated robot hardware.
-
-class RobotHardware {
- public:
-  RobotHardware(const std::string& model_path, std::vector<std::shared_ptr<hal::DriverBase>> drivers)
-      : robot_description_(model_path), drivers_(std::move(drivers)){};
-
-  const model::RobotDescription& getRobotDescription() const { return robot_description_; }
-
-  void updateRobotState(model::RobotState& robot_state) const {
-    for (const auto& driver : drivers_) {
-      driver->updateRobotState(robot_state);
-    }
-  }
-
-  void setJointFeedbackAction(const model::RobotJointFeedbackAction& action) {
-    for (const auto& driver : drivers_) {
-      driver->setJointFeedbackAction(action);
-    }
-  }
-
-  void startDrivers() {
-    for (const auto& driver : drivers_) {
-      driver->start();
-    }
-  }
-
-  void stopDrivers() {
-    for (const auto& driver : drivers_) {
-      driver->stop();
-    }
-  }
-
- private:
-  const model::RobotDescription robot_description_;
-  std::vector<std::shared_ptr<hal::DriverBase>> drivers_;
-};
-
-}  // namespace motorium::hal
+}  // namespace motorium::runtime
