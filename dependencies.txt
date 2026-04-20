@@ -11,6 +11,7 @@ libxinerama-dev
 libxcursor-dev
 libxi-dev
 libpugixml-dev
+ros-jazzy-magic-enum
 ninja-build
 ccache
 black

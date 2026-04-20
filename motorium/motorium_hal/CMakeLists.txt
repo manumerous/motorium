@@ -11,6 +11,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(ament_cmake REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(motorium_model REQUIRED)
+find_package(magic_enum REQUIRED)
 
 find_package(GTest REQUIRED)
 
@@ -30,6 +31,7 @@ set(dependencies
         ament_cmake
         ament_index_cpp
         motorium_model
+        magic_enum
 )
 
 #############
