@@ -112,9 +112,7 @@ TEST_F(DriverBaseTest, FaultTransitionFromRunning) {
 }
 
 TEST_F(DriverBaseTest, ConstructorThrowsOnInvalidJointName) {
-  EXPECT_THROW(
-      TestDriver(*robot_description_, std::vector<std::string>{"nonexistent_joint"}, "test_driver"),
-      std::out_of_range);
+  EXPECT_THROW(TestDriver(*robot_description_, std::vector<std::string>{"nonexistent_joint"}, "test_driver"), std::out_of_range);
 }
 
 TEST_F(DriverBaseTest, IllegalTransitionKills) {

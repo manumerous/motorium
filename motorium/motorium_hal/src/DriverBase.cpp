@@ -54,7 +54,7 @@ void DriverBase::transitionTo(DriverState next) {
   DriverState current = state_.load();
   while (true) {
     MT_CHECK(isLegalTransition(current, next)) << "[" << name_ << "] Illegal state transition: " << toString(current) << " -> "
-                                             << toString(next);
+                                               << toString(next);
     if (state_.compare_exchange_weak(current, next)) {
       return;
     }

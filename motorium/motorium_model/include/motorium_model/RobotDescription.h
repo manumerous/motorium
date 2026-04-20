@@ -117,8 +117,6 @@ class RobotDescription {
     return index;
   }
 
-
-
   const std::string model_path_;
   absl::flat_hash_map<std::string, std::pair<joint_index_t, JointDescription>> joint_name_description_map_;
 
