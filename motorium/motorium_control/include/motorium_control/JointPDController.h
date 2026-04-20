@@ -35,7 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace motorium::control {
 
-struct JointPDControllerConfig {
+struct Config {
   std::vector<std::string> joint_names;
   vector_t kp;
   vector_t kd;
@@ -53,7 +53,18 @@ feedback torques to the driver.
 template <bool IsImplicit = true>
 class JointPDController : public ControllerBase {
  public:
-  JointPDController(const model::RobotDescription& robot_description, const JointPDControllerConfig& config);
+  struct Config {
+    std::vector<std::string> joint_names;
+    vector_t kp;
+    vector_t kd;
+
+    Config() = default;
+    Config(std::vector<std::string> names, std::vector<double> kp_vals, std::vector<double> kd_vals);
+
+    void validate() const;
+  };
+
+  JointPDController(const model::RobotDescription& robot_description, const Config& config);
   ~JointPDController() override = default;
 
   void computeJointControlAction(scalar_t time,
@@ -62,7 +73,7 @@ class JointPDController : public ControllerBase {
                                  model::RobotJointFeedbackAction& joint_action) override;
 
  private:
-  JointPDControllerConfig config_;
+  Config config_;
   std::vector<joint_index_t> joint_indices_;
 
   void computeImplicitPD(const model::RobotState& desired_state, model::RobotJointFeedbackAction& joint_action);
