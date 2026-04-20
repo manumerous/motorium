@@ -45,7 +45,7 @@ namespace motorium::hal {
 class RobotHardware {
  public:
   RobotHardware(const std::string& model_path, std::vector<std::shared_ptr<hal::DriverBase>> drivers)
-      : robot_description_(model_path), drivers_(std::move(drivers)){};
+      : robot_description_(model_path), drivers_(std::move(drivers)) {};
 
   const model::RobotDescription& getRobotDescription() const { return robot_description_; }
 
@@ -64,6 +64,7 @@ class RobotHardware {
   void startDrivers() {
     for (const auto& driver : drivers_) {
       driver->start();
+      // Todo check correct initialization of drivers and update robot state machine
     }
   }
 
@@ -74,6 +75,7 @@ class RobotHardware {
   }
 
  private:
+  // Todo add state machine that describes the state/health of the full robot.
   const model::RobotDescription robot_description_;
   std::vector<std::shared_ptr<hal::DriverBase>> drivers_;
 };
