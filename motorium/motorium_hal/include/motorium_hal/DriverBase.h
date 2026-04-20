@@ -33,7 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <vector>
 
-#include <motorium_hal/DriverState.h>
+#include <motorium_core/Check.h>
 #include <motorium_model/RobotDescription.h>
 #include <motorium_model/RobotJointFeedbackAction.h>
 #include <motorium_model/RobotState.h>
@@ -95,10 +95,8 @@ class DriverBase {
  protected:
   void transitionTo(DriverState next) {
     const DriverState current = state_.load();
-    if (!isLegalTransition(current, next)) {
-      throw std::runtime_error("[" + name_ + "] Illegal state transition: " +
-                               std::string(toString(current)) + " -> " + std::string(toString(next)));
-    }
+    MT_CHECK(isLegalTransition(current, next))
+        << "[" << name_ << "] Illegal state transition: " << toString(current) << " -> " << toString(next);
     state_.store(next);
   }
 

@@ -34,6 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <unordered_set>
 #include <vector>
 
+#include <motorium_core/Check.h>
 #include <motorium_hal/DriverBase.h>
 #include <motorium_model/RobotJointFeedbackAction.h>
 #include <motorium_model/RobotState.h>
@@ -66,9 +67,8 @@ class RobotHAL {
       }
     }
     for (const auto& joint : robot_description_.getJointNames()) {
-      if (managed.find(joint) == managed.end()) {
-        throw std::runtime_error("[RobotHAL] Bad Configuration: Joint '" + joint + "' is not managed by any driver.");
-      }
+      MT_CHECK(managed.find(joint) != managed.end())
+          << "[RobotHAL] Bad Configuration: Joint '" << joint << "' is not managed by any driver.";
     }
   }
 
