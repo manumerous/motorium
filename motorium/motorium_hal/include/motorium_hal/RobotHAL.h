@@ -85,8 +85,8 @@ class RobotHAL {
   }
 
   // Computed on the fly for now to prevent mismatch between driver states and hal state.
-  // This should be reevaluated depending o how often and where this function is called. 
-  // Currently computing the state triggers a cache sync for every driver. 
+  // This should be reevaluated depending o how often and where this function is called.
+  // Currently computing the state triggers a cache sync for every driver.
   HalState getState() const {
     bool all_running = true;
     bool all_at_least_configured = true;
