@@ -3,7 +3,7 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 cc_library(
     name = "motorium_mujoco",
     srcs = [
-        "src/MujocoSimInterface.cpp",
+        "src/MujocoDriver.cpp",
         "src/MujocoRenderer.cpp",
     ],
     hdrs = glob(["include/**/*.h"]),

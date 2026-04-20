@@ -54,7 +54,7 @@ set(dependencies
 #############
 
 add_library(${PROJECT_NAME}
-  src/MujocoSimInterface.cpp
+  src/MujocoDriver.cpp
   src/MujocoRenderer.cpp
 )
 ament_target_dependencies(${PROJECT_NAME}

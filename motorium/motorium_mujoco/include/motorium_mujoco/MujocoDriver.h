@@ -63,12 +63,12 @@ struct MujocoSimConfig {
   double defaultJointDamping{1.0};
 };
 
-class MujocoSimInterface : public hal::DriverBase {
+class MujocoDriver : public hal::DriverBase {
  public:
-  MujocoSimInterface(const MujocoSimConfig& config, const model::RobotDescription& robot_description);
+  MujocoDriver(const MujocoSimConfig& config, const model::RobotDescription& robot_description);
 
   /** Destructor */
-  ~MujocoSimInterface();
+  ~MujocoDriver();
 
   void start() override;
 

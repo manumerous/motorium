@@ -17,7 +17,7 @@
 #include "motorium_model/RobotDescription.h"
 #include "motorium_model/RobotJointFeedbackAction.h"
 #include "motorium_model/RobotState.h"
-#include "motorium_mujoco/MujocoSimInterface.h"
+#include "motorium_mujoco/MujocoDriver.h"
 
 using namespace motorium;
 
@@ -68,7 +68,7 @@ int main(int argc, char** argv) {
 
   // ── Create and start simulation ────────────────────────────────────────
   std::cout << "[arm_mujoco_sim] Starting simulation...\n";
-  mujoco::MujocoSimInterface sim(config, robot_description);
+  mujoco::MujocoDriver sim(config, robot_description);
 
   model::RobotJointFeedbackAction action(robot_description);
 
