@@ -27,40 +27,45 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
-#include <motorium_hal/DriverBase.h>
+#pragma once
 
-namespace motorium::hal {
+#include <atomic>
+#include <string_view>
 
-bool DriverBase::isLegalTransition(DriverState from, DriverState to) const {
-  switch (from) {
-    case DriverState::UNINITIALIZED:
-      return to == DriverState::CONFIGURED;
-    case DriverState::CONFIGURED:
-      return to == DriverState::READY || to == DriverState::FAULT;
-    case DriverState::READY:
-      return to == DriverState::RUNNING || to == DriverState::FAULT;
-    case DriverState::RUNNING:
-      return to == DriverState::STOPPING || to == DriverState::FAULT;
-    case DriverState::STOPPING:
-      return to == DriverState::READY || to == DriverState::FAULT;
-    case DriverState::FAULT:
-      return to == DriverState::CONFIGURED;
-    default:
-      return false;
+#include <motorium_core/Check.h>
+#include <magic_enum/magic_enum.hpp>
+
+namespace motorium::core {
+
+// Thread-safe state machine base. Subclasses provide the transition table via
+// isLegalTransition() and drive transitions through the protected transitionTo().
+template <typename StateEnum>
+class StateMachine {
+ public:
+  explicit StateMachine(StateEnum initial_state) : state_(initial_state) {}
+  virtual ~StateMachine() = default;
+
+  StateEnum getState() const { return state_.load(std::memory_order_acquire); }
+
+  // Returns a view into static storage (magic_enum::enum_name guarantees program lifetime).
+  std::string_view stateToString() const { return magic_enum::enum_name(getState()); }
+
+ protected:
+  virtual bool isLegalTransition(StateEnum from, StateEnum to) const = 0;
+
+  void transitionTo(StateEnum next) {
+    StateEnum current = state_.load(std::memory_order_acquire);
+    while (true) {
+      MT_CHECK(isLegalTransition(current, next))
+          << "Illegal state transition: " << magic_enum::enum_name(current) << " -> " << magic_enum::enum_name(next);
+      if (state_.compare_exchange_weak(current, next, std::memory_order_acq_rel)) {
+        return;
+      }
+    }
   }
-}
 
-void DriverBase::updateRobotState(model::RobotState& robot_state) {
-  if (getState() != DriverState::RUNNING) {
-    return;
-  }
-  updateRobotStateImpl(robot_state);
-}
+ private:
+  std::atomic<StateEnum> state_;
+};
 
-void DriverBase::validateManagedJointNames(const model::RobotDescription& robot_description) const {
-  for (const auto& joint_name : managed_joint_names_) {
-    (void)robot_description.validateName(joint_name);
-  }
-}
-
-}  // namespace motorium::hal
+}  // namespace motorium::core

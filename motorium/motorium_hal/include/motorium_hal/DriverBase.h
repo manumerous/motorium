@@ -29,15 +29,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include <atomic>
 #include <string>
 #include <vector>
 
-#include <motorium_core/Check.h>
+#include <motorium_core/StateMachine.h>
 #include <motorium_model/RobotDescription.h>
 #include <motorium_model/RobotJointFeedbackAction.h>
 #include <motorium_model/RobotState.h>
-#include <magic_enum/magic_enum.hpp>
 
 namespace motorium::hal {
 
@@ -50,24 +48,19 @@ enum class DriverState {
   FAULT,
 };
 
-// Returns a view into static storage (magic_enum::enum_name guarantees program lifetime).
-inline std::string_view toString(DriverState state) {
-  return magic_enum::enum_name(state);
-}
-
-bool isLegalTransition(DriverState from, DriverState to);
-
-class DriverBase {
+class DriverBase : public motorium::core::StateMachine<DriverState> {
  public:
   // Active on all joints in the description.
   DriverBase(const model::RobotDescription& robot_description, const std::string& name)
-      : name_(name), managed_joint_names_(robot_description.getJointNames()) {
-    // Skipps trivial validation.
-  }
+      : motorium::core::StateMachine<DriverState>(DriverState::UNINITIALIZED),
+        name_(name),
+        managed_joint_names_(robot_description.getJointNames()) {}
 
   // Active on an explicit subset of joints.
   DriverBase(const model::RobotDescription& robot_description, const std::string& name, std::vector<std::string> managed_joint_names)
-      : name_(name), managed_joint_names_(std::move(managed_joint_names)) {
+      : motorium::core::StateMachine<DriverState>(DriverState::UNINITIALIZED),
+        name_(name),
+        managed_joint_names_(std::move(managed_joint_names)) {
     validateManagedJointNames(robot_description);
   }
 
@@ -81,20 +74,17 @@ class DriverBase {
 
   const std::string& getName() const { return name_; }
   const std::vector<std::string>& getManagedJointNames() const { return managed_joint_names_; }
-  DriverState getState() const { return state_.load(); }
 
  protected:
-  void transitionTo(DriverState next);
+  bool isLegalTransition(DriverState from, DriverState to) const override;
 
   virtual void updateRobotStateImpl(model::RobotState& robot_state) = 0;
 
-  std::string name_;
+  const std::string name_;
   // Todo: generalize to devices (joints, IMU's, haptic sensors, etc.)
-  std::vector<std::string> managed_joint_names_;
+  const std::vector<std::string> managed_joint_names_;
 
  private:
-  std::atomic<DriverState> state_{DriverState::UNINITIALIZED};
-
   void validateManagedJointNames(const model::RobotDescription& robot_description) const;
 };
 

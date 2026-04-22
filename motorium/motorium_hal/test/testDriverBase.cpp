@@ -136,12 +136,3 @@ TEST_F(DriverBaseTest, IllegalTransitionKills) {
   // UNINITIALIZED -> RUNNING is not a legal transition
   EXPECT_DEATH(driver.triggerTransition(DriverState::RUNNING), "Illegal state transition");
 }
-
-TEST_F(DriverBaseTest, ToStringCoversAllStates) {
-  EXPECT_EQ(toString(DriverState::UNINITIALIZED), "UNINITIALIZED");
-  EXPECT_EQ(toString(DriverState::CONFIGURED), "CONFIGURED");
-  EXPECT_EQ(toString(DriverState::READY), "READY");
-  EXPECT_EQ(toString(DriverState::RUNNING), "RUNNING");
-  EXPECT_EQ(toString(DriverState::STOPPING), "STOPPING");
-  EXPECT_EQ(toString(DriverState::FAULT), "FAULT");
-}

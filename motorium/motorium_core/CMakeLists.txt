@@ -11,6 +11,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(ament_cmake REQUIRED)
 
 find_package(absl CONFIG REQUIRED)
+find_package(magic_enum REQUIRED)
 
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
@@ -21,17 +22,18 @@ find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 include_directories(
         include
         ${EIGEN3_INCLUDE_DIRS}
+        $<TARGET_PROPERTY:magic_enum::magic_enum,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 set(dependencies
         ament_cmake
         absl
+        magic_enum
 )
 
 #############
 ## Library ##
 #############
-
 
 # ############
 # # Testing ##

@@ -46,7 +46,7 @@ namespace motorium::mujoco {
 
 class MujocoDriver;
 
-class MjState;
+struct MjState;
 
 class MujocoRenderer {
  public:
