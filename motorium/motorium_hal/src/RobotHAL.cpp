@@ -32,7 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace motorium::hal {
 
 RobotHAL::RobotHAL(const std::string& model_path, std::vector<std::shared_ptr<hal::DriverBase>> drivers)
-    : robot_description_(model_path), drivers_(std::move(drivers)) {
+    : motorium::core::StateMachine<HalState>(HalState::UNCONFIGURED), robot_description_(model_path), drivers_(std::move(drivers)) {
   validateDriverCoverage();
 }
 
@@ -40,45 +40,54 @@ const model::RobotDescription& RobotHAL::getRobotDescription() const {
   return robot_description_;
 }
 
-void RobotHAL::update(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) {
-  for (const auto& driver : drivers_) {
-    driver->setJointFeedbackAction(action);
-  }
-  for (const auto& driver : drivers_) {
-    driver->updateRobotState(robot_state);
+bool RobotHAL::isLegalTransition(HalState from, HalState to) const {
+  if (to == HalState::FAULT) return from != HalState::FAULT;
+  switch (from) {
+    case HalState::UNCONFIGURED:
+      return to == HalState::CONFIGURED;
+    case HalState::CONFIGURED:
+      return to == HalState::READY;
+    case HalState::READY:
+      return to == HalState::ACTIVE;
+    case HalState::ACTIVE:
+      return to == HalState::STOPPING;
+    case HalState::STOPPING:
+      return to == HalState::READY;
+    case HalState::FAULT:
+      return to == HalState::CONFIGURED;
+    default:
+      return false;
   }
 }
 
-HalState RobotHAL::getState() const {
-  bool any_stopping = false;
-  bool any_uninitialized = false;
-  bool any_configured = false;
-  bool all_running = true;
+void RobotHAL::update(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) {
   for (const auto& driver : drivers_) {
-    DriverState ds = driver->getState();
-    if (ds == DriverState::FAULT) return HalState::FAULT;
-    if (ds == DriverState::STOPPING) any_stopping = true;
-    if (ds == DriverState::UNINITIALIZED) any_uninitialized = true;
-    if (ds == DriverState::CONFIGURED) any_configured = true;
-    if (ds != DriverState::RUNNING) all_running = false;
+    driver->update(action, robot_state);
   }
-  if (any_stopping) return HalState::STOPPING;
-  if (any_uninitialized) return HalState::UNCONFIGURED;
-  if (any_configured) return HalState::CONFIGURED;
-  if (all_running) return HalState::ACTIVE;
-  return HalState::READY;
+  if (getState() != HalState::FAULT) {
+    for (const auto& driver : drivers_) {
+      if (driver->getState() == DriverState::FAULT) {
+        requestTransitionTo(HalState::FAULT);
+        break;
+      }
+    }
+  }
 }
 
 void RobotHAL::startDrivers() {
   for (const auto& driver : drivers_) {
     driver->start();
   }
+  requestTransitionTo(HalState::CONFIGURED);
+  requestTransitionTo(HalState::READY);
+  requestTransitionTo(HalState::ACTIVE);
 }
 
 void RobotHAL::stopDrivers() {
   for (const auto& driver : drivers_) {
     driver->stop();
   }
+  requestTransitionTo(HalState::STOPPING);
 }
 
 void RobotHAL::validateDriverCoverage() {

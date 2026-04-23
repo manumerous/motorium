@@ -91,9 +91,8 @@ int main(int argc, char** argv) {
   // Block the main thread; the renderer and physics run on their own threads.
   // Press ESC in the MuJoCo viewer to close the window.
   while (true) {
-    sim.updateRobotState(state);
+    sim.update(action, state);
     controller.computeJointControlAction(state.getTime(), state, desired_state, action);
-    sim.setJointFeedbackAction(action);
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
 

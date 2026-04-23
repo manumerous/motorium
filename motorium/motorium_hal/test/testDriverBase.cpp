@@ -40,18 +40,15 @@ class TestDriver : public DriverBase {
   using DriverBase::DriverBase;
 
   void start() override {
-    transitionTo(DriverState::CONFIGURED);
-    transitionTo(DriverState::READY);
-    transitionTo(DriverState::RUNNING);
+    requestTransitionTo(DriverState::CONFIGURED);
+    requestTransitionTo(DriverState::READY);
+    requestTransitionTo(DriverState::RUNNING);
   }
   void stop() override {
-    if (getState() == DriverState::RUNNING) transitionTo(DriverState::STOPPING);
+    if (getState() == DriverState::RUNNING) requestTransitionTo(DriverState::STOPPING);
   }
-  void updateRobotStateImpl(motorium::model::RobotState&) override {}
-  void setJointFeedbackAction(const motorium::model::RobotJointFeedbackAction&) override {}
+  void updateImpl(const motorium::model::RobotJointFeedbackAction& action, motorium::model::RobotState& robot_state) override {}
   void reset() override {}
-
-  void triggerTransition(DriverState next) { transitionTo(next); }
 };
 
 class DriverBaseTest : public ::testing::Test {
@@ -94,36 +91,36 @@ TEST_F(DriverBaseTest, ExplicitSubsetJointsManaged) {
 
 TEST_F(DriverBaseTest, LegalTransitionUninitializedToConfigured) {
   TestDriver driver(*robot_description_, "test_driver");
-  EXPECT_NO_FATAL_FAILURE(driver.triggerTransition(DriverState::CONFIGURED));
+  EXPECT_NO_FATAL_FAILURE(driver.requestTransitionTo(DriverState::CONFIGURED));
   EXPECT_EQ(driver.getState(), DriverState::CONFIGURED);
 }
 
 TEST_F(DriverBaseTest, LegalTransitionSequence) {
   TestDriver driver(*robot_description_, "test_driver");
-  driver.triggerTransition(DriverState::CONFIGURED);
-  driver.triggerTransition(DriverState::READY);
-  driver.triggerTransition(DriverState::RUNNING);
-  driver.triggerTransition(DriverState::STOPPING);
-  driver.triggerTransition(DriverState::READY);
+  driver.requestTransitionTo(DriverState::CONFIGURED);
+  driver.requestTransitionTo(DriverState::READY);
+  driver.requestTransitionTo(DriverState::RUNNING);
+  driver.requestTransitionTo(DriverState::STOPPING);
+  driver.requestTransitionTo(DriverState::READY);
   EXPECT_EQ(driver.getState(), DriverState::READY);
 }
 
 TEST_F(DriverBaseTest, FaultTransitionFromRunning) {
   TestDriver driver(*robot_description_, "test_driver", std::vector<std::string>{"joint1", "joint2"});
-  driver.triggerTransition(DriverState::CONFIGURED);
-  driver.triggerTransition(DriverState::READY);
-  driver.triggerTransition(DriverState::RUNNING);
-  driver.triggerTransition(DriverState::FAULT);
+  driver.requestTransitionTo(DriverState::CONFIGURED);
+  driver.requestTransitionTo(DriverState::READY);
+  driver.requestTransitionTo(DriverState::RUNNING);
+  driver.requestTransitionTo(DriverState::FAULT);
   EXPECT_EQ(driver.getState(), DriverState::FAULT);
 }
 
 TEST_F(DriverBaseTest, FaultTransitionFromStopping) {
   TestDriver driver(*robot_description_, "test_driver");
-  driver.triggerTransition(DriverState::CONFIGURED);
-  driver.triggerTransition(DriverState::READY);
-  driver.triggerTransition(DriverState::RUNNING);
-  driver.triggerTransition(DriverState::STOPPING);
-  driver.triggerTransition(DriverState::FAULT);
+  driver.requestTransitionTo(DriverState::CONFIGURED);
+  driver.requestTransitionTo(DriverState::READY);
+  driver.requestTransitionTo(DriverState::RUNNING);
+  driver.requestTransitionTo(DriverState::STOPPING);
+  driver.requestTransitionTo(DriverState::FAULT);
   EXPECT_EQ(driver.getState(), DriverState::FAULT);
 }
 
@@ -134,5 +131,5 @@ TEST_F(DriverBaseTest, ConstructorThrowsOnInvalidJointName) {
 TEST_F(DriverBaseTest, IllegalTransitionKills) {
   TestDriver driver(*robot_description_, "test_driver");
   // UNINITIALIZED -> RUNNING is not a legal transition
-  EXPECT_DEATH(driver.triggerTransition(DriverState::RUNNING), "Illegal state transition");
+  EXPECT_DEATH(driver.requestTransitionTo(DriverState::RUNNING), "Illegal state transition");
 }

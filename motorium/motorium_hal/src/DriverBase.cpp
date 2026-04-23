@@ -32,17 +32,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace motorium::hal {
 
 bool DriverBase::isLegalTransition(DriverState from, DriverState to) const {
+  if (to == DriverState::FAULT) return from != DriverState::FAULT;
   switch (from) {
     case DriverState::UNINITIALIZED:
       return to == DriverState::CONFIGURED;
     case DriverState::CONFIGURED:
-      return to == DriverState::READY || to == DriverState::FAULT;
+      return to == DriverState::READY;
     case DriverState::READY:
-      return to == DriverState::RUNNING || to == DriverState::FAULT;
+      return to == DriverState::RUNNING;
     case DriverState::RUNNING:
-      return to == DriverState::STOPPING || to == DriverState::FAULT;
+      return to == DriverState::STOPPING;
     case DriverState::STOPPING:
-      return to == DriverState::READY || to == DriverState::FAULT;
+      return to == DriverState::READY;
     case DriverState::FAULT:
       return to == DriverState::CONFIGURED;
     default:
@@ -50,11 +51,12 @@ bool DriverBase::isLegalTransition(DriverState from, DriverState to) const {
   }
 }
 
-void DriverBase::updateRobotState(model::RobotState& robot_state) {
+void DriverBase::update(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) {
   if (getState() != DriverState::RUNNING) {
+    // Todo Error handling
     return;
   }
-  updateRobotStateImpl(robot_state);
+  updateImpl(action, robot_state);
 }
 
 void DriverBase::validateManagedJointNames(const model::RobotDescription& robot_description) const {

@@ -68,8 +68,8 @@ class DriverBase : public motorium::core::StateMachine<DriverState> {
 
   virtual void start() = 0;
   virtual void stop() = 0;
-  void updateRobotState(model::RobotState& robot_state);
-  virtual void setJointFeedbackAction(const model::RobotJointFeedbackAction& action) = 0;
+  // Send action, update robot_state
+  void update(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state);
   virtual void reset() = 0;
 
   const std::string& getName() const { return name_; }
@@ -78,7 +78,7 @@ class DriverBase : public motorium::core::StateMachine<DriverState> {
  protected:
   bool isLegalTransition(DriverState from, DriverState to) const override;
 
-  virtual void updateRobotStateImpl(model::RobotState& robot_state) = 0;
+  virtual void updateImpl(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) = 0;
 
   const std::string name_;
   // Todo: generalize to devices (joints, IMU's, haptic sensors, etc.)

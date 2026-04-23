@@ -30,17 +30,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include <memory>
-#include <stdexcept>
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 #include <motorium_core/Check.h>
+#include <motorium_core/StateMachine.h>
 #include <motorium_hal/DriverBase.h>
 #include <motorium_model/RobotDescription.h>
 #include <motorium_model/RobotJointFeedbackAction.h>
 #include <motorium_model/RobotState.h>
-#include <magic_enum/magic_enum.hpp>
 
 namespace motorium::hal {
 
@@ -55,12 +53,7 @@ enum class HalState {
   FAULT,
 };
 
-// Returns a view into static storage (magic_enum::enum_name guarantees program lifetime).
-inline std::string_view toString(HalState state) {
-  return magic_enum::enum_name(state);
-}
-
-class RobotHAL {
+class RobotHAL : public motorium::core::StateMachine<HalState> {
  public:
   RobotHAL(const std::string& model_path, std::vector<std::shared_ptr<hal::DriverBase>> drivers);
 
@@ -73,11 +66,11 @@ class RobotHAL {
 
   void update(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state);
 
-  // Computed on the fly to prevent stale state from diverging with driver states.
-  HalState getState() const;
-
   void startDrivers();
   void stopDrivers();
+
+ protected:
+  bool isLegalTransition(HalState from, HalState to) const override;
 
  private:
   void validateDriverCoverage();

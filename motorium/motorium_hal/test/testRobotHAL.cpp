@@ -47,24 +47,21 @@ class TestDriver : public DriverBase {
   using DriverBase::DriverBase;
 
   void start() override {
-    transitionTo(DriverState::CONFIGURED);
-    transitionTo(DriverState::READY);
-    transitionTo(DriverState::RUNNING);
+    this->requestTransitionTo(DriverState::CONFIGURED);
+    this->requestTransitionTo(DriverState::READY);
+    this->requestTransitionTo(DriverState::RUNNING);
   }
   void stop() override {
-    if (getState() == DriverState::RUNNING) transitionTo(DriverState::STOPPING);
+    if (getState() == DriverState::RUNNING) this->requestTransitionTo(DriverState::STOPPING);
   }
-  void updateRobotStateImpl(motorium::model::RobotState& state) override {
+  void updateImpl(const motorium::model::RobotJointFeedbackAction& action, motorium::model::RobotState& robot_state) override {
     update_count_++;
-    (void)state;
   }
-  void setJointFeedbackAction(const motorium::model::RobotJointFeedbackAction&) override { action_count_++; }
   void reset() override {}
 
-  void triggerTransition(DriverState next) { transitionTo(next); }
+  void triggerTransition(DriverState next) { this->requestTransitionTo(next); }
 
   int update_count_{0};
-  int action_count_{0};
 };
 
 // Writes a minimal MuJoCo XML with the given joint names to a temp file.
@@ -180,77 +177,34 @@ TEST_F(RobotHALTest, InitialStateIsUnconfigured) {
   EXPECT_EQ(hal.getState(), HalState::UNCONFIGURED);
 }
 
-TEST_F(RobotHALTest, StateIsConfiguredWhenAllDriversConfigured) {
-  auto d1 = makeDriver("d1", {"joint1"});
-  auto d2 = makeDriver("d2", {"joint2"});
-  RobotHAL hal(xml_path_, {d1, d2});
-
-  d1->triggerTransition(DriverState::CONFIGURED);
-  d2->triggerTransition(DriverState::CONFIGURED);
-  EXPECT_EQ(hal.getState(), HalState::CONFIGURED);
-}
-
-TEST_F(RobotHALTest, StateIsConfiguredWhenDriversMixedConfiguredAndReady) {
-  auto d1 = makeDriver("d1", {"joint1"});
-  auto d2 = makeDriver("d2", {"joint2"});
-  RobotHAL hal(xml_path_, {d1, d2});
-
-  d1->triggerTransition(DriverState::CONFIGURED);
-  d2->triggerTransition(DriverState::CONFIGURED);
-  d2->triggerTransition(DriverState::READY);
-  EXPECT_EQ(hal.getState(), HalState::CONFIGURED);
-}
-
-TEST_F(RobotHALTest, StateIsActiveWhenAllDriversRunning) {
-  auto d1 = makeDriver("d1", {"joint1"});
-  auto d2 = makeDriver("d2", {"joint2"});
-  RobotHAL hal(xml_path_, {d1, d2});
-
-  for (auto* d : {d1.get(), d2.get()}) {
-    d->triggerTransition(DriverState::CONFIGURED);
-    d->triggerTransition(DriverState::READY);
-    d->triggerTransition(DriverState::RUNNING);
-  }
+TEST_F(RobotHALTest, StateIsActiveAfterStartDrivers) {
+  auto d = makeDriver("driver", {"joint1", "joint2"});
+  RobotHAL hal(xml_path_, {d});
+  hal.startDrivers();
   EXPECT_EQ(hal.getState(), HalState::ACTIVE);
 }
 
-TEST_F(RobotHALTest, StateIsFaultWhenAnyDriverInFault) {
-  auto d1 = makeDriver("d1", {"joint1"});
-  auto d2 = makeDriver("d2", {"joint2"});
-  RobotHAL hal(xml_path_, {d1, d2});
-
-  d1->triggerTransition(DriverState::CONFIGURED);
-  d1->triggerTransition(DriverState::READY);
-  d1->triggerTransition(DriverState::RUNNING);
-  // d2 remains UNINITIALIZED, but d1 goes FAULT
-  d1->triggerTransition(DriverState::FAULT);
-  EXPECT_EQ(hal.getState(), HalState::FAULT);
-}
-
-TEST_F(RobotHALTest, StateIsReadyWhenAllDriversReady) {
-  auto d1 = makeDriver("d1", {"joint1"});
-  auto d2 = makeDriver("d2", {"joint2"});
-  RobotHAL hal(xml_path_, {d1, d2});
-
-  for (auto* d : {d1.get(), d2.get()}) {
-    d->triggerTransition(DriverState::CONFIGURED);
-    d->triggerTransition(DriverState::READY);
-  }
-  EXPECT_EQ(hal.getState(), HalState::READY);
-}
-
-TEST_F(RobotHALTest, StateIsStoppingWhenAnyDriverStopping) {
-  auto d1 = makeDriver("d1", {"joint1"});
-  auto d2 = makeDriver("d2", {"joint2"});
-  RobotHAL hal(xml_path_, {d1, d2});
-
-  for (auto* d : {d1.get(), d2.get()}) {
-    d->triggerTransition(DriverState::CONFIGURED);
-    d->triggerTransition(DriverState::READY);
-    d->triggerTransition(DriverState::RUNNING);
-  }
-  d1->triggerTransition(DriverState::STOPPING);
+TEST_F(RobotHALTest, StateIsStoppingAfterStopDrivers) {
+  auto d = makeDriver("driver", {"joint1", "joint2"});
+  RobotHAL hal(xml_path_, {d});
+  hal.startDrivers();
+  hal.stopDrivers();
   EXPECT_EQ(hal.getState(), HalState::STOPPING);
+}
+
+TEST_F(RobotHALTest, StateIsFaultWhenDriverFaultDetectedDuringUpdate) {
+  auto d1 = makeDriver("d1", {"joint1"});
+  auto d2 = makeDriver("d2", {"joint2"});
+  RobotHAL hal(xml_path_, {d1, d2});
+  hal.startDrivers();
+
+  d1->triggerTransition(DriverState::FAULT);
+
+  RobotState state(hal.getRobotDescription());
+  RobotJointFeedbackAction action(hal.getRobotDescription());
+  hal.update(action, state);
+
+  EXPECT_EQ(hal.getState(), HalState::FAULT);
 }
 
 // ─── update ─────────────────────────────────────────────────────────────────
@@ -266,8 +220,6 @@ TEST_F(RobotHALTest, updateCallsAllDrivers) {
   hal.startDrivers();
   hal.update(action, state);
 
-  EXPECT_EQ(d1->action_count_, 1);
   EXPECT_EQ(d1->update_count_, 1);
-  EXPECT_EQ(d2->action_count_, 1);
   EXPECT_EQ(d2->update_count_, 1);
 }

@@ -29,7 +29,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include <atomic>
+#include <absl/synchronization/mutex.h>
 #include <string_view>
 
 #include <motorium_core/Check.h>
@@ -45,27 +45,27 @@ class StateMachine {
   explicit StateMachine(StateEnum initial_state) : state_(initial_state) {}
   virtual ~StateMachine() = default;
 
-  StateEnum getState() const { return state_.load(std::memory_order_acquire); }
+  StateEnum getState() const {
+    absl::ReaderMutexLock lock(&mu_);
+    return state_;
+  }
 
   // Returns a view into static storage (magic_enum::enum_name guarantees program lifetime).
   std::string_view stateToString() const { return magic_enum::enum_name(getState()); }
 
+  void requestTransitionTo(StateEnum next) {
+    absl::MutexLock lock(&mu_);
+    MT_CHECK(isLegalTransition(state_, next)) << "Illegal state transition: " << magic_enum::enum_name(state_) << " -> "
+                                              << magic_enum::enum_name(next);
+    state_ = next;
+  }
+
  protected:
   virtual bool isLegalTransition(StateEnum from, StateEnum to) const = 0;
 
-  void transitionTo(StateEnum next) {
-    StateEnum current = state_.load(std::memory_order_acquire);
-    while (true) {
-      MT_CHECK(isLegalTransition(current, next))
-          << "Illegal state transition: " << magic_enum::enum_name(current) << " -> " << magic_enum::enum_name(next);
-      if (state_.compare_exchange_weak(current, next, std::memory_order_acq_rel)) {
-        return;
-      }
-    }
-  }
-
  private:
-  std::atomic<StateEnum> state_;
+  mutable absl::Mutex mu_;
+  StateEnum state_ ABSL_GUARDED_BY(mu_);  // Clang ignores the ABSL_GUARDED_BY annotation in template classes -.-
 };
 
 }  // namespace motorium::core

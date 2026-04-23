@@ -63,7 +63,7 @@ struct MujocoSimConfig {
   double defaultJointDamping{1.0};
 };
 
-class MujocoDriver : public hal::DriverBase {
+class MujocoDriver final : public hal::DriverBase {
  public:
   MujocoDriver(const MujocoSimConfig& config, const model::RobotDescription& robot_description);
 
@@ -74,9 +74,7 @@ class MujocoDriver : public hal::DriverBase {
 
   void stop() override;
 
-  void updateRobotStateImpl(model::RobotState& robot_state) override;
-
-  void setJointFeedbackAction(const model::RobotJointFeedbackAction& action) override;
+  void updateImpl(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) override;
 
   void simulationStep();
 
