@@ -1,3 +1,4 @@
+clang
 clang-format
 make
 build-essential
