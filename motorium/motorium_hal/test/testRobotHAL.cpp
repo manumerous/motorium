@@ -38,31 +38,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <memory>
 #include <vector>
 
+#include "TestDriver.h"
+
 using namespace motorium::hal;
 using namespace motorium::model;
-
-// Minimal concrete driver for testing.
-class TestDriver : public DriverBase {
- public:
-  using DriverBase::DriverBase;
-
-  void start() override {
-    this->requestTransitionTo(DriverState::CONFIGURED);
-    this->requestTransitionTo(DriverState::READY);
-    this->requestTransitionTo(DriverState::RUNNING);
-  }
-  void stop() override {
-    if (getState() == DriverState::RUNNING) this->requestTransitionTo(DriverState::STOPPING);
-  }
-  void updateImpl(const motorium::model::RobotJointFeedbackAction& action, motorium::model::RobotState& robot_state) override {
-    update_count_++;
-  }
-  void reset() override {}
-
-  void triggerTransition(DriverState next) { this->requestTransitionTo(next); }
-
-  int update_count_{0};
-};
 
 // Writes a minimal MuJoCo XML with the given joint names to a temp file.
 static std::string writeTempXml(const std::filesystem::path& dir,
@@ -157,6 +136,12 @@ TEST_F(RobotHALTest, ConstructorKillsOnOverlappingDrivers) {
   EXPECT_DEATH(RobotHAL(xml_path_, {d1, d2}), "managed by multiple drivers");
 }
 
+TEST_F(RobotHALTest, ConstructorKillsOnDriverManagingJointNotInDescription) {
+  // Driver claims to manage "ghost_joint" which is not in the HAL's xml model.
+  auto d = makeDriver("driver", {"joint1", "joint2", "ghost_joint"});
+  EXPECT_DEATH(RobotHAL(xml_path_, {d}), "not present in the robot description");
+}
+
 // ─── getRobotDescription ──────────────────────────────────────────────────────
 
 TEST_F(RobotHALTest, GetRobotDescriptionReturnsCorrectJoints) {
@@ -171,17 +156,12 @@ TEST_F(RobotHALTest, GetRobotDescriptionReturnsCorrectJoints) {
 
 // ─── getState ────────────────────────────────────────────────────────────────
 
-TEST_F(RobotHALTest, InitialStateIsUnconfigured) {
+TEST_F(RobotHALTest, StateIsRunningAfterStartDrivers) {
   auto d = makeDriver("driver", {"joint1", "joint2"});
   RobotHAL hal(xml_path_, {d});
-  EXPECT_EQ(hal.getState(), HalState::UNCONFIGURED);
-}
-
-TEST_F(RobotHALTest, StateIsActiveAfterStartDrivers) {
-  auto d = makeDriver("driver", {"joint1", "joint2"});
-  RobotHAL hal(xml_path_, {d});
+  EXPECT_EQ(hal.getState(), DriverState::READY);
   hal.startDrivers();
-  EXPECT_EQ(hal.getState(), HalState::ACTIVE);
+  EXPECT_EQ(hal.getState(), DriverState::RUNNING);
 }
 
 TEST_F(RobotHALTest, StateIsStoppingAfterStopDrivers) {
@@ -189,7 +169,7 @@ TEST_F(RobotHALTest, StateIsStoppingAfterStopDrivers) {
   RobotHAL hal(xml_path_, {d});
   hal.startDrivers();
   hal.stopDrivers();
-  EXPECT_EQ(hal.getState(), HalState::STOPPING);
+  EXPECT_EQ(hal.getState(), DriverState::STOPPING);
 }
 
 TEST_F(RobotHALTest, StateIsFaultWhenDriverFaultDetectedDuringUpdate) {
@@ -204,7 +184,7 @@ TEST_F(RobotHALTest, StateIsFaultWhenDriverFaultDetectedDuringUpdate) {
   RobotJointFeedbackAction action(hal.getRobotDescription());
   hal.update(action, state);
 
-  EXPECT_EQ(hal.getState(), HalState::FAULT);
+  EXPECT_EQ(hal.getState(), DriverState::FAULT);
 }
 
 // ─── update ─────────────────────────────────────────────────────────────────

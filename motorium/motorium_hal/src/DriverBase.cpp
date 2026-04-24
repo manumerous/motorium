@@ -31,31 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace motorium::hal {
 
-bool DriverBase::isLegalTransition(DriverState from, DriverState to) const {
-  if (to == DriverState::FAULT) return from != DriverState::FAULT;
-  switch (from) {
-    case DriverState::UNINITIALIZED:
-      return to == DriverState::CONFIGURED;
-    case DriverState::CONFIGURED:
-      return to == DriverState::READY;
-    case DriverState::READY:
-      return to == DriverState::RUNNING;
-    case DriverState::RUNNING:
-      return to == DriverState::STOPPING;
-    case DriverState::STOPPING:
-      return to == DriverState::READY;
-    case DriverState::FAULT:
-      return to == DriverState::CONFIGURED;
-    default:
-      return false;
-  }
-}
-
 void DriverBase::update(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) {
-  if (getState() != DriverState::RUNNING) {
-    // Todo Error handling
-    return;
-  }
+  MT_CHECK(getState() == DriverState::RUNNING) << "Driver " << name_ << " is not in RUNNING state";
   updateImpl(action, robot_state);
 }
 

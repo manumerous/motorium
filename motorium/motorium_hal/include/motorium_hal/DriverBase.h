@@ -40,26 +40,44 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace motorium::hal {
 
+// ToDO update to logic required by HW
 enum class DriverState {
-  UNINITIALIZED,
-  CONFIGURED,
+  FAULT,
+  STOPPING,
+  INITIALIZING,
   READY,
   RUNNING,
-  STOPPING,
-  FAULT,
 };
+
+inline bool isLegalDriverTransition(DriverState from, DriverState to) {
+  if (to == DriverState::FAULT) return from != DriverState::FAULT;
+  switch (from) {
+    case DriverState::INITIALIZING:
+      return to == DriverState::READY;
+    case DriverState::READY:
+      return to == DriverState::RUNNING;
+    case DriverState::RUNNING:
+      return to == DriverState::STOPPING;
+    case DriverState::STOPPING:
+      return to == DriverState::READY;
+    case DriverState::FAULT:
+      return to == DriverState::READY;
+    default:
+      return false;
+  }
+}
 
 class DriverBase : public motorium::core::StateMachine<DriverState> {
  public:
   // Active on all joints in the description.
   DriverBase(const model::RobotDescription& robot_description, const std::string& name)
-      : motorium::core::StateMachine<DriverState>(DriverState::UNINITIALIZED),
+      : motorium::core::StateMachine<DriverState>(DriverState::INITIALIZING),
         name_(name),
         managed_joint_names_(robot_description.getJointNames()) {}
 
   // Active on an explicit subset of joints.
   DriverBase(const model::RobotDescription& robot_description, const std::string& name, std::vector<std::string> managed_joint_names)
-      : motorium::core::StateMachine<DriverState>(DriverState::UNINITIALIZED),
+      : motorium::core::StateMachine<DriverState>(DriverState::INITIALIZING),
         name_(name),
         managed_joint_names_(std::move(managed_joint_names)) {
     validateManagedJointNames(robot_description);
@@ -77,7 +95,7 @@ class DriverBase : public motorium::core::StateMachine<DriverState> {
   const std::vector<std::string>& getManagedJointNames() const { return managed_joint_names_; }
 
  protected:
-  bool isLegalTransition(DriverState from, DriverState to) const override;
+  bool isLegalTransition(DriverState from, DriverState to) const override { return isLegalDriverTransition(from, to); }
 
   virtual void updateImpl(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) = 0;
 

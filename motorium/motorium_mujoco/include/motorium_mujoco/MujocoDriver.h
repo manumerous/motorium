@@ -74,8 +74,6 @@ class MujocoDriver final : public hal::DriverBase {
 
   void stop() override;
 
-  void updateImpl(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) override;
-
   void simulationStep();
 
   // Todo Manu also reset environment
@@ -97,6 +95,8 @@ class MujocoDriver final : public hal::DriverBase {
   void setSimState(const model::RobotState& robot_state);
 
   void simulationLoop(std::stop_token st);
+
+  void updateImpl(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) override;
 
   void printModelInfo();
 

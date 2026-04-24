@@ -29,44 +29,34 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include <memory>
-#include <string>
-#include <vector>
-
-#include <motorium_core/Check.h>
 #include <motorium_hal/DriverBase.h>
-#include <motorium_model/RobotDescription.h>
-#include <motorium_model/RobotJointFeedbackAction.h>
-#include <motorium_model/RobotState.h>
 
 namespace motorium::hal {
 
-// Unified interface to interact with real/simulated robot hardware.
-// getState() returns the lowest (most degraded) DriverState across all drivers.
-class RobotHAL {
+// Minimal concrete driver for testing DriverBase.
+class TestDriver : public DriverBase {
  public:
-  RobotHAL(const std::string& model_path, std::vector<std::shared_ptr<hal::DriverBase>> drivers);
+  TestDriver(const model::RobotDescription& robot_description, const std::string& name) : DriverBase(robot_description, name) {
+    requestTransitionTo(DriverState::READY);
+  }
 
-  RobotHAL(const RobotHAL&) = delete;
-  RobotHAL& operator=(const RobotHAL&) = delete;
-  RobotHAL(RobotHAL&&) = delete;
-  RobotHAL& operator=(RobotHAL&&) = delete;
+  TestDriver(const model::RobotDescription& robot_description, const std::string& name, const std::vector<std::string>& managed_joints)
+      : DriverBase(robot_description, name, managed_joints) {
+    requestTransitionTo(DriverState::READY);
+  }
 
-  const model::RobotDescription& getRobotDescription() const;
+  void start() override {
+    if (getState() == DriverState::READY) requestTransitionTo(DriverState::RUNNING);
+  }
+  void stop() override {
+    if (getState() == DriverState::RUNNING) requestTransitionTo(DriverState::STOPPING);
+  }
+  void updateImpl(const motorium::model::RobotJointFeedbackAction&, motorium::model::RobotState&) override { update_count_++; }
+  void reset() override {}
 
-  // Reflects the most degraded driver state — always current, never stale.
-  DriverState getState() const;
+  void triggerTransition(DriverState next) { requestTransitionTo(next); }
 
-  void update(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state);
-
-  void startDrivers();
-  void stopDrivers();
-
- private:
-  void validateDriverCoverage();
-
-  const model::RobotDescription robot_description_;
-  std::vector<std::shared_ptr<hal::DriverBase>> drivers_;
+  int update_count_{0};
 };
 
 }  // namespace motorium::hal

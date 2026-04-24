@@ -27,49 +27,36 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
+#include <algorithm>
+#include <chrono>
+#include <thread>
+
 #include <motorium_hal/RobotHAL.h>
 
 namespace motorium::hal {
 
 RobotHAL::RobotHAL(const std::string& model_path, std::vector<std::shared_ptr<hal::DriverBase>> drivers)
-    : motorium::core::StateMachine<HalState>(HalState::UNCONFIGURED), robot_description_(model_path), drivers_(std::move(drivers)) {
+    : robot_description_(model_path), drivers_(std::move(drivers)) {
   validateDriverCoverage();
+  while (getState() != DriverState::READY) {
+    std::cerr << "[RobotHAL] Waiting for all drivers to be in READY state..." << std::endl;
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+  }
 }
 
 const model::RobotDescription& RobotHAL::getRobotDescription() const {
   return robot_description_;
 }
 
-bool RobotHAL::isLegalTransition(HalState from, HalState to) const {
-  if (to == HalState::FAULT) return from != HalState::FAULT;
-  switch (from) {
-    case HalState::UNCONFIGURED:
-      return to == HalState::CONFIGURED;
-    case HalState::CONFIGURED:
-      return to == HalState::READY;
-    case HalState::READY:
-      return to == HalState::ACTIVE;
-    case HalState::ACTIVE:
-      return to == HalState::STOPPING;
-    case HalState::STOPPING:
-      return to == HalState::READY;
-    case HalState::FAULT:
-      return to == HalState::CONFIGURED;
-    default:
-      return false;
-  }
+DriverState RobotHAL::getState() const {
+  return std::accumulate(drivers_.begin(), drivers_.end(), DriverState::RUNNING,
+                         [](DriverState worst, const std::shared_ptr<DriverBase>& driver) { return std::min(worst, driver->getState()); });
 }
 
 void RobotHAL::update(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) {
   for (const auto& driver : drivers_) {
-    driver->update(action, robot_state);
-  }
-  if (getState() != HalState::FAULT) {
-    for (const auto& driver : drivers_) {
-      if (driver->getState() == DriverState::FAULT) {
-        requestTransitionTo(HalState::FAULT);
-        break;
-      }
+    if (driver->getState() == DriverState::RUNNING) {
+      driver->update(action, robot_state);
     }
   }
 }
@@ -78,16 +65,12 @@ void RobotHAL::startDrivers() {
   for (const auto& driver : drivers_) {
     driver->start();
   }
-  requestTransitionTo(HalState::CONFIGURED);
-  requestTransitionTo(HalState::READY);
-  requestTransitionTo(HalState::ACTIVE);
 }
 
 void RobotHAL::stopDrivers() {
   for (const auto& driver : drivers_) {
     driver->stop();
   }
-  requestTransitionTo(HalState::STOPPING);
 }
 
 void RobotHAL::validateDriverCoverage() {
@@ -95,6 +78,8 @@ void RobotHAL::validateDriverCoverage() {
   for (const auto& driver : drivers_) {
     MT_CHECK(driver != nullptr) << "[RobotHAL] Bad Configuration: Driver list contains a null driver.";
     for (const auto& joint : driver->getManagedJointNames()) {
+      MT_CHECK(robot_description_.containsJoint(joint)) << "[RobotHAL] Bad Configuration: Joint '" << joint << "' managed by driver '"
+                                                        << driver->getName() << "' is not present in the robot description.";
       MT_CHECK(managed.insert(joint).second) << "[RobotHAL] Bad Configuration: Joint '" << joint << "' is managed by multiple drivers.";
     }
   }
