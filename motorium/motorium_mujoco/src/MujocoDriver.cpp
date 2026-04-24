@@ -438,18 +438,28 @@ void MujocoDriver::initSim() {
 }
 
 void MujocoDriver::start() {
-  if (!sim_initialized_) initSim();
-  this->requestTransitionTo(hal::DriverState::READY);
-
   if (simulate_thread_.joinable()) {
     std::cerr << "WARNING: Tried to start simulation thread, but it is already running." << std::endl;
     return;
   }
-  this->requestTransitionTo(hal::DriverState::RUNNING);
-  simulate_thread_ = std::jthread([this](std::stop_token st) { this->simulationLoop(st); });
+
+  if (!sim_initialized_) initSim();
+
+  if (getState() == hal::DriverState::CONFIGURED) {
+    this->requestTransitionTo(hal::DriverState::READY);
+  }
+
+  if (getState() == hal::DriverState::READY) {
+    this->requestTransitionTo(hal::DriverState::RUNNING);
+    simulate_thread_ = std::jthread([this](std::stop_token st) { this->simulationLoop(st); });
+  }
 }
 
 void MujocoDriver::stop() {
+  if (getState() != hal::DriverState::RUNNING) {
+    return;
+  }
+
   this->requestTransitionTo(hal::DriverState::STOPPING);
   if (simulate_thread_.joinable()) {
     simulate_thread_.request_stop();
