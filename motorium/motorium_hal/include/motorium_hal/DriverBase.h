@@ -67,8 +67,8 @@ class DriverBase : public motorium::core::StateMachine<DriverState> {
 
   virtual ~DriverBase() = default;
 
-  virtual void start() = 0;
-  virtual void stop() = 0;
+  virtual void start() = 0;  // multiple calls are allowed
+  virtual void stop() = 0;   // multiple calls are allowed
   // Send action, update robot_state
   void update(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state);
   virtual void reset() = 0;
