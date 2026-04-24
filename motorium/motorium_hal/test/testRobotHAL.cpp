@@ -122,7 +122,7 @@ TEST_F(RobotHALTest, ConstructorSucceedsWithSingleDriverCoveringAllJoints) {
 
 TEST_F(RobotHALTest, ConstructorKillsOnUncoveredJoint) {
   auto d = makeDriver("driver", {"joint1"});  // joint2 not covered
-  EXPECT_DEATH(RobotHAL(xml_path_, {d}), "");
+  EXPECT_DEATH(RobotHAL(xml_path_, {d}), "not managed by any driver");
 }
 
 TEST_F(RobotHALTest, ConstructorThrowsOnDuplicateJointInDriver) {
@@ -143,18 +143,18 @@ TEST_F(RobotHALTest, ConstructorKillsOnDuplicateManagedJointInDriver) {
   }
   RobotDescription desc(joint_descs);
   auto d = std::make_shared<TestDriver>(desc, "driver", std::vector<std::string>{"joint1", "joint1"});
-  EXPECT_DEATH(RobotHAL(xml_path_, {d}), "");
+  EXPECT_DEATH(RobotHAL(xml_path_, {d}), "managed by multiple drivers");
 }
 
 TEST_F(RobotHALTest, ConstructorKillsOnNullDriver) {
   auto d = makeDriver("driver", {"joint1", "joint2"});
-  EXPECT_DEATH(RobotHAL(xml_path_, {d, nullptr}), "");
+  EXPECT_DEATH(RobotHAL(xml_path_, {d, nullptr}), "null driver");
 }
 
 TEST_F(RobotHALTest, ConstructorKillsOnOverlappingDrivers) {
   auto d1 = makeDriver("driver1", {"joint1", "joint2"});
   auto d2 = makeDriver("driver2", {"joint2"});  // joint2 covered twice
-  EXPECT_DEATH(RobotHAL(xml_path_, {d1, d2}), "");
+  EXPECT_DEATH(RobotHAL(xml_path_, {d1, d2}), "managed by multiple drivers");
 }
 
 // ─── getRobotDescription ──────────────────────────────────────────────────────
