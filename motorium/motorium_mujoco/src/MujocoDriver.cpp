@@ -310,7 +310,7 @@ void MujocoDriver::setSimState(const model::RobotState& robot_state) {
 
 void MujocoDriver::updateImpl(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) {
   {
-    std::lock_guard<std::mutex> lock(action_mutex_);
+    absl::MutexLock lock(&action_mutex_);
     action_internal_ = action;
   }
   std::lock_guard<std::mutex> lock(mj_mutex_);
@@ -372,7 +372,7 @@ void MujocoDriver::updateMetrics() {
 
 void MujocoDriver::simulationStep() {
   {
-    std::lock_guard<std::mutex> lock(action_mutex_);
+    absl::MutexLock lock(&action_mutex_);
 
     for (size_t i = 0; i < num_actuators_; ++i) {
       joint_index_t idx = active_robot_actuator_indices_[i];

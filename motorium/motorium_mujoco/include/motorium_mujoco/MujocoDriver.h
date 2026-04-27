@@ -110,8 +110,8 @@ class MujocoDriver final : public hal::DriverBase {
 
   std::vector<mjtNum> qpos_init_;  // position                                         (nq x 1)
   std::vector<mjtNum> qvel_init_;
-  model::RobotJointFeedbackAction action_internal_;
-  mutable std::mutex action_mutex_;
+  absl::Mutex action_mutex_;
+  model::RobotJointFeedbackAction action_internal_ ABSL_GUARDED_BY(action_mutex_);
 
   size_t time_step_micro_;
   size_t num_active_joints_;

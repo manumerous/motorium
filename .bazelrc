@@ -7,3 +7,4 @@ build --repo_env=CXX=clang++
 build --action_env=CPLUS_INCLUDE_PATH=""
 build --action_env=C_INCLUDE_PATH=""
 build --copt=-Iexternal/abseil-cpp+
+build --copt=-Werror=thread-safety-analysis
