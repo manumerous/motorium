@@ -121,15 +121,14 @@ class MujocoDriver final : public hal::DriverBase {
   std::vector<joint_index_t> active_robot_joint_indices_;
   std::vector<joint_index_t> active_robot_actuator_indices_;
 
+  // TODO: Move to non-blocking buffer in the future.
+  mutable absl::Mutex mj_mutex_;  // Used to access data accross simulation and render threads.
+
   mjModel* mj_model_ = NULL;
-  mjData* mj_data_ = NULL;
+  mjData* mj_data_ ABSL_GUARDED_BY(mj_mutex_) = NULL;
 
   bool sim_initialized_{false};
   bool reset_requested_{false};
-
-  // TODO: Move to non-blocking buffer in the future.
-  mutable std::mutex mj_mutex_;  // Used to access mujoco model and data
-                                 // accross simulation and render threads.
 
   std::jthread simulate_thread_;
   std::unique_ptr<MujocoRenderer> renderer_;

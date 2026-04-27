@@ -28,6 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
 #include "motorium_mujoco/MujocoDriver.h"
+#include <absl/synchronization/mutex.h>
 
 #include <cerrno>
 #include <cmath>
@@ -114,6 +115,7 @@ MujocoDriver::MujocoDriver(hal::HalKey key, const model::RobotDescription& robot
 
 MujocoDriver::~MujocoDriver() {
   stopImpl();
+  absl::MutexLock lock(&mj_mutex_);
   mj_deleteData(mj_data_);
   mj_deleteModel(mj_model_);
 }
@@ -123,6 +125,7 @@ MujocoDriver::~MujocoDriver() {
 /******************************************************************************************************/
 
 void MujocoDriver::resetImpl() {
+  absl::MutexLock lock(&mj_mutex_);
   memcpy(mj_data_->qpos, qpos_init_.data(), mj_model_->nq * sizeof(mjtNum));
   memcpy(mj_data_->qvel, qvel_init_.data(), mj_model_->nv * sizeof(mjtNum));
 }
@@ -133,7 +136,7 @@ void MujocoDriver::resetImpl() {
 
 void MujocoDriver::copyMjState(MjState& state) const {
   {
-    std::lock_guard<std::mutex> guard(mj_mutex_);
+    absl::ReaderMutexLock lock(&mj_mutex_);
 
     state.timestamp = mj_data_->time;
     mj_copyData(state.data, mj_model_, mj_data_);
@@ -239,6 +242,8 @@ void MujocoDriver::printModelInfo() {
     }
   };
 
+  absl::ReaderMutexLock lock(&mj_mutex_);
+
   for (int i = 0; i < mj_model_->njnt; ++i) {
     std::string jointName(&mj_model_->names[mj_model_->name_jntadr[i]]);
     int type = mj_model_->jnt_type[i];
@@ -271,6 +276,8 @@ void MujocoDriver::printModelInfo() {
 
 void MujocoDriver::setSimState(const model::RobotState& robot_state) {
   // Root Pose
+
+  absl::MutexLock lock(&mj_mutex_);
 
   if (is_floating_base_) {
     vector3_t rootPosition = robot_state.getRootPositionInWorldFrame();
@@ -313,7 +320,7 @@ void MujocoDriver::updateImpl(const model::RobotJointFeedbackAction& action, mod
     absl::MutexLock lock(&action_mutex_);
     action_internal_ = action;
   }
-  std::lock_guard<std::mutex> lock(mj_mutex_);
+  absl::ReaderMutexLock lock(&mj_mutex_);
   // Update mujoco joint angles
   for (size_t i = 0; i < num_active_joints_; ++i) {
     robot_state.setJointPosition(active_robot_joint_indices_[i], mj_data_->qpos[i + nq_base_offset_]);
@@ -372,7 +379,8 @@ void MujocoDriver::updateMetrics() {
 
 void MujocoDriver::simulationStep() {
   {
-    absl::MutexLock lock(&action_mutex_);
+    absl::MutexLock action_lock(&action_mutex_);
+    absl::MutexLock mj_lock(&mj_mutex_);
 
     for (size_t i = 0; i < num_actuators_; ++i) {
       joint_index_t idx = active_robot_actuator_indices_[i];
@@ -383,7 +391,7 @@ void MujocoDriver::simulationStep() {
     }
   }
   {
-    std::lock_guard<std::mutex> lock(mj_mutex_);
+    absl::MutexLock lock(&mj_mutex_);
     mj_step(mj_model_, mj_data_);
     updateMetrics();
 
