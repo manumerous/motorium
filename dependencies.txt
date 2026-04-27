@@ -1,6 +1,7 @@
 clang
 clang-format
 llvm-18
+libclang-rt-18-dev
 make
 build-essential
 libeigen3-dev
