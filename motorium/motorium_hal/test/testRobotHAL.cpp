@@ -97,8 +97,7 @@ TEST_F(RobotHALTest, StartDriversKillsOnUncoveredJoint) {
 
 TEST_F(RobotHALTest, AddDriverThrowsOnDuplicateJointInList) {
   RobotHAL hal(xml_path_);
-  EXPECT_THROW(hal.addDriver<TestDriver>("driver", std::vector<std::string>{"joint1", "joint1"}),
-               std::invalid_argument);
+  EXPECT_THROW(hal.addDriver<TestDriver>("driver", std::vector<std::string>{"joint1", "joint1"}), std::invalid_argument);
 }
 
 TEST_F(RobotHALTest, StartDriversKillsOnOverlappingDrivers) {
@@ -110,8 +109,7 @@ TEST_F(RobotHALTest, StartDriversKillsOnOverlappingDrivers) {
 
 TEST_F(RobotHALTest, AddDriverThrowsOnJointNotInDescription) {
   RobotHAL hal(xml_path_);
-  EXPECT_THROW(hal.addDriver<TestDriver>("driver", std::vector<std::string>{"joint1", "ghost_joint"}),
-               std::out_of_range);
+  EXPECT_THROW(hal.addDriver<TestDriver>("driver", std::vector<std::string>{"joint1", "ghost_joint"}), std::out_of_range);
 }
 
 // ─── getRobotDescription ──────────────────────────────────────────────────────

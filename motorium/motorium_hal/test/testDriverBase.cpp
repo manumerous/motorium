@@ -46,8 +46,7 @@ class DriverBaseTest : public ::testing::Test {
     j1.name = "joint1";
     JointDescription j2;
     j2.name = "joint2";
-    hal_ = std::make_unique<RobotHAL>(
-        std::make_unique<RobotDescription>(std::vector<JointDescription>{j1, j2}));
+    hal_ = std::make_unique<RobotHAL>(std::make_unique<RobotDescription>(std::vector<JointDescription>{j1, j2}));
   }
 
   std::unique_ptr<RobotHAL> hal_;
@@ -102,8 +101,7 @@ TEST_F(DriverBaseTest, FaultTransitionFromStopping) {
 }
 
 TEST_F(DriverBaseTest, AddDriverThrowsOnInvalidJointName) {
-  EXPECT_THROW(hal_->addDriver<TestDriver>("test_driver", std::vector<std::string>{"nonexistent_joint"}),
-               std::out_of_range);
+  EXPECT_THROW(hal_->addDriver<TestDriver>("test_driver", std::vector<std::string>{"nonexistent_joint"}), std::out_of_range);
 }
 
 TEST_F(DriverBaseTest, IllegalTransitionKills) {

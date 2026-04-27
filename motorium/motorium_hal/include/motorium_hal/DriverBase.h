@@ -45,6 +45,7 @@ class RobotHAL;
 // Passkey: only RobotHAL can construct it, so only RobotHAL can create drivers.
 struct HalKey {
   friend class RobotHAL;
+
  private:
   HalKey() = default;
 };
@@ -85,8 +86,7 @@ class DriverBase : public motorium::core::StateMachine<DriverState> {
         managed_joint_names_(description.getJointNames()) {}
 
   // Manages an explicit subset; validates names exist in description and are unique.
-  DriverBase(HalKey, const model::RobotDescription& description, std::string name,
-             std::vector<std::string> managed_joint_names)
+  DriverBase(HalKey, const model::RobotDescription& description, std::string name, std::vector<std::string> managed_joint_names)
       : motorium::core::StateMachine<DriverState>(DriverState::INITIALIZING),
         name_(std::move(name)),
         managed_joint_names_(std::move(managed_joint_names)) {
@@ -97,7 +97,7 @@ class DriverBase : public motorium::core::StateMachine<DriverState> {
 
   // Callable only by RobotHAL — HalKey enforces this at compile time.
   void start(HalKey) { startImpl(); }
-  void stop(HalKey)  { stopImpl(); }
+  void stop(HalKey) { stopImpl(); }
   void update(HalKey, const model::RobotJointFeedbackAction& action, model::RobotState& robot_state);
   void reset(HalKey) { resetImpl(); }
 
