@@ -124,7 +124,7 @@ class MujocoDriver final : public hal::DriverBase {
   // TODO: Move to non-blocking buffer in the future.
   mutable absl::Mutex mj_mutex_;  // Used to access data accross simulation and render threads.
 
-  mjModel* mj_model_ = NULL;
+  const mjModel* mj_model_ = NULL;
   mjData* mj_data_ ABSL_GUARDED_BY(mj_mutex_) = NULL;
 
   bool sim_initialized_{false};

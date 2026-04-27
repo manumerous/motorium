@@ -50,28 +50,38 @@ MujocoDriver::MujocoDriver(hal::HalKey key, const model::RobotDescription& robot
   const int errstr_sz = 1000;  // Define the size of the error buffer
   char errstr[errstr_sz];      // Declare the error string buffer
 
-  // option 1: parse and compile XML from file
-  mj_model_ = mj_loadXML(config.scenePath.c_str(), NULL, errstr, errstr_sz);
-  if (!mj_model_) {
+  // Load and configure the model via a mutable local pointer; assign to the
+  // const member only after all setup mutations are complete.
+  mjModel* model = mj_loadXML(config.scenePath.c_str(), NULL, errstr, errstr_sz);
+  if (!model) {
     std::cerr << "Could not load MuJoCo model: " << config.scenePath << ". Error: " << std::strerror(errno) << std::endl;
     throw std::runtime_error("Could not load MuJoCo: " + std::string(std::strerror(errno)));
   }
 
-  // Create data
-  mj_data_ = mj_makeData(mj_model_);
-
-  // assert(num_active_joints_ == neo_definitions::FULL_NEO_JOINT_DIM);
-
-  mj_model_->opt.timestep = config_.dt;
+  model->opt.timestep = config_.dt;
 
   time_step_micro_ = static_cast<size_t>(config_.dt * 1000000);
 
-  is_floating_base_ = (mj_model_->njnt > 0 && mj_model_->jnt_type[0] == mjJNT_FREE);
+  is_floating_base_ = (model->njnt > 0 && model->jnt_type[0] == mjJNT_FREE);
 
   if (is_floating_base_) {
     nq_base_offset_ = 7;
     nv_base_offset_ = 6;
   }
+
+  // Add default joint damping
+  for (int i = nv_base_offset_; i < model->nv; ++i) {
+    std::string mjJointName(&model->names[model->name_jntadr[model->dof_jntid[i]]]);
+    if (config_.verbose) {
+      std::cerr << "Adding joint damping to " << mjJointName << " with value " << config_.defaultJointDamping << std::endl;
+    }
+    model->dof_damping[i] = config_.defaultJointDamping;
+  }
+
+  // All mutations done — seal the model as const.
+  mj_model_ = model;
+
+  mj_data_ = mj_makeData(mj_model_);
 
   if (config_.verbose) {
     std::cerr << "is_floating_base_: " << is_floating_base_ << std::endl;
@@ -89,15 +99,6 @@ MujocoDriver::MujocoDriver(hal::HalKey key, const model::RobotDescription& robot
     initRobotState.setRootPositionInWorldFrame(vector3_t(0.0, 0.0, 1.0));
   }
   setSimState(initRobotState);
-
-  // Add default joint damping
-  for (int i = nv_base_offset_; i < mj_model_->nv; ++i) {
-    std::string mjJointName(&mj_model_->names[mj_model_->name_jntadr[mj_model_->dof_jntid[i]]]);
-    if (config_.verbose) {
-      std::cerr << "Adding joint damping to " << mjJointName << " with value " << config_.defaultJointDamping << std::endl;
-    }
-    mj_model_->dof_damping[i] = config_.defaultJointDamping;
-  }
 
   qpos_init_.resize(mj_model_->nq);
   qvel_init_.resize(mj_model_->nv);
@@ -117,7 +118,7 @@ MujocoDriver::~MujocoDriver() {
   stopImpl();
   absl::MutexLock lock(&mj_mutex_);
   mj_deleteData(mj_data_);
-  mj_deleteModel(mj_model_);
+  mj_deleteModel(const_cast<mjModel*>(mj_model_));
 }
 
 /******************************************************************************************************/
