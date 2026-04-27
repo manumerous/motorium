@@ -12,7 +12,7 @@
   </asset>
 
   <worldbody>
-    <body name="arm_base" pos="1.0 0.5 0.0" quat="1 0 0 0">
+    <body name="arm_base" pos="-0.1 0.0 0.0" quat="1 0 0 0">
       <geom type="mesh" rgba="0.2 0.2 0.2 1" mesh="base_link" contype="0" conaffinity="0"/>
       <body name="link1" pos="0 0 0.0603">
         <inertial pos="0.00609525 -0.00429682 0.017959" quat="0.680193 0.680193 -0.193229 0.193229" mass="0.0608351" diaginertia="8.61803e-05 6.38197e-05 3e-05"/>
