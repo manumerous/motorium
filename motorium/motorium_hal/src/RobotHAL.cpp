@@ -51,7 +51,7 @@ DriverState RobotHAL::getState() const {
 void RobotHAL::update(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) {
   for (const auto& driver : drivers_) {
     if (driver->getState() == DriverState::RUNNING) {
-      driver->update(action, robot_state);
+      driver->update(HalKey{}, action, robot_state);
     }
   }
 }
@@ -59,13 +59,19 @@ void RobotHAL::update(const model::RobotJointFeedbackAction& action, model::Robo
 void RobotHAL::startDrivers() {
   validateDriverCoverage();
   for (const auto& driver : drivers_) {
-    driver->start();
+    driver->start(HalKey{});
   }
 }
 
 void RobotHAL::stopDrivers() {
   for (const auto& driver : drivers_) {
-    driver->stop();
+    driver->stop(HalKey{});
+  }
+}
+
+void RobotHAL::resetDrivers() {
+  for (const auto& driver : drivers_) {
+    driver->reset(HalKey{});
   }
 }
 

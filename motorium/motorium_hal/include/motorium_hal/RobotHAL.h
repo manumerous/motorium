@@ -76,6 +76,7 @@ class RobotHAL {
   // Validates joint coverage across all registered drivers, then starts them.
   void startDrivers();
   void stopDrivers();
+  void resetDrivers();
 
  private:
   void validateDriverCoverage();

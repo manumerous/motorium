@@ -95,10 +95,11 @@ class DriverBase : public motorium::core::StateMachine<DriverState> {
 
   virtual ~DriverBase() = default;
 
-  virtual void start() = 0;
-  virtual void stop() = 0;
-  void update(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state);
-  virtual void reset() = 0;
+  // Callable only by RobotHAL — HalKey enforces this at compile time.
+  void start(HalKey) { startImpl(); }
+  void stop(HalKey)  { stopImpl(); }
+  void update(HalKey, const model::RobotJointFeedbackAction& action, model::RobotState& robot_state);
+  void reset(HalKey) { resetImpl(); }
 
   const std::string& getName() const { return name_; }
   const std::vector<std::string>& getManagedJointNames() const { return managed_joint_names_; }
@@ -106,6 +107,10 @@ class DriverBase : public motorium::core::StateMachine<DriverState> {
  protected:
   bool isLegalTransition(DriverState from, DriverState to) const override { return isLegalDriverTransition(from, to); }
 
+  // Subclasses implement these; also callable internally (e.g. from destructors).
+  virtual void startImpl() = 0;
+  virtual void stopImpl() = 0;
+  virtual void resetImpl() = 0;
   virtual void updateImpl(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) = 0;
 
   const std::string name_;

@@ -43,8 +43,7 @@ MjState::MjState(const mjModel* mj_model) : data(mj_makeData(mj_model)) {}
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-MujocoDriver::MujocoDriver(hal::HalKey key, const model::RobotDescription& robot_description,
-                           const MujocoSimConfig& config)
+MujocoDriver::MujocoDriver(hal::HalKey key, const model::RobotDescription& robot_description, const MujocoSimConfig& config)
     : DriverBase(key, robot_description, "mujoco_sim"), config_(config), action_internal_(robot_description) {
   last_realtime_ = std::chrono::high_resolution_clock::now();
   const int errstr_sz = 1000;  // Define the size of the error buffer
@@ -114,7 +113,7 @@ MujocoDriver::MujocoDriver(hal::HalKey key, const model::RobotDescription& robot
 /******************************************************************************************************/
 
 MujocoDriver::~MujocoDriver() {
-  stop();
+  stopImpl();
   mj_deleteData(mj_data_);
   mj_deleteModel(mj_model_);
 }
@@ -123,7 +122,7 @@ MujocoDriver::~MujocoDriver() {
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoDriver::reset() {
+void MujocoDriver::resetImpl() {
   memcpy(mj_data_->qpos, qpos_init_.data(), mj_model_->nq * sizeof(mjtNum));
   memcpy(mj_data_->qvel, qvel_init_.data(), mj_model_->nv * sizeof(mjtNum));
 }
@@ -390,7 +389,7 @@ void MujocoDriver::simulationStep() {
 
     // Auto reset logic.
     if (reset_requested_) {
-      reset();
+      resetImpl();
       for (size_t i = 0; i < num_actuators_; ++i) {
         mj_data_->ctrl[i] = 0.0;
       }
@@ -438,7 +437,7 @@ void MujocoDriver::initSim() {
   }
 }
 
-void MujocoDriver::start() {
+void MujocoDriver::startImpl() {
   if (getState() != hal::DriverState::READY || simulate_thread_.joinable()) {
     std::cerr << "WARNING: Tried to start simulation thread, but it is already running." << std::endl;
     return;
@@ -450,7 +449,7 @@ void MujocoDriver::start() {
   simulate_thread_ = std::jthread([this](std::stop_token st) { this->simulationLoop(st); });
 }
 
-void MujocoDriver::stop() {
+void MujocoDriver::stopImpl() {
   if (getState() != hal::DriverState::RUNNING) {
     return;
   }

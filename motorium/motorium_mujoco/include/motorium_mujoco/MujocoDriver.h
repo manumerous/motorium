@@ -70,14 +70,14 @@ class MujocoDriver final : public hal::DriverBase {
   /** Destructor */
   ~MujocoDriver();
 
-  void start() override;
+  void startImpl() override;
 
-  void stop() override;
+  void stopImpl() override;
 
   void simulationStep();
 
   // Todo Manu also reset environment
-  void reset() override;
+  void resetImpl() override;
 
   // Allows the renderer to make a thread safe copy of the state at it's own
   // frequency.

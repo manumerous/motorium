@@ -85,7 +85,7 @@ int main(int argc, char** argv) {
   std::cout << "[arm_mujoco_sim] Simulation running. Close the viewer window to exit.\n";
 
   while (true) {
-    sim.update(action, state);
+    hal.update(action, state);
     controller.computeJointControlAction(state.getTime(), state, desired_state, action);
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
