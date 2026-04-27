@@ -40,9 +40,7 @@ namespace motorium::runtime {
 
 class RobotInstance {
  public:
-  RobotInstance(const std::string& model_path,
-                std::vector<std::shared_ptr<hal::DriverBase>> drivers,
-                std::vector<std::shared_ptr<control::ControllerBase>> controllers);
+  RobotInstance(const std::string& model_path, std::vector<std::shared_ptr<control::ControllerBase>> controllers);
 
   RobotInstance(const RobotInstance&) = delete;
   RobotInstance& operator=(const RobotInstance&) = delete;

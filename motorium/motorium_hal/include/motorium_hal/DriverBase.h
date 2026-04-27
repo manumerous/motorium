@@ -40,6 +40,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace motorium::hal {
 
+class RobotHAL;
+
+// Passkey: only RobotHAL can construct it, so only RobotHAL can create drivers.
+struct HalKey {
+  friend class RobotHAL;
+ private:
+  HalKey() = default;
+};
+
 // ToDO update to logic required by HW
 enum class DriverState {
   FAULT,
@@ -69,25 +78,25 @@ inline bool isLegalDriverTransition(DriverState from, DriverState to) {
 
 class DriverBase : public motorium::core::StateMachine<DriverState> {
  public:
-  // Active on all joints in the description.
-  DriverBase(const model::RobotDescription& robot_description, const std::string& name)
+  // Manages all joints in the HAL's description.
+  DriverBase(HalKey, const model::RobotDescription& description, std::string name)
       : motorium::core::StateMachine<DriverState>(DriverState::INITIALIZING),
-        name_(name),
-        managed_joint_names_(robot_description.getJointNames()) {}
+        name_(std::move(name)),
+        managed_joint_names_(description.getJointNames()) {}
 
-  // Active on an explicit subset of joints.
-  DriverBase(const model::RobotDescription& robot_description, const std::string& name, std::vector<std::string> managed_joint_names)
+  // Manages an explicit subset; validates names exist in description and are unique.
+  DriverBase(HalKey, const model::RobotDescription& description, std::string name,
+             std::vector<std::string> managed_joint_names)
       : motorium::core::StateMachine<DriverState>(DriverState::INITIALIZING),
-        name_(name),
+        name_(std::move(name)),
         managed_joint_names_(std::move(managed_joint_names)) {
-    validateManagedJointNames(robot_description);
+    validateManagedJointNames(description);
   }
 
   virtual ~DriverBase() = default;
 
-  virtual void start() = 0;  // multiple calls are allowed
-  virtual void stop() = 0;   // multiple calls are allowed
-  // Send action, update robot_state
+  virtual void start() = 0;
+  virtual void stop() = 0;
   void update(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state);
   virtual void reset() = 0;
 
@@ -100,11 +109,10 @@ class DriverBase : public motorium::core::StateMachine<DriverState> {
   virtual void updateImpl(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) = 0;
 
   const std::string name_;
-  // Todo: generalize to devices (joints, IMU's, haptic sensors, etc.)
   const std::vector<std::string> managed_joint_names_;
 
  private:
-  void validateManagedJointNames(const model::RobotDescription& robot_description) const;
+  void validateManagedJointNames(const model::RobotDescription& description) const;
 };
 
 }  // namespace motorium::hal

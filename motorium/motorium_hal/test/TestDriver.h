@@ -36,12 +36,14 @@ namespace motorium::hal {
 // Minimal concrete driver for testing DriverBase.
 class TestDriver : public DriverBase {
  public:
-  TestDriver(const model::RobotDescription& robot_description, const std::string& name) : DriverBase(robot_description, name) {
+  TestDriver(HalKey key, const model::RobotDescription& description, std::string name)
+      : DriverBase(key, description, std::move(name)) {
     requestTransitionTo(DriverState::READY);
   }
 
-  TestDriver(const model::RobotDescription& robot_description, const std::string& name, const std::vector<std::string>& managed_joints)
-      : DriverBase(robot_description, name, managed_joints) {
+  TestDriver(HalKey key, const model::RobotDescription& description, std::string name,
+             std::vector<std::string> managed_joints)
+      : DriverBase(key, description, std::move(name), std::move(managed_joints)) {
     requestTransitionTo(DriverState::READY);
   }
 

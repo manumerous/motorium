@@ -43,8 +43,9 @@ MjState::MjState(const mjModel* mj_model) : data(mj_makeData(mj_model)) {}
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-MujocoDriver::MujocoDriver(const MujocoSimConfig& config, const model::RobotDescription& robot_description)
-    : DriverBase(robot_description, "mujoco_sim"), config_(config), action_internal_(robot_description) {
+MujocoDriver::MujocoDriver(hal::HalKey key, const model::RobotDescription& robot_description,
+                           const MujocoSimConfig& config)
+    : DriverBase(key, robot_description, "mujoco_sim"), config_(config), action_internal_(robot_description) {
   last_realtime_ = std::chrono::high_resolution_clock::now();
   const int errstr_sz = 1000;  // Define the size of the error buffer
   char errstr[errstr_sz];      // Declare the error string buffer

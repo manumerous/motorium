@@ -28,29 +28,24 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
 #include <algorithm>
-#include <chrono>
-#include <thread>
+#include <numeric>
+#include <unordered_set>
 
 #include <motorium_hal/RobotHAL.h>
 
 namespace motorium::hal {
 
-RobotHAL::RobotHAL(const std::string& model_path, std::vector<std::shared_ptr<hal::DriverBase>> drivers)
-    : robot_description_(model_path), drivers_(std::move(drivers)) {
-  validateDriverCoverage();
-  while (getState() != DriverState::READY) {
-    std::cerr << "[RobotHAL] Waiting for all drivers to be in READY state..." << std::endl;
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-  }
-}
+RobotHAL::RobotHAL(const std::string& model_path) : robot_description_(std::make_unique<model::RobotDescription>(model_path)) {}
+
+RobotHAL::RobotHAL(std::unique_ptr<model::RobotDescription> description) : robot_description_(std::move(description)) {}
 
 const model::RobotDescription& RobotHAL::getRobotDescription() const {
-  return robot_description_;
+  return *robot_description_;
 }
 
 DriverState RobotHAL::getState() const {
   return std::accumulate(drivers_.begin(), drivers_.end(), DriverState::RUNNING,
-                         [](DriverState worst, const std::shared_ptr<DriverBase>& driver) { return std::min(worst, driver->getState()); });
+                         [](DriverState worst, const std::unique_ptr<DriverBase>& driver) { return std::min(worst, driver->getState()); });
 }
 
 void RobotHAL::update(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) {
@@ -62,6 +57,7 @@ void RobotHAL::update(const model::RobotJointFeedbackAction& action, model::Robo
 }
 
 void RobotHAL::startDrivers() {
+  validateDriverCoverage();
   for (const auto& driver : drivers_) {
     driver->start();
   }
@@ -78,12 +74,12 @@ void RobotHAL::validateDriverCoverage() {
   for (const auto& driver : drivers_) {
     MT_CHECK(driver != nullptr) << "[RobotHAL] Bad Configuration: Driver list contains a null driver.";
     for (const auto& joint : driver->getManagedJointNames()) {
-      MT_CHECK(robot_description_.containsJoint(joint)) << "[RobotHAL] Bad Configuration: Joint '" << joint << "' managed by driver '"
-                                                        << driver->getName() << "' is not present in the robot description.";
+      MT_CHECK(robot_description_->containsJoint(joint)) << "[RobotHAL] Bad Configuration: Joint '" << joint << "' managed by driver '"
+                                                         << driver->getName() << "' is not present in the robot description.";
       MT_CHECK(managed.insert(joint).second) << "[RobotHAL] Bad Configuration: Joint '" << joint << "' is managed by multiple drivers.";
     }
   }
-  for (const auto& joint : robot_description_.getJointNames()) {
+  for (const auto& joint : robot_description_->getJointNames()) {
     MT_CHECK(managed.find(joint) != managed.end()) << "[RobotHAL] Bad Configuration: Joint '" << joint << "' is not managed by any driver.";
   }
 }

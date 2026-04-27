@@ -28,7 +28,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
 #include <gtest/gtest.h>
+#include <motorium_hal/RobotHAL.h>
 #include <motorium_model/RobotDescription.h>
+
+#include <memory>
+#include <vector>
 
 #include "TestDriver.h"
 
@@ -42,24 +46,25 @@ class DriverBaseTest : public ::testing::Test {
     j1.name = "joint1";
     JointDescription j2;
     j2.name = "joint2";
-    robot_description_ = std::make_unique<RobotDescription>(std::vector<JointDescription>{j1, j2});
+    hal_ = std::make_unique<RobotHAL>(
+        std::make_unique<RobotDescription>(std::vector<JointDescription>{j1, j2}));
   }
 
-  std::unique_ptr<RobotDescription> robot_description_;
+  std::unique_ptr<RobotHAL> hal_;
 };
 
 TEST_F(DriverBaseTest, InitialStateIsREADY) {
-  TestDriver driver(*robot_description_, "test_driver");
+  TestDriver& driver = hal_->addDriver<TestDriver>("test_driver");
   EXPECT_EQ(driver.getState(), DriverState::READY);
 }
 
 TEST_F(DriverBaseTest, GetNameReturnsConstructorArg) {
-  TestDriver driver(*robot_description_, "my_driver");
+  TestDriver& driver = hal_->addDriver<TestDriver>("my_driver");
   EXPECT_EQ(driver.getName(), "my_driver");
 }
 
 TEST_F(DriverBaseTest, AllJointsManaged) {
-  TestDriver driver(*robot_description_, "test_driver");
+  TestDriver& driver = hal_->addDriver<TestDriver>("test_driver");
   const auto& joints = driver.getManagedJointNames();
   ASSERT_EQ(joints.size(), 2u);
   EXPECT_EQ(joints[0], "joint1");
@@ -67,14 +72,14 @@ TEST_F(DriverBaseTest, AllJointsManaged) {
 }
 
 TEST_F(DriverBaseTest, ExplicitSubsetJointsManaged) {
-  TestDriver driver(*robot_description_, "test_driver", std::vector<std::string>{"joint2"});
+  TestDriver& driver = hal_->addDriver<TestDriver>("test_driver", std::vector<std::string>{"joint2"});
   const auto& joints = driver.getManagedJointNames();
   ASSERT_EQ(joints.size(), 1u);
   EXPECT_EQ(joints[0], "joint2");
 }
 
 TEST_F(DriverBaseTest, LegalTransitionSequence) {
-  TestDriver driver(*robot_description_, "test_driver");
+  TestDriver& driver = hal_->addDriver<TestDriver>("test_driver");
   driver.requestTransitionTo(DriverState::RUNNING);
   driver.requestTransitionTo(DriverState::STOPPING);
   driver.requestTransitionTo(DriverState::READY);
@@ -82,26 +87,27 @@ TEST_F(DriverBaseTest, LegalTransitionSequence) {
 }
 
 TEST_F(DriverBaseTest, FaultTransitionFromRunning) {
-  TestDriver driver(*robot_description_, "test_driver", std::vector<std::string>{"joint1", "joint2"});
+  TestDriver& driver = hal_->addDriver<TestDriver>("test_driver", std::vector<std::string>{"joint1", "joint2"});
   driver.requestTransitionTo(DriverState::RUNNING);
   driver.requestTransitionTo(DriverState::FAULT);
   EXPECT_EQ(driver.getState(), DriverState::FAULT);
 }
 
 TEST_F(DriverBaseTest, FaultTransitionFromStopping) {
-  TestDriver driver(*robot_description_, "test_driver");
+  TestDriver& driver = hal_->addDriver<TestDriver>("test_driver");
   driver.requestTransitionTo(DriverState::RUNNING);
   driver.requestTransitionTo(DriverState::STOPPING);
   driver.requestTransitionTo(DriverState::FAULT);
   EXPECT_EQ(driver.getState(), DriverState::FAULT);
 }
 
-TEST_F(DriverBaseTest, ConstructorThrowsOnInvalidJointName) {
-  EXPECT_THROW(TestDriver(*robot_description_, "test_driver", std::vector<std::string>{"nonexistent_joint"}), std::out_of_range);
+TEST_F(DriverBaseTest, AddDriverThrowsOnInvalidJointName) {
+  EXPECT_THROW(hal_->addDriver<TestDriver>("test_driver", std::vector<std::string>{"nonexistent_joint"}),
+               std::out_of_range);
 }
 
 TEST_F(DriverBaseTest, IllegalTransitionKills) {
-  TestDriver driver(*robot_description_, "test_driver");
+  TestDriver& driver = hal_->addDriver<TestDriver>("test_driver");
   // READY -> STOPPING is not a legal transition
   EXPECT_DEATH(driver.requestTransitionTo(DriverState::STOPPING), "Illegal state transition");
 }

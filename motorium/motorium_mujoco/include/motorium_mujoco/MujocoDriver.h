@@ -65,7 +65,7 @@ struct MujocoSimConfig {
 
 class MujocoDriver final : public hal::DriverBase {
  public:
-  MujocoDriver(const MujocoSimConfig& config, const model::RobotDescription& robot_description);
+  MujocoDriver(hal::HalKey key, const model::RobotDescription& robot_description, const MujocoSimConfig& config);
 
   /** Destructor */
   ~MujocoDriver();

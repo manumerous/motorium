@@ -5,6 +5,7 @@ cc_binary(
     srcs = ["arm_mujoco_sim.cpp"],
     data = glob(["model/**"]),
     deps = [
+        "//motorium/motorium_hal",
         "//motorium/motorium_model",
         "//motorium/motorium_mujoco",
         "//motorium/motorium_control",

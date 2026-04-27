@@ -27,6 +27,9 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
+#include <stdexcept>
+#include <unordered_set>
+
 #include <motorium_hal/DriverBase.h>
 
 namespace motorium::hal {
@@ -36,9 +39,13 @@ void DriverBase::update(const model::RobotJointFeedbackAction& action, model::Ro
   updateImpl(action, robot_state);
 }
 
-void DriverBase::validateManagedJointNames(const model::RobotDescription& robot_description) const {
+void DriverBase::validateManagedJointNames(const model::RobotDescription& description) const {
+  std::unordered_set<std::string> seen;
   for (const auto& joint_name : managed_joint_names_) {
-    (void)robot_description.validateName(joint_name);
+    (void)description.validateName(joint_name);
+    if (!seen.insert(joint_name).second) {
+      throw std::invalid_argument("Duplicate joint name '" + joint_name + "' in driver '" + name_ + "'");
+    }
   }
 }
 

@@ -35,7 +35,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <filesystem>
 #include <fstream>
-#include <memory>
 #include <vector>
 
 #include "TestDriver.h"
@@ -71,82 +70,55 @@ class RobotHALTest : public ::testing::Test {
 
   void TearDown() override { std::filesystem::remove_all(temp_dir_); }
 
-  std::shared_ptr<TestDriver> makeDriver(const std::string& name, std::vector<std::string> joints) {
-    std::vector<JointDescription> joint_descs;
-    for (const auto& j : joints) {
-      JointDescription jd;
-      jd.name = j;
-      joint_descs.push_back(jd);
-    }
-    RobotDescription desc(joint_descs);
-    return std::make_shared<TestDriver>(desc, name, joints);
-  }
-
   std::filesystem::path temp_dir_;
   std::string xml_path_;
 };
 
-// ─── Constructor ──────────────────────────────────────────────────────────────
+// ─── addDriver / startDrivers validation ──────────────────────────────────────
 
-TEST_F(RobotHALTest, ConstructorSucceedsWhenAllJointsCovered) {
-  auto d1 = makeDriver("driver1", {"joint1"});
-  auto d2 = makeDriver("driver2", {"joint2"});
-  EXPECT_NO_FATAL_FAILURE(RobotHAL hal(xml_path_, {d1, d2}));
+TEST_F(RobotHALTest, StartDriversSucceedsWhenAllJointsCovered) {
+  RobotHAL hal(xml_path_);
+  hal.addDriver<TestDriver>("driver1", std::vector<std::string>{"joint1"});
+  hal.addDriver<TestDriver>("driver2", std::vector<std::string>{"joint2"});
+  EXPECT_NO_FATAL_FAILURE(hal.startDrivers());
 }
 
-TEST_F(RobotHALTest, ConstructorSucceedsWithSingleDriverCoveringAllJoints) {
-  auto d = makeDriver("driver", {"joint1", "joint2"});
-  EXPECT_NO_FATAL_FAILURE(RobotHAL hal(xml_path_, {d}));
+TEST_F(RobotHALTest, StartDriversSucceedsWithSingleDriverCoveringAllJoints) {
+  RobotHAL hal(xml_path_);
+  hal.addDriver<TestDriver>("driver");  // all-joints constructor
+  EXPECT_NO_FATAL_FAILURE(hal.startDrivers());
 }
 
-TEST_F(RobotHALTest, ConstructorKillsOnUncoveredJoint) {
-  auto d = makeDriver("driver", {"joint1"});  // joint2 not covered
-  EXPECT_DEATH(RobotHAL(xml_path_, {d}), "not managed by any driver");
+TEST_F(RobotHALTest, StartDriversKillsOnUncoveredJoint) {
+  RobotHAL hal(xml_path_);
+  hal.addDriver<TestDriver>("driver", std::vector<std::string>{"joint1"});  // joint2 not covered
+  EXPECT_DEATH(hal.startDrivers(), "not managed by any driver");
 }
 
-TEST_F(RobotHALTest, ConstructorThrowsOnDuplicateJointInDriver) {
-  EXPECT_THROW(
-      {
-        auto d = makeDriver("driver", {"joint1", "joint1"});
-        RobotHAL hal(xml_path_, {d});
-      },
-      std::invalid_argument);
+TEST_F(RobotHALTest, AddDriverThrowsOnDuplicateJointInList) {
+  RobotHAL hal(xml_path_);
+  EXPECT_THROW(hal.addDriver<TestDriver>("driver", std::vector<std::string>{"joint1", "joint1"}),
+               std::invalid_argument);
 }
 
-TEST_F(RobotHALTest, ConstructorKillsOnDuplicateManagedJointInDriver) {
-  std::vector<JointDescription> joint_descs;
-  for (const auto& name : {"joint1", "joint2"}) {
-    JointDescription jd;
-    jd.name = name;
-    joint_descs.push_back(jd);
-  }
-  RobotDescription desc(joint_descs);
-  auto d = std::make_shared<TestDriver>(desc, "driver", std::vector<std::string>{"joint1", "joint1"});
-  EXPECT_DEATH(RobotHAL(xml_path_, {d}), "managed by multiple drivers");
+TEST_F(RobotHALTest, StartDriversKillsOnOverlappingDrivers) {
+  RobotHAL hal(xml_path_);
+  hal.addDriver<TestDriver>("driver1", std::vector<std::string>{"joint1", "joint2"});
+  hal.addDriver<TestDriver>("driver2", std::vector<std::string>{"joint2"});  // joint2 twice
+  EXPECT_DEATH(hal.startDrivers(), "managed by multiple drivers");
 }
 
-TEST_F(RobotHALTest, ConstructorKillsOnNullDriver) {
-  auto d = makeDriver("driver", {"joint1", "joint2"});
-  EXPECT_DEATH(RobotHAL(xml_path_, {d, nullptr}), "null driver");
-}
-
-TEST_F(RobotHALTest, ConstructorKillsOnOverlappingDrivers) {
-  auto d1 = makeDriver("driver1", {"joint1", "joint2"});
-  auto d2 = makeDriver("driver2", {"joint2"});  // joint2 covered twice
-  EXPECT_DEATH(RobotHAL(xml_path_, {d1, d2}), "managed by multiple drivers");
-}
-
-TEST_F(RobotHALTest, ConstructorKillsOnDriverManagingJointNotInDescription) {
-  // Driver claims to manage "ghost_joint" which is not in the HAL's xml model.
-  auto d = makeDriver("driver", {"joint1", "joint2", "ghost_joint"});
-  EXPECT_DEATH(RobotHAL(xml_path_, {d}), "not present in the robot description");
+TEST_F(RobotHALTest, AddDriverThrowsOnJointNotInDescription) {
+  RobotHAL hal(xml_path_);
+  EXPECT_THROW(hal.addDriver<TestDriver>("driver", std::vector<std::string>{"joint1", "ghost_joint"}),
+               std::out_of_range);
 }
 
 // ─── getRobotDescription ──────────────────────────────────────────────────────
 
 TEST_F(RobotHALTest, GetRobotDescriptionReturnsCorrectJoints) {
-  auto d = makeDriver("driver", {"joint1", "joint2"});
-  RobotHAL hal(xml_path_, {d});
+  RobotHAL hal(xml_path_);
+  hal.addDriver<TestDriver>("driver");
 
   const auto& desc = hal.getRobotDescription();
   EXPECT_TRUE(desc.containsJoint("joint1"));
@@ -157,42 +129,39 @@ TEST_F(RobotHALTest, GetRobotDescriptionReturnsCorrectJoints) {
 // ─── getState ────────────────────────────────────────────────────────────────
 
 TEST_F(RobotHALTest, StateIsRunningAfterStartDrivers) {
-  auto d = makeDriver("driver", {"joint1", "joint2"});
-  RobotHAL hal(xml_path_, {d});
+  RobotHAL hal(xml_path_);
+  hal.addDriver<TestDriver>("driver");
   EXPECT_EQ(hal.getState(), DriverState::READY);
   hal.startDrivers();
   EXPECT_EQ(hal.getState(), DriverState::RUNNING);
 }
 
 TEST_F(RobotHALTest, StateIsStoppingAfterStopDrivers) {
-  auto d = makeDriver("driver", {"joint1", "joint2"});
-  RobotHAL hal(xml_path_, {d});
+  RobotHAL hal(xml_path_);
+  hal.addDriver<TestDriver>("driver");
   hal.startDrivers();
   hal.stopDrivers();
   EXPECT_EQ(hal.getState(), DriverState::STOPPING);
 }
 
-TEST_F(RobotHALTest, StateIsFaultWhenDriverFaultDetectedDuringUpdate) {
-  auto d1 = makeDriver("d1", {"joint1"});
-  auto d2 = makeDriver("d2", {"joint2"});
-  RobotHAL hal(xml_path_, {d1, d2});
+TEST_F(RobotHALTest, StateIsFaultWhenAnyDriverInFault) {
+  RobotHAL hal(xml_path_);
+  TestDriver& d1 = hal.addDriver<TestDriver>("d1", std::vector<std::string>{"joint1"});
+  TestDriver& d2 = hal.addDriver<TestDriver>("d2", std::vector<std::string>{"joint2"});
   hal.startDrivers();
 
-  d1->triggerTransition(DriverState::FAULT);
-
-  RobotState state(hal.getRobotDescription());
-  RobotJointFeedbackAction action(hal.getRobotDescription());
-  hal.update(action, state);
+  d1.triggerTransition(DriverState::FAULT);
 
   EXPECT_EQ(hal.getState(), DriverState::FAULT);
+  (void)d2;
 }
 
 // ─── update ─────────────────────────────────────────────────────────────────
 
-TEST_F(RobotHALTest, updateCallsAllDrivers) {
-  auto d1 = makeDriver("d1", {"joint1"});
-  auto d2 = makeDriver("d2", {"joint2"});
-  RobotHAL hal(xml_path_, {d1, d2});
+TEST_F(RobotHALTest, UpdateCallsAllRunningDrivers) {
+  RobotHAL hal(xml_path_);
+  TestDriver& d1 = hal.addDriver<TestDriver>("d1", std::vector<std::string>{"joint1"});
+  TestDriver& d2 = hal.addDriver<TestDriver>("d2", std::vector<std::string>{"joint2"});
 
   RobotState state(hal.getRobotDescription());
   RobotJointFeedbackAction action(hal.getRobotDescription());
@@ -200,6 +169,6 @@ TEST_F(RobotHALTest, updateCallsAllDrivers) {
   hal.startDrivers();
   hal.update(action, state);
 
-  EXPECT_EQ(d1->update_count_, 1);
-  EXPECT_EQ(d2->update_count_, 1);
+  EXPECT_EQ(d1.update_count_, 1);
+  EXPECT_EQ(d2.update_count_, 1);
 }

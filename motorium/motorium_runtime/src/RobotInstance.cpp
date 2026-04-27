@@ -31,10 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace motorium::runtime {
 
-RobotInstance::RobotInstance(const std::string& model_path,
-                             std::vector<std::shared_ptr<hal::DriverBase>> drivers,
-                             std::vector<std::shared_ptr<control::ControllerBase>> controllers)
-    : robot_hal_(model_path, std::move(drivers)), controllers_(std::move(controllers)) {}
+RobotInstance::RobotInstance(const std::string& model_path, std::vector<std::shared_ptr<control::ControllerBase>> controllers)
+    : robot_hal_(model_path), controllers_(std::move(controllers)) {}
 
 void RobotInstance::start() {
   robot_hal_.startDrivers();

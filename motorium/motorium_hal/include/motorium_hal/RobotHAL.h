@@ -45,12 +45,26 @@ namespace motorium::hal {
 // getState() returns the lowest (most degraded) DriverState across all drivers.
 class RobotHAL {
  public:
-  RobotHAL(const std::string& model_path, std::vector<std::shared_ptr<hal::DriverBase>> drivers);
+  // Load description from a MuJoCo/URDF model file.
+  explicit RobotHAL(const std::string& model_path);
+
+  // Take ownership of an existing description (e.g. from tests).
+  explicit RobotHAL(std::unique_ptr<model::RobotDescription> description);
 
   RobotHAL(const RobotHAL&) = delete;
   RobotHAL& operator=(const RobotHAL&) = delete;
   RobotHAL(RobotHAL&&) = delete;
   RobotHAL& operator=(RobotHAL&&) = delete;
+
+  // Creates a driver of type DriverT using the HAL's description.
+  // Returns a reference valid for the lifetime of this RobotHAL.
+  template <typename DriverT, typename... Args>
+  DriverT& addDriver(Args&&... args) {
+    auto driver = std::make_unique<DriverT>(HalKey{}, *robot_description_, std::forward<Args>(args)...);
+    DriverT& ref = *driver;
+    drivers_.push_back(std::move(driver));
+    return ref;
+  }
 
   const model::RobotDescription& getRobotDescription() const;
 
@@ -59,14 +73,15 @@ class RobotHAL {
 
   void update(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state);
 
+  // Validates joint coverage across all registered drivers, then starts them.
   void startDrivers();
   void stopDrivers();
 
  private:
   void validateDriverCoverage();
 
-  const model::RobotDescription robot_description_;
-  std::vector<std::shared_ptr<hal::DriverBase>> drivers_;
+  std::unique_ptr<model::RobotDescription> robot_description_;
+  std::vector<std::unique_ptr<hal::DriverBase>> drivers_;
 };
 
 }  // namespace motorium::hal
