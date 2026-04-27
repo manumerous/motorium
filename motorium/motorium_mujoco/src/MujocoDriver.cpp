@@ -27,7 +27,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
-#include "motorium_mujoco/MujocoSimInterface.h"
+#include "motorium_mujoco/MujocoDriver.h"
 
 #include <cerrno>
 #include <cmath>
@@ -43,8 +43,8 @@ MjState::MjState(const mjModel* mj_model) : data(mj_makeData(mj_model)) {}
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-MujocoSimInterface::MujocoSimInterface(const MujocoSimConfig& config, const model::RobotDescription& robot_description)
-    : DriverBase(robot_description, "mujoco_sim"), config_(config), action_internal_(robot_description) {
+MujocoDriver::MujocoDriver(hal::HalKey key, const model::RobotDescription& robot_description, const MujocoSimConfig& config)
+    : DriverBase(key, robot_description, "mujoco_sim"), config_(config), action_internal_(robot_description) {
   last_realtime_ = std::chrono::high_resolution_clock::now();
   const int errstr_sz = 1000;  // Define the size of the error buffer
   char errstr[errstr_sz];      // Declare the error string buffer
@@ -104,14 +104,16 @@ MujocoSimInterface::MujocoSimInterface(const MujocoSimConfig& config, const mode
   // Safe init state for resets
   memcpy(qpos_init_.data(), mj_data_->qpos, mj_model_->nq * sizeof(mjtNum));
   memcpy(qvel_init_.data(), mj_data_->qvel, mj_model_->nv * sizeof(mjtNum));
+
+  this->requestTransitionTo(hal::DriverState::READY);
 }
 
 /******************************************************************************************************/
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-MujocoSimInterface::~MujocoSimInterface() {
-  stop();
+MujocoDriver::~MujocoDriver() {
+  stopImpl();
   mj_deleteData(mj_data_);
   mj_deleteModel(mj_model_);
 }
@@ -120,7 +122,7 @@ MujocoSimInterface::~MujocoSimInterface() {
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoSimInterface::reset() {
+void MujocoDriver::resetImpl() {
   memcpy(mj_data_->qpos, qpos_init_.data(), mj_model_->nq * sizeof(mjtNum));
   memcpy(mj_data_->qvel, qvel_init_.data(), mj_model_->nv * sizeof(mjtNum));
 }
@@ -129,7 +131,7 @@ void MujocoSimInterface::reset() {
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoSimInterface::copyMjState(MjState& state) const {
+void MujocoDriver::copyMjState(MjState& state) const {
   {
     std::lock_guard<std::mutex> guard(mj_mutex_);
 
@@ -144,7 +146,7 @@ void MujocoSimInterface::copyMjState(MjState& state) const {
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoSimInterface::setupJointIndexMaps(const model::RobotDescription& robot_description) {
+void MujocoDriver::setupJointIndexMaps(const model::RobotDescription& robot_description) {
   std::vector<std::string> active_joint_names;
 
   const int start_joint_index = is_floating_base_ ? 1 : 0;
@@ -193,7 +195,7 @@ void MujocoSimInterface::setupJointIndexMaps(const model::RobotDescription& robo
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoSimInterface::printModelInfo() {
+void MujocoDriver::printModelInfo() {
   std::cerr << "time_step_micro_: " << time_step_micro_ << std::endl;
 
   std::cerr << "njnt: " << mj_model_->njnt << std::endl;
@@ -267,7 +269,7 @@ void MujocoSimInterface::printModelInfo() {
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoSimInterface::setSimState(const model::RobotState& robot_state) {
+void MujocoDriver::setSimState(const model::RobotState& robot_state) {
   // Root Pose
 
   if (is_floating_base_) {
@@ -306,7 +308,11 @@ void MujocoSimInterface::setSimState(const model::RobotState& robot_state) {
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoSimInterface::updateRobotState(model::RobotState& robot_state) {
+void MujocoDriver::updateImpl(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) {
+  {
+    std::lock_guard<std::mutex> lock(action_mutex_);
+    action_internal_ = action;
+  }
   std::lock_guard<std::mutex> lock(mj_mutex_);
   // Update mujoco joint angles
   for (size_t i = 0; i < num_active_joints_; ++i) {
@@ -342,7 +348,7 @@ void MujocoSimInterface::updateRobotState(model::RobotState& robot_state) {
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoSimInterface::updateMetrics() {
+void MujocoDriver::updateMetrics() {
   simFps_.tick();
 
   metrics_.fps_sim = simFps_.fps();
@@ -364,12 +370,7 @@ void MujocoSimInterface::updateMetrics() {
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoSimInterface::setJointFeedbackAction(const model::RobotJointFeedbackAction& action) {
-  std::lock_guard<std::mutex> lock(action_mutex_);
-  action_internal_ = action;
-}
-
-void MujocoSimInterface::simulationStep() {
+void MujocoDriver::simulationStep() {
   {
     std::lock_guard<std::mutex> lock(action_mutex_);
 
@@ -388,7 +389,7 @@ void MujocoSimInterface::simulationStep() {
 
     // Auto reset logic.
     if (reset_requested_) {
-      reset();
+      resetImpl();
       for (size_t i = 0; i < num_actuators_; ++i) {
         mj_data_->ctrl[i] = 0.0;
       }
@@ -406,7 +407,7 @@ void MujocoSimInterface::simulationStep() {
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoSimInterface::simulationLoop(std::stop_token st) {
+void MujocoDriver::simulationLoop(std::stop_token st) {
   simFps_.reset();
   metrics_.reset();
   drift_mean_sq_ = 0.0;
@@ -426,7 +427,7 @@ void MujocoSimInterface::simulationLoop(std::stop_token st) {
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoSimInterface::initSim() {
+void MujocoDriver::initSim() {
   simulationStep();
   sim_initialized_ = true;
 
@@ -436,22 +437,31 @@ void MujocoSimInterface::initSim() {
   }
 }
 
-void MujocoSimInterface::start() {
-  if (!sim_initialized_) initSim();
-  if (simulate_thread_.joinable()) {
+void MujocoDriver::startImpl() {
+  if (getState() != hal::DriverState::READY || simulate_thread_.joinable()) {
     std::cerr << "WARNING: Tried to start simulation thread, but it is already running." << std::endl;
     return;
   }
+
+  if (!sim_initialized_) initSim();
+
+  this->requestTransitionTo(hal::DriverState::RUNNING);
   simulate_thread_ = std::jthread([this](std::stop_token st) { this->simulationLoop(st); });
 }
 
-void MujocoSimInterface::stop() {
+void MujocoDriver::stopImpl() {
+  if (getState() != hal::DriverState::RUNNING) {
+    return;
+  }
+
+  this->requestTransitionTo(hal::DriverState::STOPPING);
   if (simulate_thread_.joinable()) {
     simulate_thread_.request_stop();
     if (simulate_thread_.get_id() != std::this_thread::get_id()) {
       simulate_thread_.join();
     }
   }
+  this->requestTransitionTo(hal::DriverState::READY);
 }
 
 }  // namespace motorium::mujoco

@@ -46,6 +46,18 @@ cc_binary(
 non_module_deps = use_extension("//:extensions.bzl", "non_module_deps")
 use_repo(non_module_deps, "mujoco")
 
+
+bazel_dep(name = "magic_enum", version = "0.9.7")
+
+single_version_override(
+    module_name = "magic_enum",
+    patches = [
+        "//patches:magic_enum_module.patch",
+        "//patches:magic_enum_build.patch",
+    ],
+    patch_strip = 1,
+)
+
 bazel_dep(name = "rules_python", version = "1.7.0")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")

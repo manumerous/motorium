@@ -46,6 +46,10 @@ jobs:
         run: |
           sudo apt-get install -y --no-install-recommends $(cat dependencies.txt)
 
+      - name: Install ROS2 Dependencies
+        run: |
+          sudo apt-get install -y --no-install-recommends $(cat dependencies_ros2.txt)
+
       - name: Initialize submodules
         run: |
           git config --global --add safe.directory $GITHUB_WORKSPACE

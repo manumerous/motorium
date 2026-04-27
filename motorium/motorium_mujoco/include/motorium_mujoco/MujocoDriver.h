@@ -63,25 +63,21 @@ struct MujocoSimConfig {
   double defaultJointDamping{1.0};
 };
 
-class MujocoSimInterface : public hal::DriverBase {
+class MujocoDriver final : public hal::DriverBase {
  public:
-  MujocoSimInterface(const MujocoSimConfig& config, const model::RobotDescription& robot_description);
+  MujocoDriver(hal::HalKey key, const model::RobotDescription& robot_description, const MujocoSimConfig& config);
 
   /** Destructor */
-  ~MujocoSimInterface();
+  ~MujocoDriver();
 
-  void start() override;
+  void startImpl() override;
 
-  void stop() override;
-
-  void updateRobotState(model::RobotState& robot_state) override;
-
-  void setJointFeedbackAction(const model::RobotJointFeedbackAction& action) override;
+  void stopImpl() override;
 
   void simulationStep();
 
   // Todo Manu also reset environment
-  void reset() override;
+  void resetImpl() override;
 
   // Allows the renderer to make a thread safe copy of the state at it's own
   // frequency.
@@ -99,6 +95,8 @@ class MujocoSimInterface : public hal::DriverBase {
   void setSimState(const model::RobotState& robot_state);
 
   void simulationLoop(std::stop_token st);
+
+  void updateImpl(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) override;
 
   void printModelInfo();
 

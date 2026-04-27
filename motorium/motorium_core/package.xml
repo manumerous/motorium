@@ -9,6 +9,7 @@
   <license>BSD</license>
 
   <build_depend>absl_vendor</build_depend>
+  <build_depend>magic_enum</build_depend>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 

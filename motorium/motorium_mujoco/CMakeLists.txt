@@ -13,6 +13,7 @@ find_package(mujoco_vendor REQUIRED)
 find_package(motorium_model REQUIRED)
 find_package(motorium_core REQUIRED)
 find_package(motorium_hal REQUIRED)
+find_package(magic_enum REQUIRED)
 
 
 find_package(GTest REQUIRED)
@@ -53,7 +54,7 @@ set(dependencies
 #############
 
 add_library(${PROJECT_NAME}
-  src/MujocoSimInterface.cpp
+  src/MujocoDriver.cpp
   src/MujocoRenderer.cpp
 )
 ament_target_dependencies(${PROJECT_NAME}
@@ -64,6 +65,7 @@ target_link_libraries(${PROJECT_NAME}
   absl::flat_hash_map
   glfw
   GLEW
+  magic_enum::magic_enum
 )
 
 # ############

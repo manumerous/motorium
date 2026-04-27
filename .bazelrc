@@ -2,3 +2,8 @@ common --enable_bzlmod
 build --output_filter=^//
 build --copt=-DGLEW_NO_GLU
 build --cxxopt=-std=c++23
+build --repo_env=CC=clang
+build --repo_env=CXX=clang++
+build --action_env=CPLUS_INCLUDE_PATH=""
+build --action_env=C_INCLUDE_PATH=""
+build --copt=-Iexternal/abseil-cpp+
