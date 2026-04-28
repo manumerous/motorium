@@ -110,8 +110,8 @@ class MujocoDriver final : public hal::DriverBase {
 
   std::vector<mjtNum> qpos_init_;  // position                                         (nq x 1)
   std::vector<mjtNum> qvel_init_;
-  model::RobotJointFeedbackAction action_internal_;
-  mutable std::mutex action_mutex_;
+  absl::Mutex action_mutex_;
+  model::RobotJointFeedbackAction action_internal_ ABSL_GUARDED_BY(action_mutex_);
 
   size_t time_step_micro_;
   size_t num_active_joints_;
@@ -121,15 +121,14 @@ class MujocoDriver final : public hal::DriverBase {
   std::vector<joint_index_t> active_robot_joint_indices_;
   std::vector<joint_index_t> active_robot_actuator_indices_;
 
-  mjModel* mj_model_ = NULL;
-  mjData* mj_data_ = NULL;
+  // TODO: Move to non-blocking buffer in the future.
+  mutable absl::Mutex mj_mutex_;  // Used to access data accross simulation and render threads.
+
+  const mjModel* mj_model_ = NULL;
+  mjData* mj_data_ ABSL_GUARDED_BY(mj_mutex_) = NULL;
 
   bool sim_initialized_{false};
   bool reset_requested_{false};
-
-  // TODO: Move to non-blocking buffer in the future.
-  mutable std::mutex mj_mutex_;  // Used to access mujoco model and data
-                                 // accross simulation and render threads.
 
   std::jthread simulate_thread_;
   std::unique_ptr<MujocoRenderer> renderer_;

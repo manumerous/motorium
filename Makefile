@@ -55,9 +55,10 @@ BUILD_TESTING ?= ON
 BUILD_WITH_NINJA ?= ON
 PARALLEL_JOBS ?= 6
 CPP_VERSION ?= -std=c++23
+CLANG_THREAD_SAFETY_FLAGS := -Wthread-safety -Werror=thread-safety-analysis
 
 ############################################################
-# Set flags based on configuration 
+# Set flags based on configuration
 ############################################################
 
 COMMON_CMAKE_ARGS ?= \
@@ -65,7 +66,9 @@ COMMON_CMAKE_ARGS ?= \
 	-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
 	-DBUILD_TESTING=$(BUILD_TESTING) \
 	-DCMAKE_SHARED_LINKER_FLAGS=$(LINKER_FLAGS) \
-	-DCMAKE_CXX_FLAGS=$(CPP_VERSION)
+	-DCMAKE_C_COMPILER=clang \
+	-DCMAKE_CXX_COMPILER=clang++ \
+	"-DCMAKE_CXX_FLAGS=$(CPP_VERSION) $(CLANG_THREAD_SAFETY_FLAGS)"
 
 # Conditionally add flags specific for the Ninja build system
 ifeq ($(BUILD_WITH_NINJA), ON)

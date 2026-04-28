@@ -28,6 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
 #include "motorium_mujoco/MujocoDriver.h"
+#include <absl/synchronization/mutex.h>
 
 #include <cerrno>
 #include <cmath>
@@ -49,28 +50,39 @@ MujocoDriver::MujocoDriver(hal::HalKey key, const model::RobotDescription& robot
   const int errstr_sz = 1000;  // Define the size of the error buffer
   char errstr[errstr_sz];      // Declare the error string buffer
 
-  // option 1: parse and compile XML from file
-  mj_model_ = mj_loadXML(config.scenePath.c_str(), NULL, errstr, errstr_sz);
-  if (!mj_model_) {
+  // Load and configure the model via a mutable local pointer; assign to the
+  // const member only after all setup mutations are complete.
+  mjModel* model = mj_loadXML(config.scenePath.c_str(), NULL, errstr, errstr_sz);
+  if (!model) {
     std::cerr << "Could not load MuJoCo model: " << config.scenePath << ". Error: " << std::strerror(errno) << std::endl;
     throw std::runtime_error("Could not load MuJoCo: " + std::string(std::strerror(errno)));
   }
 
-  // Create data
-  mj_data_ = mj_makeData(mj_model_);
-
-  // assert(num_active_joints_ == neo_definitions::FULL_NEO_JOINT_DIM);
-
-  mj_model_->opt.timestep = config_.dt;
+  model->opt.timestep = config_.dt;
 
   time_step_micro_ = static_cast<size_t>(config_.dt * 1000000);
 
-  is_floating_base_ = (mj_model_->njnt > 0 && mj_model_->jnt_type[0] == mjJNT_FREE);
+  is_floating_base_ = (model->njnt > 0 && model->jnt_type[0] == mjJNT_FREE);
 
   if (is_floating_base_) {
     nq_base_offset_ = 7;
     nv_base_offset_ = 6;
   }
+
+  // Add default joint damping
+  for (int i = nv_base_offset_; i < model->nv; ++i) {
+    std::string mjJointName(&model->names[model->name_jntadr[model->dof_jntid[i]]]);
+    if (config_.verbose) {
+      std::cerr << "Adding joint damping to " << mjJointName << " with value " << config_.defaultJointDamping << std::endl;
+    }
+    model->dof_damping[i] = config_.defaultJointDamping;
+  }
+
+  // All mutations done — seal the model as const.
+  mj_model_ = model;
+
+  mj_data_ = mj_makeData(mj_model_);
+  MT_CHECK(mj_data_ != nullptr) << "Could not allocate MuJoCo mjData for scene: " << config.scenePath;
 
   if (config_.verbose) {
     std::cerr << "is_floating_base_: " << is_floating_base_ << std::endl;
@@ -89,15 +101,6 @@ MujocoDriver::MujocoDriver(hal::HalKey key, const model::RobotDescription& robot
   }
   setSimState(initRobotState);
 
-  // Add default joint damping
-  for (int i = nv_base_offset_; i < mj_model_->nv; ++i) {
-    std::string mjJointName(&mj_model_->names[mj_model_->name_jntadr[mj_model_->dof_jntid[i]]]);
-    if (config_.verbose) {
-      std::cerr << "Adding joint damping to " << mjJointName << " with value " << config_.defaultJointDamping << std::endl;
-    }
-    mj_model_->dof_damping[i] = config_.defaultJointDamping;
-  }
-
   qpos_init_.resize(mj_model_->nq);
   qvel_init_.resize(mj_model_->nv);
 
@@ -114,8 +117,9 @@ MujocoDriver::MujocoDriver(hal::HalKey key, const model::RobotDescription& robot
 
 MujocoDriver::~MujocoDriver() {
   stopImpl();
+  absl::MutexLock lock(&mj_mutex_);
   mj_deleteData(mj_data_);
-  mj_deleteModel(mj_model_);
+  mj_deleteModel(const_cast<mjModel*>(mj_model_));
 }
 
 /******************************************************************************************************/
@@ -123,8 +127,18 @@ MujocoDriver::~MujocoDriver() {
 /******************************************************************************************************/
 
 void MujocoDriver::resetImpl() {
+  absl::MutexLock lock(&mj_mutex_);
   memcpy(mj_data_->qpos, qpos_init_.data(), mj_model_->nq * sizeof(mjtNum));
   memcpy(mj_data_->qvel, qvel_init_.data(), mj_model_->nv * sizeof(mjtNum));
+  for (size_t i = 0; i < num_actuators_; ++i) {
+    mj_data_->ctrl[i] = 0.0;
+  }
+  mj_step(mj_model_, mj_data_);
+  simFps_.reset();
+  metrics_.reset();
+  updateMetrics();
+  // Sleep to let controller update and adjust;
+  std::this_thread::sleep_until(std::chrono::steady_clock::now() + std::chrono::microseconds(100000));
 }
 
 /******************************************************************************************************/
@@ -133,7 +147,7 @@ void MujocoDriver::resetImpl() {
 
 void MujocoDriver::copyMjState(MjState& state) const {
   {
-    std::lock_guard<std::mutex> guard(mj_mutex_);
+    absl::ReaderMutexLock lock(&mj_mutex_);
 
     state.timestamp = mj_data_->time;
     mj_copyData(state.data, mj_model_, mj_data_);
@@ -239,6 +253,8 @@ void MujocoDriver::printModelInfo() {
     }
   };
 
+  absl::ReaderMutexLock lock(&mj_mutex_);
+
   for (int i = 0; i < mj_model_->njnt; ++i) {
     std::string jointName(&mj_model_->names[mj_model_->name_jntadr[i]]);
     int type = mj_model_->jnt_type[i];
@@ -271,6 +287,8 @@ void MujocoDriver::printModelInfo() {
 
 void MujocoDriver::setSimState(const model::RobotState& robot_state) {
   // Root Pose
+
+  absl::MutexLock lock(&mj_mutex_);
 
   if (is_floating_base_) {
     vector3_t rootPosition = robot_state.getRootPositionInWorldFrame();
@@ -310,10 +328,10 @@ void MujocoDriver::setSimState(const model::RobotState& robot_state) {
 
 void MujocoDriver::updateImpl(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) {
   {
-    std::lock_guard<std::mutex> lock(action_mutex_);
+    absl::MutexLock lock(&action_mutex_);
     action_internal_ = action;
   }
-  std::lock_guard<std::mutex> lock(mj_mutex_);
+  absl::ReaderMutexLock lock(&mj_mutex_);
   // Update mujoco joint angles
   for (size_t i = 0; i < num_active_joints_; ++i) {
     robot_state.setJointPosition(active_robot_joint_indices_[i], mj_data_->qpos[i + nq_base_offset_]);
@@ -372,7 +390,8 @@ void MujocoDriver::updateMetrics() {
 
 void MujocoDriver::simulationStep() {
   {
-    std::lock_guard<std::mutex> lock(action_mutex_);
+    absl::MutexLock action_lock(&action_mutex_);
+    absl::MutexLock mj_lock(&mj_mutex_);
 
     for (size_t i = 0; i < num_actuators_; ++i) {
       joint_index_t idx = active_robot_actuator_indices_[i];
@@ -383,23 +402,13 @@ void MujocoDriver::simulationStep() {
     }
   }
   {
-    std::lock_guard<std::mutex> lock(mj_mutex_);
+    absl::MutexLock lock(&mj_mutex_);
     mj_step(mj_model_, mj_data_);
     updateMetrics();
-
-    // Auto reset logic.
-    if (reset_requested_) {
-      resetImpl();
-      for (size_t i = 0; i < num_actuators_; ++i) {
-        mj_data_->ctrl[i] = 0.0;
-      }
-      mj_step(mj_model_, mj_data_);
-      simFps_.reset();
-      metrics_.reset();
-      updateMetrics();
-      // Sleep to let controller update and adjust;
-      std::this_thread::sleep_until(std::chrono::steady_clock::now() + std::chrono::microseconds(1000000));
-    }
+  }
+  // Auto reset logic.
+  if (reset_requested_) {
+    resetImpl();
   }
 }
 
