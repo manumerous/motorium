@@ -129,6 +129,15 @@ void MujocoDriver::resetImpl() {
   absl::MutexLock lock(&mj_mutex_);
   memcpy(mj_data_->qpos, qpos_init_.data(), mj_model_->nq * sizeof(mjtNum));
   memcpy(mj_data_->qvel, qvel_init_.data(), mj_model_->nv * sizeof(mjtNum));
+  for (size_t i = 0; i < num_actuators_; ++i) {
+    mj_data_->ctrl[i] = 0.0;
+  }
+  mj_step(mj_model_, mj_data_);
+  simFps_.reset();
+  metrics_.reset();
+  updateMetrics();
+  // Sleep to let controller update and adjust;
+  std::this_thread::sleep_until(std::chrono::steady_clock::now() + std::chrono::microseconds(100000));
 }
 
 /******************************************************************************************************/
@@ -395,20 +404,10 @@ void MujocoDriver::simulationStep() {
     absl::MutexLock lock(&mj_mutex_);
     mj_step(mj_model_, mj_data_);
     updateMetrics();
-
-    // Auto reset logic.
-    if (reset_requested_) {
-      resetImpl();
-      for (size_t i = 0; i < num_actuators_; ++i) {
-        mj_data_->ctrl[i] = 0.0;
-      }
-      mj_step(mj_model_, mj_data_);
-      simFps_.reset();
-      metrics_.reset();
-      updateMetrics();
-      // Sleep to let controller update and adjust;
-      std::this_thread::sleep_until(std::chrono::steady_clock::now() + std::chrono::microseconds(1000000));
-    }
+  }
+  // Auto reset logic.
+  if (reset_requested_) {
+    resetImpl();
   }
 }
 
