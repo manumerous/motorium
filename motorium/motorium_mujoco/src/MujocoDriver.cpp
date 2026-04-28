@@ -82,6 +82,7 @@ MujocoDriver::MujocoDriver(hal::HalKey key, const model::RobotDescription& robot
   mj_model_ = model;
 
   mj_data_ = mj_makeData(mj_model_);
+  MT_CHECK(mj_data_ != nullptr) << "Could not allocate MuJoCo mjData for scene: " << config.scenePath;
 
   if (config_.verbose) {
     std::cerr << "is_floating_base_: " << is_floating_base_ << std::endl;
