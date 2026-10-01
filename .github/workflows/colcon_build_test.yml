@@ -14,10 +14,15 @@ on:
 
 jobs:
   build-test:
-    runs-on: ubuntu-latest
+    name: build-test (${{ matrix.runner }}, ${{ matrix.container }})
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 180
     strategy:
+      fail-fast: false
       matrix:
+        runner:
+          - ubuntu-latest
+          - ubuntu-24.04-arm
         container:
           - "ros:jazzy"
     container: ${{ matrix.container }}
@@ -30,9 +35,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /var/cache/apt
-          key: ${{ runner.os }}-apt-${{ hashFiles('dependencies.txt') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-apt-${{ hashFiles('dependencies.txt') }}
           restore-keys: |
-            ${{ runner.os }}-apt-
+            ${{ runner.os }}-${{ runner.arch }}-apt-
 
       - name: Install Base Dependencies
         run: |
@@ -59,9 +64,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build/
-          key: ${{ runner.os }}-build-${{ hashFiles('**/CMakeLists.txt') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-build-${{ hashFiles('**/CMakeLists.txt') }}
           restore-keys: |
-            ${{ runner.os }}-build-
+            ${{ runner.os }}-${{ runner.arch }}-build-
 
       - name: Build All
         run: |
