@@ -61,6 +61,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 #############
 
 install(TARGETS ${PROJECT_NAME}
+        EXPORT export_${PROJECT_NAME}
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin
@@ -88,6 +89,7 @@ if(BUILD_TESTING)
   target_link_libraries(test_robot_hal ${PROJECT_NAME} absl::log absl::check absl::flat_hash_map magic_enum::magic_enum)
 endif()
 
+ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_include_directories(include)
 ament_export_libraries(${PROJECT_NAME})
 ament_export_dependencies(${dependencies})

@@ -4,6 +4,13 @@ module(
 )
 
 bazel_dep(name = "rules_cc", version = "0.2.16")
+bazel_dep(name = "apple_support", version = "1.24.5")
+
+apple_cc_configure = use_extension("@apple_support//crosstool:setup.bzl", "apple_cc_configure_extension")
+use_repo(apple_cc_configure, "local_config_apple_cc_toolchains")
+
+register_toolchains("@local_config_apple_cc_toolchains//:all")
+
 bazel_dep(name = "eigen", version = "3.4.0.bcr.3")
 bazel_dep(name = "abseil-cpp", version = "20250814.1", repo_name = "com_google_absl")
 bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
