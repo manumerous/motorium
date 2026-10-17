@@ -28,14 +28,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
 #include <gtest/gtest.h>
+#include <array>
 #include <numeric>
+#include <vector>
 
-#include "motorium_core/Types.h"
-#include "motorium_model/FixedIDArray.h"
-
-using namespace motorium::model;
+#include <motorium_core/Types.h>
+#include <motorium_model/FixedIDArray.h>
 
 namespace {
+
+using namespace motorium;
+using namespace motorium::model;
 
 // Helper struct for testing non-trivial types
 struct TestStruct {
@@ -58,21 +61,56 @@ class TestClass {
   double data_;
 };
 
-}  // namespace
-
 class FixedIDArrayTest : public ::testing::Test {};
 
 TEST_F(FixedIDArrayTest, InitializationCalculatesSizeCorrectly) {
-  FixedIDArray<int> array(10);
+  FixedIDArray<int> const array(10);
   EXPECT_EQ(array.size(), 10u);
 }
 
 TEST_F(FixedIDArrayTest, InitializationFailsForZeroSize) {
-  EXPECT_DEATH(FixedIDArray<int> array(0), "Cannot initialize empty map");
+  EXPECT_DEATH(const FixedIDArray<int> array(0), "Cannot initialize empty FixedIDArray");
 }
 
 TEST_F(FixedIDArrayTest, InitializationFailsForTooLargeSize) {
-  EXPECT_DEATH(FixedIDArray<int> array(300), "Too many elements");
+  EXPECT_DEATH(const FixedIDArray<int> array(300), "Too many elements");
+}
+
+TEST_F(FixedIDArrayTest, InitializationFromVectorInfersSizeAndCopiesValues) {
+  std::vector<int> const init = {10, 20, 30};
+  FixedIDArray<int> const array(init);
+
+  ASSERT_EQ(array.size(), 3u);
+  EXPECT_EQ(array[0], 10);
+  EXPECT_EQ(array[1], 20);
+  EXPECT_EQ(array[2], 30);
+}
+
+TEST_F(FixedIDArrayTest, InitializationFromArrayWorks) {
+  std::array<int, 2> const init = {7, 8};
+  FixedIDArray<int> const array(init);
+
+  ASSERT_EQ(array.size(), 2u);
+  EXPECT_EQ(array[0], 7);
+  EXPECT_EQ(array[1], 8);
+}
+
+TEST_F(FixedIDArrayTest, InitializationFromContainerIsIndependentCopy) {
+  std::vector<int> init = {1, 2, 3};
+  FixedIDArray<int> array(init);
+  init[0] = 99;  // Mutating the source must not affect the array.
+
+  EXPECT_EQ(array[0], 1);
+}
+
+TEST_F(FixedIDArrayTest, InitializationFromEmptyContainerFails) {
+  std::vector<int> const init;
+  EXPECT_DEATH(const FixedIDArray<int> array(init), "Cannot initialize empty FixedIDArray");
+}
+
+TEST_F(FixedIDArrayTest, InitializationFromTooLargeContainerFails) {
+  std::vector<int> const init(300);
+  EXPECT_DEATH(const FixedIDArray<int> array(init), "Too many elements");
 }
 
 TEST_F(FixedIDArrayTest, AccessWorksForValidIndices) {
@@ -84,11 +122,16 @@ TEST_F(FixedIDArrayTest, AccessWorksForValidIndices) {
   EXPECT_EQ(array.at(4), 100);
 }
 
+#ifndef NDEBUG
+// at() bounds-checks with MT_DCHECK, so this only holds where DCHECKs are live — debug and the
+// fastbuild the tests run under. Optimized builds compile the check out and an out-of-range id is
+// undefined behaviour instead of an abort, so there is nothing to assert there.
 TEST_F(FixedIDArrayTest, AccessFailsForOutOfBounds) {
   FixedIDArray<int> array(5);
   EXPECT_DEATH(array.at(5), "Element with ID 5 not found");
   EXPECT_DEATH(array[10], "Element with ID 10 not found");
 }
+#endif
 
 TEST_F(FixedIDArrayTest, ConstAccessWorks) {
   FixedIDArray<int> array(5);
@@ -114,7 +157,7 @@ TEST_F(FixedIDArrayTest, AssignmentWorksIdeally) {
 }
 
 TEST_F(FixedIDArrayTest, AssignmentFailsForSizeMismatch) {
-  FixedIDArray<int> arr1(3);
+  FixedIDArray<int> const arr1(3);
   FixedIDArray<int> arr2(4);
   EXPECT_DEATH(arr2 = arr1, "size mismatch");
 }
@@ -125,7 +168,7 @@ TEST_F(FixedIDArrayTest, IterationWorks) {
   array[1] = 20;
   array[2] = 30;
 
-  int sum = std::accumulate(array.begin(), array.end(), 0);
+  int const sum = std::accumulate(array.begin(), array.end(), 0);
   EXPECT_EQ(sum, 60);
 }
 
@@ -135,10 +178,11 @@ TEST_F(FixedIDArrayTest, ToEigenVectorWorksForSimpleType) {
   array[1] = 2.2;
   array[2] = 3.3;
 
-  std::vector<size_t> indices = {0, 2};
+  std::vector<size_t> const indices = {0, 2};
   auto extractor = [](double v) { return v; };
 
-  auto vec = array.toEigenVector<std::vector<size_t>, double>(indices, extractor);
+  Eigen::VectorXd vec(indices.size());
+  array.fillEigenVector<std::vector<size_t>, double>(indices, vec, extractor);
 
   ASSERT_EQ(vec.size(), 2);
   EXPECT_DOUBLE_EQ(vec(0), 1.1);
@@ -151,10 +195,11 @@ TEST_F(FixedIDArrayTest, ToEigenVectorWorksWithOptional) {
   array[1] = std::nullopt;
   array[2] = 3.0;
 
-  std::vector<size_t> indices = {0, 1, 2};
+  std::vector<size_t> const indices = {0, 1, 2};
   auto extractor = [](double v) { return v; };
 
-  auto vec = array.toEigenVector<std::vector<size_t>, double>(indices, extractor, -1.0);  // Default -1.0 for nullopt
+  Eigen::VectorXd vec(indices.size());
+  array.fillEigenVector<std::vector<size_t>, double>(indices, vec, extractor, -1.0);  // Default -1.0 for nullopt
 
   ASSERT_EQ(vec.size(), 3);
   EXPECT_DOUBLE_EQ(vec(0), 1.0);
@@ -167,10 +212,11 @@ TEST_F(FixedIDArrayTest, ToEigenVectorWorksWithStruct) {
   array[0].xyz = 5.5;
   array[1].xyz = 6.6;
 
-  std::vector<size_t> indices = {1};
+  std::vector<size_t> const indices = {1};
   auto extractor = [](const TestStruct& s) { return s.xyz; };
 
-  auto vec = array.toEigenVector<std::vector<size_t>, double>(indices, extractor);
+  Eigen::VectorXd vec(indices.size());
+  array.fillEigenVector<std::vector<size_t>, double>(indices, vec, extractor);
 
   ASSERT_EQ(vec.size(), 1);
   EXPECT_DOUBLE_EQ(vec(0), 6.6);
@@ -181,10 +227,11 @@ TEST_F(FixedIDArrayTest, ToEigenVectorWorksWithStructAndOptional) {
   array[0] = TestStruct{5.5};
   array[1] = std::nullopt;
 
-  std::vector<size_t> indices = {0, 1};
+  std::vector<size_t> const indices = {0, 1};
   auto extractor = [](const TestStruct& s) { return s.xyz; };
 
-  auto vec = array.toEigenVector<std::vector<size_t>, double>(indices, extractor, -1.0);  // Default -1.0 for nullopt
+  Eigen::VectorXd vec(indices.size());
+  array.fillEigenVector<std::vector<size_t>, double>(indices, vec, extractor, -1.0);  // Default -1.0 for nullopt
 
   ASSERT_EQ(vec.size(), 2);
   EXPECT_DOUBLE_EQ(vec(0), 5.5);
@@ -201,7 +248,7 @@ TEST_F(FixedIDArrayTest, FromEigenVectorWorksForScalar) {
   array[1] = 0.0;
   array[2] = 0.0;
 
-  std::vector<size_t> indices = {0, 2};
+  std::vector<size_t> const indices = {0, 2};
   motorium::vector_t vec(2);
   vec << 1.5, 3.7;
 
@@ -219,7 +266,7 @@ TEST_F(FixedIDArrayTest, FromEigenVectorWorksForStruct) {
   array[1].xyz = 0.0;
   array[2].xyz = 0.0;
 
-  std::vector<size_t> indices = {1, 2};
+  std::vector<size_t> const indices = {1, 2};
   motorium::vector_t vec(2);
   vec << 2.5, 4.8;
 
@@ -237,7 +284,7 @@ TEST_F(FixedIDArrayTest, FromEigenVectorWorksForClassWithSetterGetter) {
   array[1].setData(0.0);
   array[2].setData(0.0);
 
-  std::vector<size_t> indices = {0, 1, 2};
+  std::vector<size_t> const indices = {0, 1, 2};
   motorium::vector_t vec(3);
   vec << 10.5, 20.3, 30.7;
 
@@ -257,7 +304,7 @@ TEST_F(FixedIDArrayTest, FromEigenVectorWorksForOptionalStruct) {
   array[3] = std::nullopt;
   array[4] = std::nullopt;
 
-  std::vector<size_t> indices = {0, 2};
+  std::vector<size_t> const indices = {0, 2};
   motorium::vector_t vec(2);
   vec << 99.5, 88.3;
 
@@ -274,7 +321,10 @@ TEST_F(FixedIDArrayTest, FromEigenVectorWorksForOptionalStruct) {
   EXPECT_DOUBLE_EQ(array[2]->xyz, 88.3);
 }
 
-TEST_F(FixedIDArrayTest, FromEigenVectorFailsForNulloptStruct) {
+// fromEigenVector initializes a nullopt slot before inserting (see the
+// is_optional_v branch in FixedIDArray.h), so writing through a previously
+// empty optional succeeds and creates the value rather than throwing.
+TEST_F(FixedIDArrayTest, FromEigenVectorInitializesNulloptStruct) {
   FixedIDArray<std::optional<TestStruct>> array(5);
   array[0] = TestStruct{1.0};  // Initialized
   array[1] = TestStruct{2.0};  // Initialized
@@ -282,12 +332,17 @@ TEST_F(FixedIDArrayTest, FromEigenVectorFailsForNulloptStruct) {
   array[3] = std::nullopt;
   array[4] = std::nullopt;
 
-  std::vector<size_t> indices = {0, 4};
+  std::vector<size_t> const indices = {0, 4};
   motorium::vector_t vec(2);
   vec << 99.5, 88.3;
 
   auto inserter = [](TestStruct& target, double value) { target.xyz = value; };
-  EXPECT_THROW((array.fromEigenVector<std::vector<size_t>, double>(indices, vec, inserter)), std::bad_optional_access);
+  array.fromEigenVector<std::vector<size_t>, double>(indices, vec, inserter);
+
+  ASSERT_TRUE(array[0].has_value());
+  EXPECT_DOUBLE_EQ(array[0]->xyz, 99.5);
+  ASSERT_TRUE(array[4].has_value());  // was nullopt, now initialized + written
+  EXPECT_DOUBLE_EQ(array[4]->xyz, 88.3);
 }
 
 TEST_F(FixedIDArrayTest, ToEigenVectorAndFromEigenVectorRoundTrip) {
@@ -296,11 +351,12 @@ TEST_F(FixedIDArrayTest, ToEigenVectorAndFromEigenVectorRoundTrip) {
   array[1].xyz = 2.2;
   array[2].xyz = 3.3;
 
-  std::vector<size_t> indices = {0, 1, 2};
+  std::vector<size_t> const indices = {0, 1, 2};
 
   // Extract to vector
   auto extractor = [](const TestStruct& s) { return s.xyz; };
-  auto vec = array.toEigenVector<std::vector<size_t>, double>(indices, extractor);
+  Eigen::VectorXd vec(indices.size());
+  array.fillEigenVector<std::vector<size_t>, double>(indices, vec, extractor);
 
   // Modify vector
   vec *= 2.0;
@@ -319,7 +375,7 @@ TEST_F(FixedIDArrayTest, ToEigenVectorAndFromEigenVectorRoundTrip) {
   transform << 0.5, 0.2, 0.1, 0.3, 0.7, 0.4, 0.2, 0.1, 0.9;
 
   // Extract current values
-  vec = array.toEigenVector<std::vector<size_t>, double>(indices, extractor);
+  array.fillEigenVector<std::vector<size_t>, double>(indices, vec, extractor);
 
   // Apply transformation
   motorium::vector3_t transformed = transform * vec;
@@ -331,3 +387,4 @@ TEST_F(FixedIDArrayTest, ToEigenVectorAndFromEigenVectorRoundTrip) {
   EXPECT_NEAR(array[1].xyz, transformed(1), 1e-10);
   EXPECT_NEAR(array[2].xyz, transformed(2), 1e-10);
 }
+}  // namespace

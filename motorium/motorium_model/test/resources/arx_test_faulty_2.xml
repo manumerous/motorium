@@ -31,7 +31,7 @@
             <geom type="mesh" rgba="0.2 0.2 0.2 1" mesh="link4"/>
             <body name="link5" pos="0.06575 -0.001 -0.0825">
               <inertial pos="0.00289957 3.15827e-05 0.0526189" quat="0.998829 0 -0.0483866 0" mass="0.602357" diaginertia="0.000724856 0.00069 0.000205144"/>
-              <joint name=joint5" pos="0 0 0" axis="0 0 1" range="-10 10" actuatorfrcrange="-100 100"/>
+              <joint name="joint5" pos="0 0 0" axis="0 0 1" range="-10 10" actuatorfrcrange="-100 100"/>
               <geom type="mesh" rgba="0.2 0.2 0.2 1" mesh="link5"/>
               <body name="link6" pos="0.02845 0 0.0825" quat="-3.67321e-06 -1 0 0">
                 <inertial pos="0.0471798 0.00010297 -0.000138511" quat="0.495436 0.504523 -0.504523 0.495436" mass="0.462245" diaginertia="0.000910182 0.00068 0.000359818"/>
@@ -48,7 +48,7 @@
   <actuator>
     <motor name="joint1" joint="joint1" ctrlrange="-500 500" ctrllimited="true"/>
     <motor name="joint2" joint="joint2" ctrlrange="-500 500" ctrllimited="true"/>
-    <motor name="joint3" joint="joint3" ctrlrange="-500 500" ctrllimited="true"/>
+    <motor name="joint3" joint=joint3" ctrlrange="-500 500" ctrllimited="true"/>
     <motor name="joint4" joint="joint4" ctrlrange="-500 500" ctrllimited="true"/>
     <motor name="joint5" joint="joint5" ctrlrange="-500 500" ctrllimited="true"/>
     <!-- <motor name="joint6" joint="joint6" ctrlrange="-100 100" ctrllimited="true"/> -->

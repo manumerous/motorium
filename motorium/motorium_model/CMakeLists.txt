@@ -42,7 +42,6 @@ set(dependencies
 
 add_library(${PROJECT_NAME} SHARED
         src/RobotDescription.cpp
-        src/RobotState.cpp
 )
 ament_target_dependencies(${PROJECT_NAME}
         ${dependencies}
@@ -83,6 +82,11 @@ if (BUILD_TESTING)
 
         ament_add_gtest(test_robot_state test/testRobotState.cpp)
         target_link_libraries(test_robot_state
+            ${PROJECT_NAME}
+        )
+
+        ament_add_gtest(test_robot_joint_feedback_action test/testRobotJointFeedbackAction.cpp)
+        target_link_libraries(test_robot_joint_feedback_action
             ${PROJECT_NAME}
         )
 

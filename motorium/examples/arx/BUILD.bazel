@@ -1,8 +1,8 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary")
 
 cc_binary(
-    name = "arm_mujoco_sim",
-    srcs = ["arm_mujoco_sim.cpp"],
+    name = "arx_mujoco_sim",
+    srcs = ["arx_mujoco_sim.cpp"],
     data = glob(["model/**"]),
     deps = [
         "//motorium/motorium_hal",

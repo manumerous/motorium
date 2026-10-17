@@ -1,8 +1,8 @@
-// arm_mujoco_sim.cpp
+// arx_mujoco_sim.cpp
 // Entry-point for the ARX-5 arm MuJoCo simulation.
 //
 // Usage (Bazel):
-//   bazel run //motorium/examples/arx:arm_mujoco_sim
+//   bazel run //motorium/examples/arx:arx_mujoco_sim
 
 #include <cmath>
 #include <filesystem>
@@ -41,19 +41,19 @@ int main(int argc, char** argv) {
     std::string error;
     auto runfiles = bazel::tools::cpp::runfiles::Runfiles::Create(argv[0], &error);
     if (!runfiles) {
-      std::cerr << "[arm_mujoco_sim] ERROR: Could not initialize runfiles: " << error << "\n"
+      std::cerr << "[arx_mujoco_sim] ERROR: Could not initialize runfiles: " << error << "\n"
                 << "  Pass the scene path as argv[1] to override.\n";
       return 1;
     }
     scene_path = runfiles->Rlocation("_main/motorium/examples/arx/model/arx_arm_scene.xml");
     if (!std::filesystem::exists(scene_path)) {
-      std::cerr << "[arm_mujoco_sim] ERROR: arx_arm_scene.xml not found via runfiles at: " << scene_path << "\n"
+      std::cerr << "[arx_mujoco_sim] ERROR: arx_arm_scene.xml not found via runfiles at: " << scene_path << "\n"
                 << "  Pass the scene path as argv[1] to override.\n";
       return 1;
     }
   }
 
-  std::cout << "[arm_mujoco_sim] Loading scene: " << scene_path << "\n";
+  std::cout << "[arx_mujoco_sim] Loading scene: " << scene_path << "\n";
 
   // ── HAL + sim driver ───────────────────────────────────────────────────
   mujoco::MujocoSimConfig config;
@@ -82,7 +82,7 @@ int main(int argc, char** argv) {
 
   hal.startDrivers();
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  std::cout << "[arm_mujoco_sim] Simulation running. Close the viewer window to exit.\n";
+  std::cout << "[arx_mujoco_sim] Simulation running. Close the viewer window to exit.\n";
 
   while (true) {
     hal.update(action, state);

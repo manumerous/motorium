@@ -28,6 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
 #include <gtest/gtest.h>
+#include <motorium_model/RobotJointFeedbackAction.h>
 #include <motorium_model/RobotState.h>
 
 #include <filesystem>
@@ -181,12 +182,14 @@ TEST_F(RobotStateTest, VectorAccessors) {
 
   std::vector<joint_index_t> ids = {joint1_idx, joint2_idx};
 
-  vector_t positions = state.getJointPositions(ids);
+  vector_t positions(ids.size());
+  state.fillJointPositions(ids, positions);
   EXPECT_EQ(positions.size(), 2u);
   EXPECT_DOUBLE_EQ(positions[0], 0.5);
   EXPECT_DOUBLE_EQ(positions[1], 0.25);
 
-  vector_t velocities = state.getJointVelocities(ids);
+  vector_t velocities(ids.size());
+  state.fillJointVelocities(ids, velocities);
   EXPECT_EQ(velocities.size(), 2u);
   EXPECT_DOUBLE_EQ(velocities[0], 1.0);
   EXPECT_DOUBLE_EQ(velocities[1], 0.5);
@@ -202,6 +205,49 @@ TEST_F(RobotStateTest, ContactFlags) {
   state.setContactFlag(1, false);
   EXPECT_FALSE(state.getContactFlag(1));
   EXPECT_TRUE(state.getContactFlag(0));
+}
+
+TEST_F(RobotStateTest, AccelerationAccessors) {
+  RobotState state(*robot_desc_);
+
+  auto joint1_idx = robot_desc_->getJointIndex("joint1");
+  auto joint2_idx = robot_desc_->getJointIndex("joint2");
+
+  state.setJointAcceleration(joint1_idx, 2.0);
+  EXPECT_DOUBLE_EQ(state.getJointAcceleration(joint1_idx), 2.0);
+
+  std::vector<joint_index_t> ids = {joint1_idx, joint2_idx};
+  vector_t accelerations(2);
+  accelerations << 3.0, 4.0;
+  state.setJointAccelerations(ids, accelerations);
+
+  vector_t out(ids.size());
+  state.fillJointAccelerations(ids, out);
+  EXPECT_DOUBLE_EQ(out[0], 3.0);
+  EXPECT_DOUBLE_EQ(out[1], 4.0);
+
+  state.setConfigurationToZero();
+  EXPECT_DOUBLE_EQ(state.getJointAcceleration(joint1_idx), 0.0);
+}
+
+// No RobotDescription needed: these containers only ever need the joint count.
+TEST(RobotStateCountTest, ConstructsFromAJointCountWithoutADescription) {
+  RobotState state(3);
+  RobotJointFeedbackAction action(3);
+  RobotJointAccumulaction accumulation(3);
+
+  EXPECT_EQ(state.getNumJoints(), 3u);
+  EXPECT_EQ(action.size(), 3u);
+  EXPECT_EQ(accumulation.size(), 3u);
+}
+
+TEST(RobotStateCountTest, ContactSizeStillDefaultsAndIsSeparable) {
+  RobotState state(2);
+  EXPECT_EQ(state.getContactFlags().size(), 1u);
+
+  RobotState with_contacts(2, 3);
+  EXPECT_EQ(with_contacts.getNumJoints(), 2u);
+  EXPECT_EQ(with_contacts.getContactFlags().size(), 3u);
 }
 
 }  // namespace testing

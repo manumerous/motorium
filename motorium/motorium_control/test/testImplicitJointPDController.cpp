@@ -142,13 +142,14 @@ TEST_F(ImplicitJointPDControllerTest, PartialControl) {
   action[idx2].kp = 0.0;
 
   // Set random initial state
+  const std::vector<joint_index_t> ids = {idx1, idx2};
   vector_t positions(2);
   positions << 0.1, 0.2;
-  state.setJointPositions({idx1, idx2}, positions);
+  state.setJointPositions(ids, positions);
 
   vector_t velocities(2);
   velocities << 0.3, 0.4;
-  state.setJointVelocities({idx1, idx2}, velocities);
+  state.setJointVelocities(ids, velocities);
 
   controller.computeJointControlAction(0.0, state, state_desired, action);
 
