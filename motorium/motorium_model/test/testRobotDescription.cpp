@@ -447,24 +447,35 @@ TEST(RobotDescriptionArxXmlTest, ArxArmXml) {
   }
 }
 
-// faulty_1: </actuator> replaced by <actuator> — unclosed tag, XML parse error.
-TEST(RobotDescriptionFaultyXmlTest, Faulty1UnclosedActuatorTag) {
-  EXPECT_THROW({ RobotDescription desc(arxResourcePath("arx_test_faulty_1.xml")); }, std::runtime_error);
+// Asserts that loading the model throws a std::runtime_error whose message contains `expected`, so a
+// faulty file cannot pass by failing for a different reason than the one it was built for.
+void expectLoadFailsWith(const std::string& filename, const std::string& expected) {
+  try {
+    RobotDescription desc(arxResourcePath(filename));
+    FAIL() << "Expected " << filename << " to fail loading";
+  } catch (const std::runtime_error& e) {
+    EXPECT_NE(std::string(e.what()).find(expected), std::string::npos) << "Unexpected error: " << e.what();
+  }
 }
 
-// faulty_2: name=joint5" (missing opening quote) — malformed attribute, XML parse error.
-TEST(RobotDescriptionFaultyXmlTest, Faulty2MalformedJointNameAttribute) {
-  EXPECT_THROW({ RobotDescription desc(arxResourcePath("arx_test_faulty_2.xml")); }, std::runtime_error);
+// faulty_1: </asset> replaced by <asset> — unclosed tag, XML parse error.
+TEST(RobotDescriptionFaultyXmlTest, Faulty1UnclosedAssetTag) {
+  expectLoadFailsWith("arx_test_faulty_1.xml", "Failed to parse MuJoCo XML");
 }
 
-// faulty_3: <geom .../  (missing >) — truncated self-close tag, XML parse error.
+// faulty_2: joint=joint3" on the joint3 motor (missing opening quote) — malformed attribute, XML parse error.
+TEST(RobotDescriptionFaultyXmlTest, Faulty2MalformedActuatorJointAttribute) {
+  expectLoadFailsWith("arx_test_faulty_2.xml", "Failed to parse MuJoCo XML");
+}
+
+// faulty_3: link1 <geom .../  (missing >) — truncated self-close tag, XML parse error.
 TEST(RobotDescriptionFaultyXmlTest, Faulty3TruncatedSelfCloseTag) {
-  EXPECT_THROW({ RobotDescription desc(arxResourcePath("arx_test_faulty_3.xml")); }, std::runtime_error);
+  expectLoadFailsWith("arx_test_faulty_3.xml", "Failed to parse MuJoCo XML");
 }
 
-// faulty_4: empty <worldbody> — no joints found.
-TEST(RobotDescriptionFaultyXmlTest, Faulty4EmptyWorldbody) {
-  EXPECT_THROW({ RobotDescription desc(arxResourcePath("arx_test_faulty_4.xml")); }, std::runtime_error);
+// faulty_4: body tree intact but every <joint> removed — valid XML, but no joints found.
+TEST(RobotDescriptionFaultyXmlTest, Faulty4NoJoints) {
+  expectLoadFailsWith("arx_test_faulty_4.xml", "No valid joints found");
 }
 
 }  // namespace motorium::model::testing

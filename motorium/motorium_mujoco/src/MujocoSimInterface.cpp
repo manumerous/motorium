@@ -318,10 +318,6 @@ void MujocoSimInterface::updateRobotState(model::RobotState& robot_state) {
   robot_state.setRootAngularVelocityInLocalFrame(pelvisAngularVelLocal);
 
   robot_state.setTime(mj_data_->time);  // Todo: should mujoco be the source of time?
-
-  // std::cout << active_robot_joint_indices_[0] << ", " << active_robot_joint_indices_[1] << ", " << active_robot_joint_indices_[2] << ", "
-  //           << active_robot_joint_indices_[3] << ", " << active_robot_joint_indices_[4] << std::endl;
-  // std::cout << "Robot state:" << robot_state.getJointPositions({0, 1, 2, 3, 4, 5}).transpose() << std::endl;
 }
 
 /******************************************************************************************************/
