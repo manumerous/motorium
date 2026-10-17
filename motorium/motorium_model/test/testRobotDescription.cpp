@@ -33,6 +33,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <filesystem>
 #include <fstream>
+#include <limits>
+#include <numbers>
 #include <sstream>
 
 namespace motorium::model::testing {
@@ -95,7 +97,7 @@ TEST_F(RobotDescriptionTest, Constructor) {
   ASSERT_NO_THROW({ RobotDescription robotDesc(urdf_path_.string()); });
 
   RobotDescription robotDesc(urdf_path_.string());
-  EXPECT_EQ(robotDesc.getURDFPath(), urdf_path_.string());
+  EXPECT_EQ(robotDesc.getModelPath(), urdf_path_.string());
   EXPECT_EQ(robotDesc.getNumJoints(),
             3u);  // Should only count the revolute joints
 }
@@ -116,10 +118,10 @@ TEST_F(RobotDescriptionTest, ConstructorWithInvalidURDF) {
   EXPECT_THROW({ RobotDescription robotDesc(invalidPath.string()); }, std::runtime_error);
 }
 
-// Test getURDFName method
-TEST_F(RobotDescriptionTest, GetURDFName) {
+// Test getModelName method
+TEST_F(RobotDescriptionTest, GetModelName) {
   RobotDescription robotDesc(urdf_path_.string());
-  EXPECT_EQ(robotDesc.getURDFName(), "test_robot.urdf");
+  EXPECT_EQ(robotDesc.getModelName(), "test_robot.urdf");
 }
 
 // Test containsJoint method
@@ -284,6 +286,185 @@ TEST_F(RobotDescriptionTest, JointDescriptionValidation) {
 
   j.torque_bounds = Bounds(-1.0, 1.0);  // Valid
   j.validate();                         // Should not throw
+}
+
+TEST_F(RobotDescriptionTest, UnsupportedExtensionThrows) {
+  std::filesystem::path bad = tempDir_ / "model.mjcf";
+  std::filesystem::copy(urdf_path_, bad);
+  EXPECT_THROW({ RobotDescription robotDesc(bad.string()); }, std::runtime_error);
+}
+
+TEST(RobotDescriptionFromJointList, ReportsAModelPathWhenGivenOne) {
+  const std::vector<JointDescription> joints{{"joint1", Bounds(-1.0, 1.0), Bounds(-2.0, 2.0), Bounds(-3.0, 3.0)}};
+
+  RobotDescription description(joints, "/models/robot.urdf");
+
+  EXPECT_EQ(description.getModelPath(), "/models/robot.urdf");
+  EXPECT_EQ(description.getModelName(), "robot.urdf");
+  EXPECT_EQ(description.getJointNames().size(), 1u);
+}
+
+TEST(RobotDescriptionFromJointList, ReportsAnEmptyModelPathByDefault) {
+  const std::vector<JointDescription> joints{{"joint1", Bounds(-1.0, 1.0), Bounds(-2.0, 2.0), Bounds(-3.0, 3.0)}};
+
+  RobotDescription description(joints);
+
+  EXPECT_TRUE(description.getModelPath().empty());
+}
+
+// ─── MuJoCo XML loading tests ────────────────────────────────────────────────
+
+class RobotDescriptionXmlTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    tempDir_ = std::filesystem::temp_directory_path() / "robot_description_xml_test";
+    std::filesystem::create_directories(tempDir_);
+    xml_path_ = tempDir_ / "test_robot.xml";
+
+    std::ofstream f(xml_path_);
+    f << R"(<mujoco model="test_robot">
+  <compiler angle="radian"/>
+  <worldbody>
+    <body name="link1">
+      <joint name="hip" type="hinge" range="-1.57 1.57" actuatorfrcrange="-100 100"/>
+      <body name="link2">
+        <joint name="knee" range="-2.0 2.0" actuatorfrcrange="-80 80"/>
+        <body name="link3">
+          <joint name="ankle" type="slide" range="-0.5 0.5"/>
+          <body name="toe">
+            <joint name="toe" type="hinge"/>
+            <body name="floating_base">
+              <joint name="base" type="free"/>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+  <actuator>
+    <motor name="hip_motor" joint="hip" ctrlrange="-60 60"/>
+    <position name="knee_servo" joint="knee" kp="100" ctrlrange="-1 1"/>
+    <motor name="ankle_motor" joint="ankle" forcelimited="true" forcerange="-50 50"/>
+  </actuator>
+</mujoco>)";
+  }
+
+  void TearDown() override { std::filesystem::remove_all(tempDir_); }
+
+  std::filesystem::path tempDir_;
+  std::filesystem::path xml_path_;
+};
+
+TEST_F(RobotDescriptionXmlTest, LoadsHingeAndSlideJointsInSceneOrder) {
+  RobotDescription desc(xml_path_.string());
+  // free joint (base) is skipped
+  ASSERT_EQ(desc.getNumJoints(), 4u);
+  EXPECT_EQ(desc.getJointIndex("hip"), 0u);
+  EXPECT_EQ(desc.getJointIndex("knee"), 1u);
+  EXPECT_EQ(desc.getJointIndex("ankle"), 2u);
+  EXPECT_EQ(desc.getJointIndex("toe"), 3u);
+  EXPECT_FALSE(desc.containsJoint("base"));
+}
+
+TEST_F(RobotDescriptionXmlTest, PositionBoundsFromRange) {
+  RobotDescription desc(xml_path_.string());
+  EXPECT_DOUBLE_EQ(desc.getJointDescription("hip").position_bounds.min, -1.57);
+  EXPECT_DOUBLE_EQ(desc.getJointDescription("hip").position_bounds.max, 1.57);
+  EXPECT_DOUBLE_EQ(desc.getJointDescription("ankle").position_bounds.min, -0.5);
+  EXPECT_DOUBLE_EQ(desc.getJointDescription("ankle").position_bounds.max, 0.5);
+  // No range means unlimited.
+  EXPECT_EQ(desc.getJointDescription("toe").position_bounds.max, std::numeric_limits<scalar_t>::infinity());
+}
+
+TEST_F(RobotDescriptionXmlTest, TorqueBoundsAreTheTightestOfAllSources) {
+  RobotDescription desc(xml_path_.string());
+  // actuatorfrcrange (100) narrowed by the direct-torque motor's ctrlrange (60).
+  EXPECT_DOUBLE_EQ(desc.getJointDescription("hip").torque_bounds.min, -60.0);
+  EXPECT_DOUBLE_EQ(desc.getJointDescription("hip").torque_bounds.max, 60.0);
+  // A position servo's ctrlrange is a position, not a torque, so it must not narrow.
+  EXPECT_DOUBLE_EQ(desc.getJointDescription("knee").torque_bounds.min, -80.0);
+  EXPECT_DOUBLE_EQ(desc.getJointDescription("knee").torque_bounds.max, 80.0);
+  // forcerange on the actuator.
+  EXPECT_DOUBLE_EQ(desc.getJointDescription("ankle").torque_bounds.min, -50.0);
+  EXPECT_DOUBLE_EQ(desc.getJointDescription("ankle").torque_bounds.max, 50.0);
+}
+
+TEST_F(RobotDescriptionXmlTest, HingeRangesDefaultToDegrees) {
+  std::filesystem::path deg = tempDir_ / "degrees.xml";
+  std::ofstream f(deg);
+  f << R"(<mujoco><worldbody><body><joint name="j" range="-90 180"/>
+      <body><joint name="s" type="slide" range="-1 1"/></body></body></worldbody></mujoco>)";
+  f.close();
+
+  RobotDescription desc(deg.string());
+  EXPECT_DOUBLE_EQ(desc.getJointDescription("j").position_bounds.min, -std::numbers::pi / 2.0);
+  EXPECT_DOUBLE_EQ(desc.getJointDescription("j").position_bounds.max, std::numbers::pi);
+  // Slide joints are lengths and never converted.
+  EXPECT_DOUBLE_EQ(desc.getJointDescription("s").position_bounds.max, 1.0);
+}
+
+TEST_F(RobotDescriptionXmlTest, GetModelName) {
+  RobotDescription desc(xml_path_.string());
+  EXPECT_EQ(desc.getModelName(), "test_robot.xml");
+}
+
+TEST_F(RobotDescriptionXmlTest, WrongContentForExtension) {
+  // .xml file containing URDF content should throw
+  std::filesystem::path bad = tempDir_ / "bad.xml";
+  std::ofstream f(bad);
+  f << R"(<robot name="foo"><link name="base"/></robot>)";
+  f.close();
+  EXPECT_THROW({ RobotDescription desc(bad.string()); }, std::runtime_error);
+}
+
+// ─── arx XML test resources ──────────────────────────────────────────────────
+
+// Resolves a test resource path for both Bazel (TEST_SRCDIR) and colcon (TEST_RESOURCES_DIR).
+std::string arxResourcePath(const std::string& filename) {
+  const char* srcdir = std::getenv("TEST_SRCDIR");
+  if (srcdir != nullptr) {
+    return std::string(srcdir) + "/_main/motorium/motorium_model/test/resources/" + filename;
+  }
+#ifdef TEST_RESOURCES_DIR
+  return std::string(TEST_RESOURCES_DIR) + "/" + filename;
+#else
+  throw std::runtime_error("Cannot locate test resources: no TEST_SRCDIR and TEST_RESOURCES_DIR not defined");
+#endif
+}
+
+TEST(RobotDescriptionArxXmlTest, ArxArmXml) {
+  RobotDescription desc(arxResourcePath("arx_test.xml"));
+
+  // joint6 is commented out in the XML — expect 5 joints
+  EXPECT_EQ(desc.getNumJoints(), 5u);
+
+  for (const char* name : {"joint1", "joint2", "joint3", "joint4", "joint5"}) {
+    ASSERT_TRUE(desc.containsJoint(name));
+    EXPECT_DOUBLE_EQ(desc.getJointDescription(name).position_bounds.min, -10.0);
+    EXPECT_DOUBLE_EQ(desc.getJointDescription(name).position_bounds.max, 10.0);
+    EXPECT_DOUBLE_EQ(desc.getJointDescription(name).torque_bounds.min, -100.0);
+    EXPECT_DOUBLE_EQ(desc.getJointDescription(name).torque_bounds.max, 100.0);
+  }
+}
+
+// faulty_1: </actuator> replaced by <actuator> — unclosed tag, XML parse error.
+TEST(RobotDescriptionFaultyXmlTest, Faulty1UnclosedActuatorTag) {
+  EXPECT_THROW({ RobotDescription desc(arxResourcePath("arx_test_faulty_1.xml")); }, std::runtime_error);
+}
+
+// faulty_2: name=joint5" (missing opening quote) — malformed attribute, XML parse error.
+TEST(RobotDescriptionFaultyXmlTest, Faulty2MalformedJointNameAttribute) {
+  EXPECT_THROW({ RobotDescription desc(arxResourcePath("arx_test_faulty_2.xml")); }, std::runtime_error);
+}
+
+// faulty_3: <geom .../  (missing >) — truncated self-close tag, XML parse error.
+TEST(RobotDescriptionFaultyXmlTest, Faulty3TruncatedSelfCloseTag) {
+  EXPECT_THROW({ RobotDescription desc(arxResourcePath("arx_test_faulty_3.xml")); }, std::runtime_error);
+}
+
+// faulty_4: empty <worldbody> — no joints found.
+TEST(RobotDescriptionFaultyXmlTest, Faulty4EmptyWorldbody) {
+  EXPECT_THROW({ RobotDescription desc(arxResourcePath("arx_test_faulty_4.xml")); }, std::runtime_error);
 }
 
 }  // namespace motorium::model::testing

@@ -311,23 +311,17 @@ void MujocoSimInterface::updateRobotState(model::RobotState& robot_state) {
   quaternion_t quat_l_to_w = quaternion_t(mj_data_->qpos[3], mj_data_->qpos[4], mj_data_->qpos[5], mj_data_->qpos[6]);
   vector3_t pelvisAngularVelLocal = vector3_t(mj_data_->qvel[3], mj_data_->qvel[4], mj_data_->qvel[5]);
 
-  // Fix later
-  // bool leftFootContact =
-  // (mj_data_->sensordata[left_foot_touch_sensor_addr_] > 0.1); bool
-  // rightFootContact = (mj_data_->sensordata[right_foot_touch_sensor_addr_]
-  // > 0.1);
-  bool leftFootContact = true;
-  bool rightFootContact = true;
-
   robot_state.setRootPositionInWorldFrame(vector3_t(mj_data_->qpos[0], mj_data_->qpos[1], mj_data_->qpos[2]));
   robot_state.setRootRotationLocalToWorldFrame(quat_l_to_w);
   // Rotate the angular velocity from world frame to local frame.
   robot_state.setRootLinearVelocityInLocalFrame(quat_l_to_w.inverse() * vector3_t(mj_data_->qvel[0], mj_data_->qvel[1], mj_data_->qvel[2]));
   robot_state.setRootAngularVelocityInLocalFrame(pelvisAngularVelLocal);
-  robot_state.setContactFlag(0, leftFootContact);
-  robot_state.setContactFlag(1, rightFootContact);
 
   robot_state.setTime(mj_data_->time);  // Todo: should mujoco be the source of time?
+
+  // std::cout << active_robot_joint_indices_[0] << ", " << active_robot_joint_indices_[1] << ", " << active_robot_joint_indices_[2] << ", "
+  //           << active_robot_joint_indices_[3] << ", " << active_robot_joint_indices_[4] << std::endl;
+  // std::cout << "Robot state:" << robot_state.getJointPositions({0, 1, 2, 3, 4, 5}).transpose() << std::endl;
 }
 
 /******************************************************************************************************/

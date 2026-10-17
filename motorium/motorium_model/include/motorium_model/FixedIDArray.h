@@ -30,6 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include <Eigen/Dense>
+#include <algorithm>
 #include <concepts>
 #include <memory>
 #include <span>
@@ -76,12 +77,21 @@ class FixedIDArray {
   explicit FixedIDArray(size_t size)
       : map_elements_(new T[size]), map_view_(map_elements_.get(), size), const_map_view_(map_elements_.get(), size) {
     // Limit map size
-    MT_CHECK(size <= 255) << "Too many elements in ID map. max supported size is 255";
+    MT_CHECK(size <= 255) << "Too many elements in FixedIDArray. max supported size is 255";
 
-    MT_CHECK(size != 0) << "Cannot initialize empty map!";
+    MT_CHECK(size != 0) << "Cannot initialize empty FixedIDArray!";
   }
+
+  // Construct from an existing contiguous container (std::vector, std::array, C
+  // array, ...), inferring the size and copying each element as the initial
+  // value. The input maps positionally: init[i] becomes the value for ID i.
+  // The same constraints as the size constructor apply, but now depend on the
+  // input at runtime: init must hold between 1 and 255 elements.
+  explicit FixedIDArray(std::span<const T> init) : FixedIDArray(init.size()) { std::copy(init.begin(), init.end(), map_view_.begin()); }
   FixedIDArray() = delete;
 
+  // Deleted to prevent dynamic memory allocation outside construction, as well as errors from naive
+  // span copies.
   FixedIDArray(const FixedIDArray<T>& other) = delete;
   FixedIDArray(FixedIDArray<T>&& other) = delete;
   FixedIDArray& operator=(FixedIDArray<T>&& other) = delete;  // Disabled for now. Needs extra care with spans.
@@ -102,8 +112,18 @@ class FixedIDArray {
 
   size_t size() const { return map_view_.size(); }
 
+  // Bounds are checked with MT_DCHECK, so an out-of-range id is a loud abort in debug and test
+  // builds and undefined behaviour in optimized ones. That is deliberate: absl's CHECK is
+  // unconditional, so the failure path (constructing the fatal log message and formatting it) sits
+  // permanently inside at(), making the body too large for clang to inline. Since at() backs
+  // operator[] and every per-joint read in the control loop, that one non-inlinable call forces
+  // live values onto the stack every iteration. Under NDEBUG the DCHECK erases that code and the
+  // accessor collapses into a register-level array index.
+  //
+  // The contract this shifts onto callers: validate the id before indexing when it isn't already
+  // known good. Indices from RobotDescription lookups are checked at construction.
   T& at(size_t element_id) {
-    MT_CHECK(this->contains(element_id)) << std::format(
+    MT_DCHECK(this->contains(element_id)) << std::format(
         "Element with ID {} not found in IDMap (Max ID for this map is: "
         "{})",
         element_id, map_view_.size() - 1);
@@ -112,7 +132,7 @@ class FixedIDArray {
   }
 
   const T& at(size_t element_id) const {
-    MT_CHECK(this->contains(element_id)) << std::format(
+    MT_DCHECK(this->contains(element_id)) << std::format(
         "Element with ID {} not found in IDMap (Max ID for this map is: "
         "{})",
         element_id, map_view_.size() - 1);
@@ -124,11 +144,16 @@ class FixedIDArray {
 
   const T& operator[](size_t element_id) const { return at(element_id); }
 
+  // Extract one scalar per ID (in `range` order) into a caller-owned Eigen vector. The output must
+  // already be sized to the range length; nothing is allocated, so this is safe on the real-time
+  // path. The size contract is verified with MT_DCHECK, which compiles out in optimized builds.
   template <typename Range, typename ScalarType>
-  Eigen::Matrix<ScalarType, Eigen::Dynamic, 1> toEigenVector(const Range& range,
-                                                             IDMapExtractor<T, ScalarType> auto extractor,
-                                                             ScalarType default_value = ScalarType{}) const {
-    Eigen::Matrix<ScalarType, Eigen::Dynamic, 1> vector(std::ranges::size(range));
+  void fillEigenVector(const Range& range,
+                       Eigen::Matrix<ScalarType, Eigen::Dynamic, 1>& vector,
+                       IDMapExtractor<T, ScalarType> auto extractor,
+                       ScalarType default_value = ScalarType{}) const {
+    MT_DCHECK(static_cast<size_t>(vector.size()) == std::ranges::size(range))
+        << "fillEigenVector: output vector must be pre-sized to the range length";
     size_t index = 0;
 
     if constexpr (is_optional_v<T>) {
@@ -150,22 +175,23 @@ class FixedIDArray {
         ++index;
       }
     }
-
-    return vector;
   }
 
   template <typename Range, typename ScalarType>
   void fromEigenVector(const Range& range,
                        const Eigen::Matrix<ScalarType, Eigen::Dynamic, 1>& vector,
                        IDMapInserter<T, ScalarType> auto inserter) {
-    MT_CHECK(std::ranges::size(range) == vector.size());
+    MT_DCHECK(std::ranges::size(range) == static_cast<size_t>(vector.size()));
     size_t index = 0;
 
     for (const auto& id : range) {
       T& val = this->at(id);
 
       if constexpr (is_optional_v<T>) {
-        inserter(val.value(), vector(index));  // Throws std::bad_optional_access if val is nullopt
+        if (!val.has_value()) {
+          val = typename T::value_type{};  // Initialize if nullopt
+        }
+        inserter(*val, vector(index));
       } else {
         inserter(val, vector(index));
       }

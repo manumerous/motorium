@@ -32,26 +32,38 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <motorium_model/JointIDMap.h>
 #include <motorium_model/RobotDescription.h>
 
+#include <algorithm>
+#include <cstddef>
+#include <span>
+#include <vector>
+
 namespace motorium::model {
 
-struct JointState {
-  scalar_t q = 0.0;
-  scalar_t v = 0.0;
-  scalar_t effort = 0.0;
+template <typename SCALAR_T>
+struct JointStateTpl {
+  SCALAR_T q = 0.0;
+  SCALAR_T v = 0.0;
+  SCALAR_T acceleration = 0.0;
+  SCALAR_T effort = 0.0;
 
-  JointState() = default;
+  JointStateTpl() = default;
 };
 
-class RobotJointState : public JointIdMap<JointState> {
+template <typename SCALAR_T>
+class RobotJointStateTpl : public JointIdMap<JointStateTpl<SCALAR_T>, SCALAR_T> {
+  using Base = JointIdMap<JointStateTpl<SCALAR_T>, SCALAR_T>;
+
  public:
-  explicit RobotJointState(const RobotDescription& robot_description) : JointIdMap(robot_description) {}
+  explicit RobotJointStateTpl(std::size_t joint_count) : Base(joint_count) {}
+  explicit RobotJointStateTpl(const RobotDescription& robot_description) : Base(robot_description) {}
 };
 
-struct RootState {
-  vector3_t position_ = vector3_t::Zero();               // In global frame.
-  vector3_t linear_velocity_ = vector3_t::Zero();        // in local frame
-  quaternion_t orientation_ = quaternion_t::Identity();  // Root orientation local to world frame
-  vector3_t angular_velocity_ = vector3_t::Zero();       // In local frame
+template <typename SCALAR_T>
+struct RootStateTpl {
+  VECTOR3_T<SCALAR_T> position_ = VECTOR3_T<SCALAR_T>::Zero();               // In global frame.
+  VECTOR3_T<SCALAR_T> linear_velocity_ = VECTOR3_T<SCALAR_T>::Zero();        // in local frame
+  QUATERNION_T<SCALAR_T> orientation_ = QUATERNION_T<SCALAR_T>::Identity();  // Root orientation local to world frame
+  VECTOR3_T<SCALAR_T> angular_velocity_ = VECTOR3_T<SCALAR_T>::Zero();       // In local frame
 
   void setConfigurationToZero() {
     position_.setZero();
@@ -60,69 +72,95 @@ struct RootState {
     angular_velocity_.setZero();
   }
 };
-class RobotState {
+
+template <typename SCALAR_T>
+class RobotStateTpl {
  public:
-  RobotState(const RobotDescription& robot_description, size_t contactSize = 1);
+  explicit RobotStateTpl(std::size_t joint_count, std::size_t contact_size = 1)
+      : joint_state_map_(joint_count), time_(0.0), contact_flags_(contact_size) {
+    setConfigurationToZero();
+  }
+
+  explicit RobotStateTpl(const RobotDescription& robot_description, std::size_t contact_size = 1)
+      : RobotStateTpl(robot_description.getNumJoints(), contact_size) {}
 
   // orientation of the root joint wrt world frame, corresponds to the passive
   // rotation from local to world R_l_to_w
-  quaternion_t getRootRotationLocalToWorldFrame() const { return root_state_.orientation_; }
-  vector3_t getRootPositionInWorldFrame() const { return root_state_.position_; }
+  QUATERNION_T<SCALAR_T> getRootRotationLocalToWorldFrame() const { return root_state_.orientation_; }
+  VECTOR3_T<SCALAR_T> getRootPositionInWorldFrame() const { return root_state_.position_; }
 
-  vector3_t getRootLinearVelocityInLocalFrame() const { return root_state_.linear_velocity_; }
-  vector3_t getRootAngularVelocityInLocalFrame() const { return root_state_.angular_velocity_; }
+  VECTOR3_T<SCALAR_T> getRootLinearVelocityInLocalFrame() const { return root_state_.linear_velocity_; }
+  VECTOR3_T<SCALAR_T> getRootAngularVelocityInLocalFrame() const { return root_state_.angular_velocity_; }
 
   // orientation of the root joint wrt world frame, corresponds to the passive
   // rotation from local to world R_l_to_w
-  void setRootRotationLocalToWorldFrame(const quaternion_t& orientation) { root_state_.orientation_ = orientation; }
-  void setRootPositionInWorldFrame(const vector3_t& position) { root_state_.position_ = position; }
+  void setRootRotationLocalToWorldFrame(const QUATERNION_T<SCALAR_T>& orientation) { root_state_.orientation_ = orientation; }
+  void setRootPositionInWorldFrame(const VECTOR3_T<SCALAR_T>& position) { root_state_.position_ = position; }
 
-  void setRootLinearVelocityInLocalFrame(const vector3_t& linear_velocity) { root_state_.linear_velocity_ = linear_velocity; }
-  void setRootAngularVelocityInLocalFrame(const vector3_t& angular_velocity) { root_state_.angular_velocity_ = angular_velocity; }
+  void setRootLinearVelocityInLocalFrame(const VECTOR3_T<SCALAR_T>& linear_velocity) { root_state_.linear_velocity_ = linear_velocity; }
+  void setRootAngularVelocityInLocalFrame(const VECTOR3_T<SCALAR_T>& angular_velocity) { root_state_.angular_velocity_ = angular_velocity; }
 
-  void setJointPosition(size_t joint_id, scalar_t q) { joint_state_map_.at(joint_id).q = q; }
+  void setJointPosition(size_t joint_id, SCALAR_T q) { joint_state_map_.at(joint_id).q = q; }
 
-  scalar_t getJointPosition(size_t joint_id) const { return joint_state_map_.at(joint_id).q; }
+  SCALAR_T getJointPosition(size_t joint_id) const { return joint_state_map_.at(joint_id).q; }
 
-  void setJointVelocity(size_t joint_id, scalar_t v) { joint_state_map_.at(joint_id).v = v; }
+  void setJointVelocity(size_t joint_id, SCALAR_T v) { joint_state_map_.at(joint_id).v = v; }
 
-  scalar_t getJointVelocity(size_t joint_id) const { return joint_state_map_.at(joint_id).v; }
+  SCALAR_T getJointVelocity(size_t joint_id) const { return joint_state_map_.at(joint_id).v; }
 
-  void setJointEffort(size_t joint_id, scalar_t effort) { joint_state_map_.at(joint_id).effort = effort; }
+  void setJointAcceleration(size_t joint_id, SCALAR_T acceleration) { joint_state_map_.at(joint_id).acceleration = acceleration; }
 
-  scalar_t getJointEffort(size_t joint_id) const { return joint_state_map_.at(joint_id).effort; }
+  SCALAR_T getJointAcceleration(size_t joint_id) const { return joint_state_map_.at(joint_id).acceleration; }
 
-  //  Get a vector_t of joint positions given a vector of joint IDs
+  void setJointEffort(size_t joint_id, SCALAR_T effort) { joint_state_map_.at(joint_id).effort = effort; }
 
-  vector_t getJointPositions(const std::vector<joint_index_t>& joint_ids) const {
-    return joint_state_map_.toVector(joint_ids, [](const JointState& js) { return js.q; });
+  SCALAR_T getJointEffort(size_t joint_id) const { return joint_state_map_.at(joint_id).effort; }
+
+  //  Fill a pre-sized vector with joint positions in joint_ids order (real-time safe, no allocation)
+  void fillJointPositions(std::span<const joint_index_t> joint_ids, VECTOR_T<SCALAR_T>& out) const {
+    joint_state_map_.fillVector(joint_ids, out, [](const JointStateTpl<SCALAR_T>& js) { return js.q; });
   }
 
-  void setJointPositions(const std::vector<joint_index_t>& joint_ids, const vector_t& positions) {
-    joint_state_map_.fromVector(joint_ids, positions, [](JointState& js, scalar_t q) { js.q = q; });
+  void setJointPositions(std::span<const joint_index_t> joint_ids, const VECTOR_T<SCALAR_T>& positions) {
+    joint_state_map_.fromVector(joint_ids, positions, [](JointStateTpl<SCALAR_T>& js, SCALAR_T q) { js.q = q; });
   }
 
-  //  Get a vector_t of joint velocities given a vector of joint IDs
-  vector_t getJointVelocities(const std::vector<joint_index_t>& joint_ids) const {
-    return joint_state_map_.toVector(joint_ids, [](const JointState& js) { return js.v; });
+  //  Fill a pre-sized vector with joint velocities in joint_ids order (real-time safe, no allocation)
+  void fillJointVelocities(std::span<const joint_index_t> joint_ids, VECTOR_T<SCALAR_T>& out) const {
+    joint_state_map_.fillVector(joint_ids, out, [](const JointStateTpl<SCALAR_T>& js) { return js.v; });
   }
 
-  void setJointVelocities(const std::vector<joint_index_t>& joint_ids, const vector_t& velocities) {
-    joint_state_map_.fromVector(joint_ids, velocities, [](JointState& js, scalar_t v) { js.v = v; });
+  void setJointVelocities(std::span<const joint_index_t> joint_ids, const VECTOR_T<SCALAR_T>& velocities) {
+    joint_state_map_.fromVector(joint_ids, velocities, [](JointStateTpl<SCALAR_T>& js, SCALAR_T v) { js.v = v; });
   }
 
-  //  Get a vector_t of joint efforts given a vector of joint IDs
-  vector_t getJointEfforts(const std::vector<joint_index_t>& joint_ids) const {
-    return joint_state_map_.toVector(joint_ids, [](const JointState& js) { return js.effort; });
+  //  Fill a pre-sized vector with joint accelerations in joint_ids order (real-time safe, no allocation)
+  void fillJointAccelerations(std::span<const joint_index_t> joint_ids, VECTOR_T<SCALAR_T>& out) const {
+    joint_state_map_.fillVector(joint_ids, out, [](const JointStateTpl<SCALAR_T>& js) { return js.acceleration; });
   }
 
-  void setJointEfforts(const std::vector<joint_index_t>& joint_ids, const vector_t& efforts) {
-    joint_state_map_.fromVector(joint_ids, efforts, [](JointState& js, scalar_t effort) { js.effort = effort; });
+  void setJointAccelerations(std::span<const joint_index_t> joint_ids, const VECTOR_T<SCALAR_T>& accelerations) {
+    joint_state_map_.fromVector(joint_ids, accelerations,
+                                [](JointStateTpl<SCALAR_T>& js, SCALAR_T acceleration) { js.acceleration = acceleration; });
   }
 
-  void setJointState(size_t joint_id, const JointState& joint_state) { joint_state_map_.at(joint_id) = joint_state; }
+  //  Fill a pre-sized vector with joint efforts in joint_ids order (real-time safe, no allocation)
+  void fillJointEfforts(std::span<const joint_index_t> joint_ids, VECTOR_T<SCALAR_T>& out) const {
+    joint_state_map_.fillVector(joint_ids, out, [](const JointStateTpl<SCALAR_T>& js) { return js.effort; });
+  }
 
-  const JointState& getJointState(size_t joint_id) const { return joint_state_map_.at(joint_id); }
+  void setJointEfforts(std::span<const joint_index_t> joint_ids, const VECTOR_T<SCALAR_T>& efforts) {
+    joint_state_map_.fromVector(joint_ids, efforts, [](JointStateTpl<SCALAR_T>& js, SCALAR_T effort) { js.effort = effort; });
+  }
+
+  void setJointState(size_t joint_id, const JointStateTpl<SCALAR_T>& joint_state) { joint_state_map_.at(joint_id) = joint_state; }
+
+  const JointStateTpl<SCALAR_T>& getJointState(size_t joint_id) const { return joint_state_map_.at(joint_id); }
+
+  // Number of joints this state was sized for. The joint accessors above only bounds-check with an
+  // MT_DCHECK, so an out-of-range id aborts in debug builds and is undefined behaviour in optimized
+  // ones. Callers that cannot guarantee a valid id need this to bounds-check first.
+  size_t getNumJoints() const { return joint_state_map_.size(); }
 
   bool getContactFlag(size_t index) const { return contact_flags_.at(index); }
 
@@ -130,19 +168,36 @@ class RobotState {
 
   std::vector<bool> getContactFlags() const { return contact_flags_; }
 
-  scalar_t getTime() const { return time_; }
+  SCALAR_T getTime() const { return time_; }
 
-  void setTime(scalar_t time) { time_ = time; }
+  void setTime(SCALAR_T time) { time_ = time; }
 
-  void setConfigurationToZero();
+  void setConfigurationToZero() {
+    root_state_.setConfigurationToZero();
+
+    for (auto& joint : joint_state_map_) {
+      joint.q = 0.0;
+      joint.v = 0.0;
+      joint.acceleration = 0.0;
+      joint.effort = 0.0;
+    }
+
+    std::fill(contact_flags_.begin(), contact_flags_.end(),
+              true);  // Assume robot is in contact
+  }
 
  private:
-  RootState root_state_;
-  RobotJointState joint_state_map_;
+  RootStateTpl<SCALAR_T> root_state_;
+  RobotJointStateTpl<SCALAR_T> joint_state_map_;
 
-  scalar_t time_;
+  SCALAR_T time_;
 
   std::vector<bool> contact_flags_;
 };
+
+using JointState = JointStateTpl<scalar_t>;
+using RootState = RootStateTpl<scalar_t>;
+using RobotJointState = RobotJointStateTpl<scalar_t>;
+using RobotState = RobotStateTpl<scalar_t>;
 
 }  // namespace motorium::model

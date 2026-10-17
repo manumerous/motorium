@@ -16,6 +16,7 @@ find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(URDFDOM REQUIRED urdfdom)
+find_package(pugixml REQUIRED)
 
 find_package(absl REQUIRED)
 
@@ -41,13 +42,13 @@ set(dependencies
 
 add_library(${PROJECT_NAME} SHARED
         src/RobotDescription.cpp
-        src/RobotState.cpp
 )
 ament_target_dependencies(${PROJECT_NAME}
         ${dependencies}
 )
 target_link_libraries(${PROJECT_NAME}
         ${URDFDOM_LIBRARIES}
+        pugixml::pugixml
         absl::flat_hash_map
         absl::log
         absl::check
@@ -70,6 +71,9 @@ if (BUILD_TESTING)
         ${URDFDOM_LIBRARIES}
         ${PROJECT_NAME}
         )
+        target_compile_definitions(test_robot_description PRIVATE
+            TEST_RESOURCES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/resources"
+        )
 
         ament_add_gtest(test_fixed_id_array test/testFixedIDArray.cpp)
         target_link_libraries(test_fixed_id_array
@@ -78,6 +82,11 @@ if (BUILD_TESTING)
 
         ament_add_gtest(test_robot_state test/testRobotState.cpp)
         target_link_libraries(test_robot_state
+            ${PROJECT_NAME}
+        )
+
+        ament_add_gtest(test_robot_joint_feedback_action test/testRobotJointFeedbackAction.cpp)
+        target_link_libraries(test_robot_joint_feedback_action
             ${PROJECT_NAME}
         )
 

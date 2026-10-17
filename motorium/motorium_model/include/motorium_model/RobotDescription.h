@@ -57,9 +57,11 @@ struct JointDescription {
 
 class RobotDescription {
  public:
-  explicit RobotDescription(const std::string& urdfPath);
+  // Accepts a .urdf or a .xml (MuJoCo MJCF) model file. Revolute/prismatic (URDF) and hinge/slide
+  // (MJCF) joints are added; joint indices follow the order the parser encounters them.
+  explicit RobotDescription(const std::string& model_path);
 
-  explicit RobotDescription(const std::vector<JointDescription>& jointDescriptions);
+  explicit RobotDescription(const std::vector<JointDescription>& joint_descriptions, std::string model_path = {});
 
   RobotDescription() = delete;
 
@@ -85,8 +87,9 @@ class RobotDescription {
   };
 
   size_t getNumJoints() const { return joint_name_description_map_.size(); }
-  const std::string& getURDFPath() const { return urdf_path_; }
-  const std::string getURDFName() const;
+  // Empty when constructed from a list of joint descriptions without a model path.
+  const std::string& getModelPath() const { return model_path_; }
+  std::string getModelName() const;
 
   joint_index_t getJointIndex(const std::string& joint_name) const {
     return joint_name_description_map_.at(validateName(joint_name)).first;
@@ -97,6 +100,10 @@ class RobotDescription {
   friend std::ostream& operator<<(std::ostream& os, const RobotDescription& robot);
 
  private:
+  void initializeFromUrdf(const std::string& urdf_path);
+  void initializeFromMujocoXml(const std::string& mujoco_xml_path);
+  void addJoint(const JointDescription& joint_desc);
+
   inline joint_index_t validateIndex(joint_index_t index) const {
     if (index >= joint_indices_.size()) {
       throw std::out_of_range("Joint index " + std::to_string(index) + " out of bounds of RobotDescription.");
@@ -110,7 +117,7 @@ class RobotDescription {
     }
     return name;
   }
-  const std::string urdf_path_;
+  const std::string model_path_;
   absl::flat_hash_map<std::string, std::pair<joint_index_t, JointDescription>> joint_name_description_map_;
 
   std::vector<joint_index_t> joint_indices_;

@@ -32,25 +32,30 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <motorium_model/FixedIDArray.h>
 #include <motorium_model/RobotDescription.h>
 
+#include <cstddef>
 #include <functional>
+#include <limits>
 #include <vector>
 
 namespace motorium::model {
 
-template <typename T>
+template <typename T, typename SCALAR_T = scalar_t>
 class JointIdMap : public FixedIDArray<T> {
  public:
-  explicit JointIdMap(const RobotDescription& robot_description) : FixedIDArray<T>(robot_description.getNumJoints()) {}
+  explicit JointIdMap(std::size_t joint_count) : FixedIDArray<T>(joint_count) {}
+  explicit JointIdMap(const RobotDescription& robot_description) : JointIdMap(robot_description.getNumJoints()) {}
 
   JointIdMap() = delete;
 
-  vector_t toVector(std::span<const joint_index_t> joint_ids,
-                    IDMapExtractor<T, scalar_t> auto value_extractor,
-                    scalar_t default_value = std::numeric_limits<scalar_t>::quiet_NaN()) const {
-    return this->toEigenVector(joint_ids, value_extractor, default_value);
+  // Fill a caller-owned, pre-sized vector (real-time safe, no allocation).
+  void fillVector(std::span<const joint_index_t> joint_ids,
+                  VECTOR_T<SCALAR_T>& out,
+                  IDMapExtractor<T, SCALAR_T> auto value_extractor,
+                  SCALAR_T default_value = std::numeric_limits<SCALAR_T>::quiet_NaN()) const {
+    this->fillEigenVector(joint_ids, out, value_extractor, default_value);
   }
 
-  void fromVector(std::span<const joint_index_t> joint_ids, const vector_t& vector, IDMapInserter<T, scalar_t> auto inserter) {
+  void fromVector(std::span<const joint_index_t> joint_ids, const VECTOR_T<SCALAR_T>& vector, IDMapInserter<T, SCALAR_T> auto inserter) {
     this->fromEigenVector(joint_ids, vector, inserter);
   }
 };
