@@ -55,7 +55,7 @@ namespace motorium::mujoco {
 
 struct MujocoSimConfig {
   std::string scenePath;
-  std::shared_ptr<model::RobotState> initStatePtr_;
+  std::shared_ptr<const model::RobotState> initStatePtr_;
   double dt{0.0005};
   double renderFrequencyHz{60.0};
   bool headless{false};
