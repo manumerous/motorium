@@ -125,6 +125,10 @@ void RobotDescription::initializeFromUrdf(const std::string& urdf_path) {
   std::string urdf_content((std::istreambuf_iterator<char>(urdf_file)), std::istreambuf_iterator<char>());
   urdf_file.close();
 
+  if (urdf_content.find("<robot") == std::string::npos) {
+    throw std::runtime_error("File has .urdf extension but does not contain a <robot> element: " + urdf_path);
+  }
+
   // Parse URDF
   urdf::ModelInterfaceSharedPtr urdf_model = urdf::parseURDF(urdf_content);
   if (!urdf_model) {

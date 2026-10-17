@@ -1,4 +1,4 @@
-load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
 cc_library(
     name = "motorium_core",
@@ -12,5 +12,16 @@ cc_library(
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/log:absl_log",
+        "@com_google_absl//absl/synchronization",
+        "@magic_enum//:magic_enum",
+    ],
+)
+
+cc_test(
+    name = "test_state_machine",
+    srcs = ["test/testStateMachine.cpp"],
+    deps = [
+        ":motorium_core",
+        "@googletest//:gtest_main",
     ],
 )

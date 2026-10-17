@@ -27,10 +27,13 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
-#include "motorium_mujoco/MujocoSimInterface.h"
+#include "motorium_mujoco/MujocoDriver.h"
+#include <absl/synchronization/mutex.h>
 
 #include <cerrno>
+#include <cmath>
 #include <cstring>
+#include <iostream>
 #include <stdexcept>
 
 namespace motorium::mujoco {
@@ -41,38 +44,50 @@ MjState::MjState(const mjModel* mj_model) : data(mj_makeData(mj_model)) {}
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-MujocoSimInterface::MujocoSimInterface(const MujocoSimConfig& config, const model::RobotDescription& robot_description)
-    : DriverBase(robot_description, "mujoco_sim"),
-      config_(config),
-      action_internal_(robot_description),
-      headless_(config.headless),
-      verbose_(config.verbose) {
+MujocoDriver::MujocoDriver(hal::HalKey key, const model::RobotDescription& robot_description, const MujocoSimConfig& config)
+    : DriverBase(key, robot_description, "mujoco_sim"), config_(config), action_internal_(robot_description) {
   last_realtime_ = std::chrono::high_resolution_clock::now();
   const int errstr_sz = 1000;  // Define the size of the error buffer
   char errstr[errstr_sz];      // Declare the error string buffer
 
-  // option 1: parse and compile XML from file
-  mj_model_ = mj_loadXML(config.scenePath.c_str(), NULL, errstr, errstr_sz);
-  if (!mj_model_) {
+  // Load and configure the model via a mutable local pointer; assign to the
+  // const member only after all setup mutations are complete.
+  mjModel* model = mj_loadXML(config.scenePath.c_str(), NULL, errstr, errstr_sz);
+  if (!model) {
     std::cerr << "Could not load MuJoCo model: " << config.scenePath << ". Error: " << std::strerror(errno) << std::endl;
     throw std::runtime_error("Could not load MuJoCo: " + std::string(std::strerror(errno)));
   }
 
-  // Create data
-  mj_data_ = mj_makeData(mj_model_);
-
-  /* initialize random seed: */
-  srand(time(NULL));
-
-  mj_contact_ = mj_data_->contact;
-
-  // assert(num_active_joints_ == neo_definitions::FULL_NEO_JOINT_DIM);
-
-  mj_model_->opt.timestep = config_.dt;
+  model->opt.timestep = config_.dt;
 
   time_step_micro_ = static_cast<size_t>(config_.dt * 1000000);
 
-  if (verbose_) printModelInfo();
+  is_floating_base_ = (model->njnt > 0 && model->jnt_type[0] == mjJNT_FREE);
+
+  if (is_floating_base_) {
+    nq_base_offset_ = 7;
+    nv_base_offset_ = 6;
+  }
+
+  // Add default joint damping
+  for (int i = nv_base_offset_; i < model->nv; ++i) {
+    std::string mjJointName(&model->names[model->name_jntadr[model->dof_jntid[i]]]);
+    if (config_.verbose) {
+      std::cerr << "Adding joint damping to " << mjJointName << " with value " << config_.defaultJointDamping << std::endl;
+    }
+    model->dof_damping[i] = config_.defaultJointDamping;
+  }
+
+  // All mutations done — seal the model as const.
+  mj_model_ = model;
+
+  mj_data_ = mj_makeData(mj_model_);
+  MT_CHECK(mj_data_ != nullptr) << "Could not allocate MuJoCo mjData for scene: " << config.scenePath;
+
+  if (config_.verbose) {
+    std::cerr << "is_floating_base_: " << is_floating_base_ << std::endl;
+    printModelInfo();
+  }
 
   setupJointIndexMaps(robot_description);
 
@@ -86,68 +101,53 @@ MujocoSimInterface::MujocoSimInterface(const MujocoSimConfig& config, const mode
   }
   setSimState(initRobotState);
 
-  // Add default joint damping
-  scalar_t defaultJointDamping = 10.0;
-
-  for (int i = 6; i < mj_model_->nv; ++i) {
-    std::string mjJointName(&mj_model_->names[mj_model_->name_jntadr[mj_model_->dof_jntid[i]]]);
-    std::cerr << "mjJointName: " << mjJointName << std::endl;
-    mj_model_->dof_damping[i] = defaultJointDamping;
-  }
-
-  for (int i = 0; i < mj_model_->nsensor; i++) {
-    std::string sensorName(&mj_model_->names[mj_model_->name_sensoradr[i]]);
-
-    if (sensorName == "right_foot_touch_sensor") {
-      right_foot_touch_sensor_addr_ = mj_model_->sensor_adr[i];
-    }
-    if (sensorName == "left_foot_touch_sensor") {
-      left_foot_touch_sensor_addr_ = mj_model_->sensor_adr[i];
-    }
-    if (sensorName == "right_foot_force_sensor") {
-      right_foot_sensor_addr_ = mj_model_->sensor_adr[i];
-    }
-    if (sensorName == "left_foot_force_sensor") {
-      left_foot_sensor_addr_ = mj_model_->sensor_adr[i];
-    }
-  }
-
-  qpos_init_ = new mjtNum[mj_model_->nq];
-  qvel_init_ = new mjtNum[mj_model_->nv];
+  qpos_init_.resize(mj_model_->nq);
+  qvel_init_.resize(mj_model_->nv);
 
   // Safe init state for resets
-  memcpy(qpos_init_, mj_data_->qpos, mj_model_->nq * sizeof(mjtNum));
-  memcpy(qvel_init_, mj_data_->qvel, mj_model_->nv * sizeof(mjtNum));
+  memcpy(qpos_init_.data(), mj_data_->qpos, mj_model_->nq * sizeof(mjtNum));
+  memcpy(qvel_init_.data(), mj_data_->qvel, mj_model_->nv * sizeof(mjtNum));
+
+  this->requestTransitionTo(hal::DriverState::READY);
 }
 
 /******************************************************************************************************/
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-MujocoSimInterface::~MujocoSimInterface() {
-  stop();
+MujocoDriver::~MujocoDriver() {
+  stopImpl();
+  absl::MutexLock lock(&mj_mutex_);
   mj_deleteData(mj_data_);
-  mj_deleteModel(mj_model_);
-  delete[] qpos_init_;
-  delete[] qvel_init_;
+  mj_deleteModel(const_cast<mjModel*>(mj_model_));
 }
 
 /******************************************************************************************************/
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoSimInterface::reset() {
-  memcpy(mj_data_->qpos, qpos_init_, mj_model_->nq * sizeof(mjtNum));
-  memcpy(mj_data_->qvel, qvel_init_, mj_model_->nv * sizeof(mjtNum));
+void MujocoDriver::resetImpl() {
+  absl::MutexLock lock(&mj_mutex_);
+  memcpy(mj_data_->qpos, qpos_init_.data(), mj_model_->nq * sizeof(mjtNum));
+  memcpy(mj_data_->qvel, qvel_init_.data(), mj_model_->nv * sizeof(mjtNum));
+  for (size_t i = 0; i < num_actuators_; ++i) {
+    mj_data_->ctrl[i] = 0.0;
+  }
+  mj_step(mj_model_, mj_data_);
+  simFps_.reset();
+  metrics_.reset();
+  updateMetrics();
+  // Sleep to let controller update and adjust;
+  std::this_thread::sleep_until(std::chrono::steady_clock::now() + std::chrono::microseconds(100000));
 }
 
 /******************************************************************************************************/
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoSimInterface::copyMjState(MjState& state) const {
+void MujocoDriver::copyMjState(MjState& state) const {
   {
-    std::lock_guard<std::mutex> guard(mj_mutex_);
+    absl::ReaderMutexLock lock(&mj_mutex_);
 
     state.timestamp = mj_data_->time;
     mj_copyData(state.data, mj_model_, mj_data_);
@@ -160,13 +160,16 @@ void MujocoSimInterface::copyMjState(MjState& state) const {
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoSimInterface::setupJointIndexMaps(const model::RobotDescription& robot_description) {
+void MujocoDriver::setupJointIndexMaps(const model::RobotDescription& robot_description) {
+  std::vector<std::string> active_joint_names;
+
+  const int start_joint_index = is_floating_base_ ? 1 : 0;
   // Mujoco to Robot joints
-  for (int i = 1; i < mj_model_->njnt; ++i) {
+  for (int i = start_joint_index; i < mj_model_->njnt; ++i) {
     // Get the joint name
     const std::string jointName(&mj_model_->names[mj_model_->name_jntadr[i]]);
     if (robot_description.containsJoint(jointName)) {
-      active_joint_names_.emplace_back(jointName);
+      active_joint_names.emplace_back(jointName);
     } else {
       std::cerr << "WARNING: Joint contained in mujoco xml not exposed to "
                    "RobotHWInterface: "
@@ -174,14 +177,17 @@ void MujocoSimInterface::setupJointIndexMaps(const model::RobotDescription& robo
     }
   }
 
-  active_robot_joint_indices_ = robot_description.getJointIndices(active_joint_names_);
+  active_robot_joint_indices_ = robot_description.getJointIndices(active_joint_names);
 
   // Mujoco to robot actuators
+
+  std::vector<std::string> active_actuator_names;
+
   for (int i = 0; i < mj_model_->nu; ++i) {
     const std::string actuator_name = mj_id2name(mj_model_, mjOBJ_ACTUATOR, i);
 
     if (robot_description.containsJoint(actuator_name)) {
-      active_actuator_names_.emplace_back(actuator_name);
+      active_actuator_names.emplace_back(actuator_name);
     } else {
       std::cerr << "WARNING: Actuator contained in mujoco xml not be commanded "
                    "through RobotHWInterface: "
@@ -189,11 +195,11 @@ void MujocoSimInterface::setupJointIndexMaps(const model::RobotDescription& robo
     }
   }
 
-  active_robot_actuator_indices_ = robot_description.getJointIndices(active_actuator_names_);
+  active_robot_actuator_indices_ = robot_description.getJointIndices(active_actuator_names);
 
   num_active_joints_ = active_robot_joint_indices_.size();
   num_actuators_ = active_robot_actuator_indices_.size();
-  if (verbose_) {
+  if (config_.verbose) {
     std::cerr << "Initialized " << num_active_joints_ << " active Joints" << std::endl;
     std::cerr << "Initialized " << num_actuators_ << " active Actuators" << std::endl;
   }
@@ -203,7 +209,7 @@ void MujocoSimInterface::setupJointIndexMaps(const model::RobotDescription& robo
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoSimInterface::printModelInfo() {
+void MujocoDriver::printModelInfo() {
   std::cerr << "time_step_micro_: " << time_step_micro_ << std::endl;
 
   std::cerr << "njnt: " << mj_model_->njnt << std::endl;
@@ -214,41 +220,57 @@ void MujocoSimInterface::printModelInfo() {
   for (int i = 0; i < mj_model_->nbody; ++i) {
     std::string bodyName(&mj_model_->names[mj_model_->name_bodyadr[i]]);
     std::cerr << "Body " << i << ": " << bodyName << std::endl;
-
-    std::cerr << "  Position: ";
-    for (size_t j = 0; j < 3; ++j) {
-      std::cerr << mj_data_->xpos[i * 3 + j] << " ";
-    }
-    std::cerr << std::endl;
-
-    // Print orientation quaternion
-    std::cerr << "  Orientation (Quaternion): ";
-    for (size_t j = 0; j < 4; ++j) {
-      std::cerr << mj_data_->xquat[i * 4 + j] << " ";
-    }
-    std::cerr << std::endl;
   }
 
-  std::string jointName(&mj_model_->names[mj_model_->name_jntadr[0]]);
+  // Map joint type to (nq, nv) dimensions
+  auto jointDims = [](int type) -> std::pair<int, int> {
+    switch (type) {
+      case mjJNT_FREE:
+        return {7, 6};
+      case mjJNT_BALL:
+        return {4, 3};
+      case mjJNT_SLIDE:
+        return {1, 1};
+      case mjJNT_HINGE:
+        return {1, 1};
+      default:
+        return {0, 0};
+    }
+  };
 
-  // Print the information
-  std::cerr << "Joint Name: " << jointName << std::endl;
-  std::cerr << "Position: " << mj_data_->qpos[0] << " " << mj_data_->qpos[1] << " " << mj_data_->qpos[2] << " " << mj_data_->qpos[3] << " "
-            << mj_data_->qpos[4] << " " << mj_data_->qpos[5] << " " << mj_data_->qpos[6] << std::endl;
-  std::cerr << "Velocity: " << mj_data_->qvel[0] << " " << mj_data_->qvel[1] << " " << mj_data_->qvel[2] << " " << mj_data_->qvel[3] << " "
-            << mj_data_->qvel[4] << " " << mj_data_->qvel[5] << std::endl;
+  auto jointTypeName = [](int type) -> std::string {
+    switch (type) {
+      case mjJNT_FREE:
+        return "FREE";
+      case mjJNT_BALL:
+        return "BALL";
+      case mjJNT_SLIDE:
+        return "SLIDE";
+      case mjJNT_HINGE:
+        return "HINGE";
+      default:
+        return "UNKNOWN";
+    }
+  };
 
-  // Print joint names, positions, and velocities
-  for (int i = 1; i < mj_model_->njnt; ++i) {
-    // Get the joint name
+  absl::ReaderMutexLock lock(&mj_mutex_);
+
+  for (int i = 0; i < mj_model_->njnt; ++i) {
     std::string jointName(&mj_model_->names[mj_model_->name_jntadr[i]]);
+    int type = mj_model_->jnt_type[i];
+    int qpos_start = mj_model_->jnt_qposadr[i];
+    int qvel_start = mj_model_->jnt_dofadr[i];
+    auto [nq, nv] = jointDims(type);
 
-    // Get the joint position and velocity
-    double jointPos = mj_data_->qpos[i + 6];
-    double jointVel = mj_data_->qvel[i + 5];
+    std::cerr << "Joint[" << i << "] Name: " << jointName << ", Type: " << jointTypeName(type) << "\n";
 
-    // Print the information
-    std::cerr << "Joint Name: " << jointName << ", Position: " << jointPos << ", Velocity: " << jointVel << std::endl;
+    std::cerr << "  Position (" << nq << "):";
+    for (int q = 0; q < nq; ++q) std::cerr << " " << mj_data_->qpos[qpos_start + q];
+    std::cerr << "\n";
+
+    std::cerr << "  Velocity (" << nv << "):";
+    for (int v = 0; v < nv; ++v) std::cerr << " " << mj_data_->qvel[qvel_start + v];
+    std::cerr << "\n";
   }
 
   // Calculate total mass
@@ -263,35 +285,40 @@ void MujocoSimInterface::printModelInfo() {
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoSimInterface::setSimState(const model::RobotState& robot_state) {
+void MujocoDriver::setSimState(const model::RobotState& robot_state) {
   // Root Pose
-  vector3_t rootPosition = robot_state.getRootPositionInWorldFrame();
-  quaternion_t quat_l_to_w = robot_state.getRootRotationLocalToWorldFrame();
 
-  mj_data_->qpos[0] = rootPosition[0];
-  mj_data_->qpos[1] = rootPosition[1];
-  mj_data_->qpos[2] = rootPosition[2];
-  mj_data_->qpos[3] = quat_l_to_w.w();
-  mj_data_->qpos[4] = quat_l_to_w.x();
-  mj_data_->qpos[5] = quat_l_to_w.y();
-  mj_data_->qpos[6] = quat_l_to_w.z();
+  absl::MutexLock lock(&mj_mutex_);
 
-  // Root Velocity
+  if (is_floating_base_) {
+    vector3_t rootPosition = robot_state.getRootPositionInWorldFrame();
+    quaternion_t quat_l_to_w = robot_state.getRootRotationLocalToWorldFrame();
 
-  vector3_t root_vel_lin_world_frame = quat_l_to_w * robot_state.getRootLinearVelocityInLocalFrame();
-  vector3_t root_vel_ang_local_frame = robot_state.getRootAngularVelocityInLocalFrame();
+    mj_data_->qpos[0] = rootPosition[0];
+    mj_data_->qpos[1] = rootPosition[1];
+    mj_data_->qpos[2] = rootPosition[2];
+    mj_data_->qpos[3] = quat_l_to_w.w();
+    mj_data_->qpos[4] = quat_l_to_w.x();
+    mj_data_->qpos[5] = quat_l_to_w.y();
+    mj_data_->qpos[6] = quat_l_to_w.z();
 
-  mj_data_->qvel[0] = root_vel_lin_world_frame[0];
-  mj_data_->qvel[1] = root_vel_lin_world_frame[1];
-  mj_data_->qvel[2] = root_vel_lin_world_frame[2];
-  mj_data_->qvel[3] = root_vel_ang_local_frame[0];
-  mj_data_->qvel[4] = root_vel_ang_local_frame[1];
-  mj_data_->qvel[5] = root_vel_ang_local_frame[2];
+    // Root Velocity
+
+    vector3_t root_vel_lin_world_frame = quat_l_to_w * robot_state.getRootLinearVelocityInLocalFrame();
+    vector3_t root_vel_ang_local_frame = robot_state.getRootAngularVelocityInLocalFrame();
+
+    mj_data_->qvel[0] = root_vel_lin_world_frame[0];
+    mj_data_->qvel[1] = root_vel_lin_world_frame[1];
+    mj_data_->qvel[2] = root_vel_lin_world_frame[2];
+    mj_data_->qvel[3] = root_vel_ang_local_frame[0];
+    mj_data_->qvel[4] = root_vel_ang_local_frame[1];
+    mj_data_->qvel[5] = root_vel_ang_local_frame[2];
+  }
 
   // Joint State
   for (size_t i = 0; i < num_active_joints_; ++i) {
-    mj_data_->qpos[i + 7] = robot_state.getJointPosition(active_robot_joint_indices_[i]);
-    mj_data_->qvel[i + 6] = robot_state.getJointVelocity(active_robot_joint_indices_[i]);
+    mj_data_->qpos[i + nq_base_offset_] = robot_state.getJointPosition(active_robot_joint_indices_[i]);
+    mj_data_->qvel[i + nv_base_offset_] = robot_state.getJointVelocity(active_robot_joint_indices_[i]);
   }
 }
 
@@ -299,23 +326,38 @@ void MujocoSimInterface::setSimState(const model::RobotState& robot_state) {
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoSimInterface::updateRobotState(model::RobotState& robot_state) {
-  std::lock_guard<std::mutex> lock(mj_mutex_);
+void MujocoDriver::updateImpl(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) {
+  {
+    absl::MutexLock lock(&action_mutex_);
+    action_internal_ = action;
+  }
+  absl::ReaderMutexLock lock(&mj_mutex_);
   // Update mujoco joint angles
   for (size_t i = 0; i < num_active_joints_; ++i) {
-    robot_state.setJointPosition(active_robot_joint_indices_[i], mj_data_->qpos[i + 7]);
-    robot_state.setJointVelocity(active_robot_joint_indices_[i], mj_data_->qvel[i + 6]);
+    robot_state.setJointPosition(active_robot_joint_indices_[i], mj_data_->qpos[i + nq_base_offset_]);
+    robot_state.setJointVelocity(active_robot_joint_indices_[i], mj_data_->qvel[i + nv_base_offset_]);
   }
 
-  // Initialize in order w, x,y ,z
-  quaternion_t quat_l_to_w = quaternion_t(mj_data_->qpos[3], mj_data_->qpos[4], mj_data_->qpos[5], mj_data_->qpos[6]);
-  vector3_t pelvisAngularVelLocal = vector3_t(mj_data_->qvel[3], mj_data_->qvel[4], mj_data_->qvel[5]);
+  // Body 0 is "world", body 1 is the first real link.
+  constexpr int kRootBodyId = 1;
+  vector3_t rootPos(mj_data_->xpos[kRootBodyId * 3 + 0], mj_data_->xpos[kRootBodyId * 3 + 1], mj_data_->xpos[kRootBodyId * 3 + 2]);
+  // xquat is stored as (w, x, y, z)
+  quaternion_t quat_l_to_w(mj_data_->xquat[kRootBodyId * 4 + 0], mj_data_->xquat[kRootBodyId * 4 + 1], mj_data_->xquat[kRootBodyId * 4 + 2],
+                           mj_data_->xquat[kRootBodyId * 4 + 3]);
 
-  robot_state.setRootPositionInWorldFrame(vector3_t(mj_data_->qpos[0], mj_data_->qpos[1], mj_data_->qpos[2]));
+  robot_state.setRootPositionInWorldFrame(rootPos);
   robot_state.setRootRotationLocalToWorldFrame(quat_l_to_w);
-  // Rotate the angular velocity from world frame to local frame.
-  robot_state.setRootLinearVelocityInLocalFrame(quat_l_to_w.inverse() * vector3_t(mj_data_->qvel[0], mj_data_->qvel[1], mj_data_->qvel[2]));
-  robot_state.setRootAngularVelocityInLocalFrame(pelvisAngularVelLocal);
+
+  if (is_floating_base_) {
+    vector3_t angVelLocal = vector3_t(mj_data_->qvel[3], mj_data_->qvel[4], mj_data_->qvel[5]);
+    robot_state.setRootLinearVelocityInLocalFrame(quat_l_to_w.inverse() *
+                                                  vector3_t(mj_data_->qvel[0], mj_data_->qvel[1], mj_data_->qvel[2]));
+    robot_state.setRootAngularVelocityInLocalFrame(angVelLocal);
+  } else {
+    // Fixed base has 0 velocity.
+    robot_state.setRootLinearVelocityInLocalFrame(vector3_t::Zero());
+    robot_state.setRootAngularVelocityInLocalFrame(vector3_t::Zero());
+  }
 
   robot_state.setTime(mj_data_->time);  // Todo: should mujoco be the source of time?
 }
@@ -324,7 +366,7 @@ void MujocoSimInterface::updateRobotState(model::RobotState& robot_state) {
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoSimInterface::updateMetrics() {
+void MujocoDriver::updateMetrics() {
   simFps_.tick();
 
   metrics_.fps_sim = simFps_.fps();
@@ -337,51 +379,36 @@ void MujocoSimInterface::updateMetrics() {
   metrics_.drift_cumulative += metrics_.drift_tick;
 
   metrics_.rtf_tick = config_.dt / realElapsedTime;
+
+  drift_mean_sq_ = (1.0 - config_.dt) * drift_mean_sq_ + config_.dt * (metrics_.drift_tick * metrics_.drift_tick);
+  metrics_.drift_rolling_rmse = std::sqrt(drift_mean_sq_);
 }
 
 /******************************************************************************************************/
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoSimInterface::setJointFeedbackAction(const model::RobotJointFeedbackAction& action) {
-  std::lock_guard<std::mutex> lock(action_mutex_);
-  action_internal_ = action;
-}
-
-void MujocoSimInterface::updateThreadSafeRobotState() {
-  // Placeholder: thread-safe state can be updated here if needed (e.g. for copyMjState consumers).
-}
-
-void MujocoSimInterface::simulationStep() {
+void MujocoDriver::simulationStep() {
   {
-    std::lock_guard<std::mutex> lock(action_mutex_);
+    absl::MutexLock action_lock(&action_mutex_);
+    absl::MutexLock mj_lock(&mj_mutex_);
 
     for (size_t i = 0; i < num_actuators_; ++i) {
       joint_index_t idx = active_robot_actuator_indices_[i];
       const motorium::model::JointFeedbackAction& action = action_internal_.at(idx);
-      mj_data_->ctrl[i] = action.getTotalFeedbackTorque(mj_data_->qpos[i + 7], mj_data_->qvel[i + 6]);
+      mj_data_->ctrl[i] = action.getTotalFeedbackTorque(mj_data_->qpos[i + nq_base_offset_], mj_data_->qvel[i + nv_base_offset_]);
+      // std::cerr << "joint" << idx << " pos: " << mj_data_->qpos[i + 7] << std::endl;
+      // std::cerr << "joint" << idx << " ctrl: " << mj_data_->ctrl[i] << std::endl;
     }
   }
   {
-    std::lock_guard<std::mutex> lock(mj_mutex_);
+    absl::MutexLock lock(&mj_mutex_);
     mj_step(mj_model_, mj_data_);
-    updateThreadSafeRobotState();
     updateMetrics();
-
-    // Auto reset logic.
-    if (false) {
-      reset();
-      for (size_t i = 0; i < num_actuators_; ++i) {
-        mj_data_->ctrl[i] = 0.0;
-      }
-      mj_step(mj_model_, mj_data_);
-      updateThreadSafeRobotState();
-      simFps_.reset();
-      metrics_.reset();
-      updateMetrics();
-      // Sleep to let controller update and adjust;
-      std::this_thread::sleep_until(std::chrono::steady_clock::now() + std::chrono::microseconds(1000000));
-    }
+  }
+  // Auto reset logic.
+  if (reset_requested_) {
+    resetImpl();
   }
 }
 
@@ -389,15 +416,18 @@ void MujocoSimInterface::simulationStep() {
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoSimInterface::simulationLoop(std::stop_token st) {
+void MujocoDriver::simulationLoop(std::stop_token st) {
   simFps_.reset();
   metrics_.reset();
+  drift_mean_sq_ = 0.0;
+  last_realtime_ = std::chrono::high_resolution_clock::now();
   auto nextWakeup = std::chrono::steady_clock::now();
   while (!st.stop_requested()) {
     simulationStep();
 
-    // Sleep in case sim loop is faster than specified sim rate.
-    nextWakeup += std::chrono::microseconds(time_step_micro_);
+    // Sleep in case sim loop is faster than specified sim rate. adding cummulative drift as a feedback termto prevent it's accumulation.
+    nextWakeup += std::chrono::microseconds(time_step_micro_) +
+                  std::chrono::microseconds(static_cast<long long>(metrics_.drift_cumulative * 1e5));  // Integrator gain.
     std::this_thread::sleep_until(nextWakeup);
   }
 }
@@ -406,32 +436,41 @@ void MujocoSimInterface::simulationLoop(std::stop_token st) {
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoSimInterface::initSim() {
+void MujocoDriver::initSim() {
   simulationStep();
   sim_initialized_ = true;
 
-  if (!headless_) {
+  if (!config_.headless) {
     renderer_.reset(new MujocoRenderer(this));
     renderer_->launchRenderThread();
   }
 }
 
-void MujocoSimInterface::start() {
-  if (!sim_initialized_) initSim();
-  if (simulate_thread_.joinable()) {
+void MujocoDriver::startImpl() {
+  if (getState() != hal::DriverState::READY || simulate_thread_.joinable()) {
     std::cerr << "WARNING: Tried to start simulation thread, but it is already running." << std::endl;
     return;
   }
+
+  if (!sim_initialized_) initSim();
+
+  this->requestTransitionTo(hal::DriverState::RUNNING);
   simulate_thread_ = std::jthread([this](std::stop_token st) { this->simulationLoop(st); });
 }
 
-void MujocoSimInterface::stop() {
+void MujocoDriver::stopImpl() {
+  if (getState() != hal::DriverState::RUNNING) {
+    return;
+  }
+
+  this->requestTransitionTo(hal::DriverState::STOPPING);
   if (simulate_thread_.joinable()) {
     simulate_thread_.request_stop();
     if (simulate_thread_.get_id() != std::this_thread::get_id()) {
       simulate_thread_.join();
     }
   }
+  this->requestTransitionTo(hal::DriverState::READY);
 }
 
 }  // namespace motorium::mujoco

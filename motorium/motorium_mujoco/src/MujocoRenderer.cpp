@@ -43,7 +43,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <thread>
 
-#include "motorium_mujoco/MujocoSimInterface.h"
+#include "motorium_mujoco/MujocoDriver.h"
 
 namespace motorium::mujoco {
 
@@ -155,7 +155,7 @@ void MujocoRenderer::scroll(GLFWwindow* window, double, double yoffset) {
 
 //// Public
 
-MujocoRenderer::MujocoRenderer(const MujocoSimInterface* simInterface)
+MujocoRenderer::MujocoRenderer(const MujocoDriver* simInterface)
     : simInterface_(simInterface),
       simState_(simInterface_->getModel()),
       time_step_micro_(1e6 / simInterface_->getConfig().renderFrequencyHz) {
@@ -207,6 +207,7 @@ void renderMetrics(const mjrContext* con, const mjrRect& viewport, const MjState
   // Real-time tracking
   metrics << "RTF: " << std::fixed << std::setprecision(3) << state.metrics.rtf_tick << "\n";
   metrics << "Drift[ms]: " << std::fixed << std::setprecision(3) << state.metrics.drift_tick * 1e3 << "\n";
+  metrics << "Rolling Drift RMSE[ms]: " << std::fixed << std::setprecision(3) << state.metrics.drift_rolling_rmse * 1e3 << "\n";
   metrics << "Cummulative Drift[ms]: " << std::fixed << std::setprecision(3) << state.metrics.drift_cumulative * 1e3;
 
   mjr_overlay(mjFONT_NORMAL, mjGRID_TOPLEFT, viewport, metrics.str().c_str(), nullptr, con);
@@ -293,7 +294,6 @@ void MujocoRenderer::renderLoop() {
 
     // Copy physics data to render data
     simInterface_->copyMjState(simState_);
-    mj_forward(simInterface_->getModel(), simState_.data);
 
     mjv_updateScene(simInterface_->getModel(), simState_.data, &mujoco_options_, nullptr, nullptr, mjCAT_ALL, &mujoco_scene_);
 

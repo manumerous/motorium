@@ -7,14 +7,21 @@ include(ExternalProject)
 
 # Set the Mujoco version and download details
 set(MUJOCO_VERSION "3.3.4") 
-set(MUJOCO_DOWNLOAD_URL "https://github.com/google-deepmind/mujoco/releases/download/${MUJOCO_VERSION}/mujoco-${MUJOCO_VERSION}-linux-x86_64.tar.gz")
-set(MUJOCO_TARBALL "${CMAKE_BINARY_DIR}/mujoco_prebuilt/src/mujoco-${MUJOCO_VERSION}-linux-x86_64.tar.gz")
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
+  set(MUJOCO_ARCH "aarch64")
+  set(MUJOCO_SHA256 "34bd20af0fa2cf28f38bfd28384d034ebaa17f6558d2fa8db398217c40bf260b")
+else()
+  set(MUJOCO_ARCH "x86_64")
+  set(MUJOCO_SHA256 "ecf1a17459a342badf2b4f32dd4677a6a0e5fd393c5143993eb3e81b8e44609b")
+endif()
+set(MUJOCO_DOWNLOAD_URL "https://github.com/google-deepmind/mujoco/releases/download/${MUJOCO_VERSION}/mujoco-${MUJOCO_VERSION}-linux-${MUJOCO_ARCH}.tar.gz")
+set(MUJOCO_TARBALL "${CMAKE_BINARY_DIR}/mujoco_prebuilt/src/mujoco-${MUJOCO_VERSION}-linux-${MUJOCO_ARCH}.tar.gz")
 set(MUJOCO_INSTALL_DIR ${CMAKE_BINARY_DIR}/mujoco) 
 
 # Add Mujoco as an external project
 ExternalProject_Add(mujoco_prebuilt
     URL ${MUJOCO_DOWNLOAD_URL}
-    URL_HASH SHA256=ecf1a17459a342badf2b4f32dd4677a6a0e5fd393c5143993eb3e81b8e44609b
+    URL_HASH SHA256=${MUJOCO_SHA256}
     PREFIX ${CMAKE_BINARY_DIR}/mujoco_prebuilt
     INSTALL_DIR ${MUJOCO_INSTALL_DIR}
     CONFIGURE_COMMAND ""

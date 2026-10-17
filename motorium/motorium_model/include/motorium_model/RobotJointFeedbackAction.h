@@ -78,7 +78,7 @@ struct JointFeedbackActionTpl {
   SCALAR_T kd = 0;
   SCALAR_T feed_forward_effort = 0;
 
-  SCALAR_T getTotalFeedbackTorque(SCALAR_T q, SCALAR_T qd) const { return (kp * (q_des - q) + kd * (v_des - qd) + feed_forward_effort); }
+  SCALAR_T getTotalFeedbackTorque(SCALAR_T q, SCALAR_T v) const { return (kp * (q_des - q) + kd * (v_des - v) + feed_forward_effort); }
 
   // Returns a scaled copy so the original is not accidentally modified. Setpoints are kept, only
   // gains and feed forward effort are scaled.
@@ -112,8 +112,8 @@ struct JointAccumulactionTpl {
   // Clears all accumulated terms back to zero.
   void reset() { *this = JointAccumulactionTpl{}; }
 
-  SCALAR_T getTotalFeedbackTorque(SCALAR_T q, SCALAR_T qd) const {
-    return (q_des_feed_forward - kp_feedback * q + v_des_feed_forward - kd_feedback * qd + feed_forward_effort);
+  SCALAR_T getTotalFeedbackTorque(SCALAR_T q, SCALAR_T v) const {
+    return (q_des_feed_forward - kp_feedback * q + v_des_feed_forward - kd_feedback * v + feed_forward_effort);
   }
 
   // Recovers the (kp, q_des) form the motor firmware and the simulator drivers consume, by

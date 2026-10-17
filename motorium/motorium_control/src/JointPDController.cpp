@@ -33,7 +33,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace motorium::control {
 
-void JointPDControllerConfig::validate() const {
+template <bool IsImplicit>
+JointPDController<IsImplicit>::Config::Config(std::vector<std::string> names, std::vector<double> kp_vals, std::vector<double> kd_vals)
+    : joint_names(std::move(names)),
+      kp(Eigen::Map<const vector_t>(kp_vals.data(), static_cast<Eigen::Index>(kp_vals.size()))),
+      kd(Eigen::Map<const vector_t>(kd_vals.data(), static_cast<Eigen::Index>(kd_vals.size()))) {}
+
+template <bool IsImplicit>
+void JointPDController<IsImplicit>::Config::validate() const {
   MT_CHECK(!joint_names.empty()) << "[JointPDController] Configuration error: Joint names list is empty.";
   MT_CHECK(static_cast<long>(joint_names.size()) == kp.size())
       << "[JointPDController] Configuration error: Size mismatch between joint_names and kp.";
@@ -42,7 +49,7 @@ void JointPDControllerConfig::validate() const {
 }
 
 template <bool IsImplicit>
-JointPDController<IsImplicit>::JointPDController(const model::RobotDescription& robot_description, const JointPDControllerConfig& config)
+JointPDController<IsImplicit>::JointPDController(const model::RobotDescription& robot_description, const Config& config)
     : ControllerBase(robot_description), config_(config), joint_indices_(robot_description.getJointIndices(config_.joint_names)) {
   config_.validate();
 }

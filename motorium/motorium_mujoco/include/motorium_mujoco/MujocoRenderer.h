@@ -44,13 +44,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace motorium::mujoco {
 
-class MujocoSimInterface;
+class MujocoDriver;
 
-class MjState;
+struct MjState;
 
 class MujocoRenderer {
  public:
-  MujocoRenderer(const MujocoSimInterface* simInterface);
+  MujocoRenderer(const MujocoDriver* simInterface);
 
   ~MujocoRenderer();
 
@@ -91,7 +91,7 @@ class MujocoRenderer {
   // Cleanup must occur in same thread that owns the opengl context.
   void cleanup();
 
-  const MujocoSimInterface* simInterface_;
+  const MujocoDriver* simInterface_;
   MjState simState_;
 
   std::thread render_thread_;

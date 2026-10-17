@@ -16,7 +16,7 @@ find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(URDFDOM REQUIRED urdfdom)
-find_package(pugixml REQUIRED)
+pkg_check_modules(PUGIXML REQUIRED pugixml)
 
 find_package(absl REQUIRED)
 
@@ -48,7 +48,7 @@ ament_target_dependencies(${PROJECT_NAME}
 )
 target_link_libraries(${PROJECT_NAME}
         ${URDFDOM_LIBRARIES}
-        pugixml::pugixml
+        ${PUGIXML_LIBRARIES}
         absl::flat_hash_map
         absl::log
         absl::check
@@ -97,6 +97,7 @@ endif ()
 #############
 
 install(TARGETS ${PROJECT_NAME}
+        EXPORT export_${PROJECT_NAME}
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin
@@ -110,6 +111,7 @@ install(DIRECTORY include/${PROJECT_NAME}
 #   DESTINATION share/${PROJECT_NAME}
 # )
 
+ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_include_directories(include)
 ament_export_libraries(${PROJECT_NAME})
 ament_export_dependencies(${dependencies})

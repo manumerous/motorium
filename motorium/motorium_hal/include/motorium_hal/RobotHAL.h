@@ -29,52 +29,60 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
+#include <memory>
+#include <string>
+#include <vector>
+
+#include <motorium_core/Check.h>
 #include <motorium_hal/DriverBase.h>
+#include <motorium_model/RobotDescription.h>
 #include <motorium_model/RobotJointFeedbackAction.h>
 #include <motorium_model/RobotState.h>
-
-#include "motorium_model/RobotDescription.h"
 
 namespace motorium::hal {
 
 // Unified interface to interact with real/simulated robot hardware.
-
-class RobotHardware {
+// getState() returns the lowest (most degraded) DriverState across all drivers.
+class RobotHAL {
  public:
-  RobotHardware(const std::string& urdfPath) : robot_description_(urdfPath){};
+  // Load description from a MuJoCo/URDF model file.
+  explicit RobotHAL(const std::string& model_path);
 
-  const model::RobotDescription& getRobotDescription() const { return robot_description_; }
+  // Take ownership of an existing description (e.g. from tests).
+  explicit RobotHAL(std::unique_ptr<model::RobotDescription> description);
 
-  // Consider moving this to the constructor.
-  void addDriver(std::shared_ptr<hal::DriverBase> driver) { drivers_.push_back(driver); }
+  RobotHAL(const RobotHAL&) = delete;
+  RobotHAL& operator=(const RobotHAL&) = delete;
+  RobotHAL(RobotHAL&&) = delete;
+  RobotHAL& operator=(RobotHAL&&) = delete;
 
-  void updateRobotState(model::RobotState& robot_state) const {
-    for (const auto& driver : drivers_) {
-      driver->updateRobotState(robot_state);
-    }
+  // Creates a driver of type DriverT using the HAL's description.
+  // Returns a reference valid for the lifetime of this RobotHAL.
+  template <typename DriverT, typename... Args>
+  DriverT& addDriver(Args&&... args) {
+    auto driver = std::make_unique<DriverT>(HalKey{}, *robot_description_, std::forward<Args>(args)...);
+    DriverT& ref = *driver;
+    drivers_.push_back(std::move(driver));
+    return ref;
   }
 
-  void setJointFeedbackAction(const model::RobotJointFeedbackAction& action) {
-    for (const auto& driver : drivers_) {
-      driver->setJointFeedbackAction(action);
-    }
-  }
+  const model::RobotDescription& getRobotDescription() const;
 
-  void startDrivers() {
-    for (const auto& driver : drivers_) {
-      driver->start();
-    }
-  }
+  // Reflects the most degraded driver state — always current, never stale.
+  DriverState getState() const;
 
-  void stopDrivers() {
-    for (const auto& driver : drivers_) {
-      driver->stop();
-    }
-  }
+  void update(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state);
+
+  // Validates joint coverage across all registered drivers, then starts them.
+  void startDrivers();
+  void stopDrivers();
+  void resetDrivers();
 
  private:
-  const model::RobotDescription robot_description_;
-  std::vector<std::shared_ptr<hal::DriverBase>> drivers_;
+  void validateDriverCoverage();
+
+  std::unique_ptr<model::RobotDescription> robot_description_;
+  std::vector<std::unique_ptr<hal::DriverBase>> drivers_;
 };
 
 }  // namespace motorium::hal

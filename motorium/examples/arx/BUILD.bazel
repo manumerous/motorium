@@ -5,9 +5,11 @@ cc_binary(
     srcs = ["arx_mujoco_sim.cpp"],
     data = glob(["model/**"]),
     deps = [
-        "//motorium/motorium_control",
+        "//motorium/motorium_hal",
         "//motorium/motorium_model",
         "//motorium/motorium_mujoco",
+        "//motorium/motorium_control",
+        "@bazel_tools//tools/cpp/runfiles",
     ],
     # Add this to link against system OpenGL and X11
     linkopts = ["-lGL", "-lX11", "-lGLX"],

@@ -43,3 +43,6 @@
 # bazel
 bazel-*
 .bazelrc.user
+
+# logs
+*.log

@@ -42,12 +42,15 @@ struct Metrics {
   double drift_tick;
   /// Total time drift since starting the sim.
   double drift_cumulative;
+  /// RMSE of drift_tick over the last 1000 cycles.
+  double drift_rolling_rmse;
 
   void reset() {
     fps_sim = 0.0;
     rtf_tick = 0.0;
     drift_tick = 0.0;
     drift_cumulative = 0.0;
+    drift_rolling_rmse = 0.0;
   }
 };
 

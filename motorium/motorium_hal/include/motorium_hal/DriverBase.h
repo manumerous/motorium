@@ -29,28 +29,95 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
+#include <string>
+#include <utility>
+#include <vector>
+
+#include <motorium_core/StateMachine.h>
 #include <motorium_model/RobotDescription.h>
 #include <motorium_model/RobotJointFeedbackAction.h>
 #include <motorium_model/RobotState.h>
 
 namespace motorium::hal {
 
-class DriverBase {
+class RobotHAL;
+
+// Passkey: only RobotHAL can construct it, so only RobotHAL can create drivers.
+struct HalKey {
+  friend class RobotHAL;
+
+ private:
+  HalKey() = default;
+};
+
+// ToDO update to logic required by HW
+enum class DriverState {
+  FAULT,
+  STOPPING,
+  INITIALIZING,
+  READY,
+  RUNNING,
+};
+
+inline bool isLegalDriverTransition(DriverState from, DriverState to) {
+  if (to == DriverState::FAULT) return from != DriverState::FAULT;
+  switch (from) {
+    case DriverState::INITIALIZING:
+      return to == DriverState::READY;
+    case DriverState::READY:
+      return to == DriverState::RUNNING;
+    case DriverState::RUNNING:
+      return to == DriverState::STOPPING;
+    case DriverState::STOPPING:
+      return to == DriverState::READY;
+    case DriverState::FAULT:
+      return to == DriverState::READY;
+    default:
+      return false;
+  }
+}
+
+class DriverBase : public motorium::core::StateMachine<DriverState> {
  public:
-  DriverBase([[maybe_unused]] const model::RobotDescription& robot_description, const std::string& name) : name_(name){};
+  // Manages all joints in the HAL's description.
+  DriverBase(HalKey, const model::RobotDescription& description, std::string name)
+      : motorium::core::StateMachine<DriverState>(DriverState::INITIALIZING),
+        name_(std::move(name)),
+        managed_joint_names_(description.getJointNames()) {}
 
-  virtual void start() = 0;
+  // Manages an explicit subset; validates names exist in description and are unique.
+  DriverBase(HalKey, const model::RobotDescription& description, std::string name, std::vector<std::string> managed_joint_names)
+      : motorium::core::StateMachine<DriverState>(DriverState::INITIALIZING),
+        name_(std::move(name)),
+        managed_joint_names_(std::move(managed_joint_names)) {
+    validateManagedJointNames(description);
+  }
 
-  virtual void stop() = 0;
+  virtual ~DriverBase() = default;
 
-  virtual void updateRobotState(model::RobotState& robot_state) = 0;
+  // Callable only by RobotHAL — HalKey enforces this at compile time.
+  void start(HalKey) { startImpl(); }
+  void stop(HalKey) { stopImpl(); }
+  void update(HalKey, const model::RobotJointFeedbackAction& action, model::RobotState& robot_state);
+  void reset(HalKey) { resetImpl(); }
 
-  virtual void setJointFeedbackAction(const model::RobotJointFeedbackAction& action) = 0;
-
-  virtual void reset() = 0;
+  const std::string& getName() const { return name_; }
+  const std::vector<std::string>& getManagedJointNames() const { return managed_joint_names_; }
 
  protected:
-  std::string name_ = {};
+  bool isLegalTransition(DriverState from, DriverState to) const override { return isLegalDriverTransition(from, to); }
+
+  // Subclasses implement these; also callable internally (e.g. from destructors).
+  virtual void startImpl() = 0;
+  virtual void stopImpl() = 0;
+  virtual void resetImpl() = 0;
+  virtual void updateImpl(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) = 0;
+
+  const std::string name_;
+  const std::vector<std::string> managed_joint_names_;
+
+ private:
+  void validateManagedJointNames(const model::RobotDescription& description) const;
 };
 
 }  // namespace motorium::hal

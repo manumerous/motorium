@@ -11,9 +11,9 @@ cc_library(
     deps = [
         "//motorium/motorium_core",
         "//:urdfdom",
+        "//:pugixml",
         "@eigen//:eigen",
         "@com_google_absl//absl/container:flat_hash_map",
-        "@pugixml",
     ],
 )
 

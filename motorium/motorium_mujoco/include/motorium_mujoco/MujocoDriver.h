@@ -55,34 +55,29 @@ namespace motorium::mujoco {
 
 struct MujocoSimConfig {
   std::string scenePath;
-  std::shared_ptr<model::RobotState> initStatePtr_;
+  std::shared_ptr<const model::RobotState> initStatePtr_;
   double dt{0.0005};
   double renderFrequencyHz{60.0};
   bool headless{false};
   bool verbose{false};
+  double defaultJointDamping{1.0};
 };
 
-class MujocoSimInterface : public hal::DriverBase {
+class MujocoDriver final : public hal::DriverBase {
  public:
-  MujocoSimInterface(const MujocoSimConfig& config, const model::RobotDescription& robot_description);
+  MujocoDriver(hal::HalKey key, const model::RobotDescription& robot_description, const MujocoSimConfig& config);
 
   /** Destructor */
-  ~MujocoSimInterface();
+  ~MujocoDriver();
 
-  void initSim();
+  void startImpl() override;
 
-  void start() override;
-
-  void stop() override;
-
-  void updateRobotState(model::RobotState& robot_state) override;
-
-  void setJointFeedbackAction(const model::RobotJointFeedbackAction& action) override;
+  void stopImpl() override;
 
   void simulationStep();
 
   // Todo Manu also reset environment
-  void reset() override;
+  void resetImpl() override;
 
   // Allows the renderer to make a thread safe copy of the state at it's own
   // frequency.
@@ -93,13 +88,15 @@ class MujocoSimInterface : public hal::DriverBase {
   const MujocoSimConfig& getConfig() const { return config_; }
 
  private:
+  void initSim();
+
   void setupJointIndexMaps(const model::RobotDescription& robot_description);
 
   void setSimState(const model::RobotState& robot_state);
 
-  void updateThreadSafeRobotState();
-
   void simulationLoop(std::stop_token st);
+
+  void updateImpl(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) override;
 
   void printModelInfo();
 
@@ -107,30 +104,32 @@ class MujocoSimInterface : public hal::DriverBase {
 
   MujocoSimConfig config_;
 
-  mjtNum* qpos_init_;  // position                                         (nq x 1)
-  mjtNum* qvel_init_;
-  model::RobotJointFeedbackAction action_internal_;
-  mutable std::mutex action_mutex_;
+  bool is_floating_base_{false};
+  size_t nq_base_offset_{0};
+  size_t nv_base_offset_{0};
+
+  std::vector<mjtNum> qpos_init_;  // position                                         (nq x 1)
+  std::vector<mjtNum> qvel_init_;
+  absl::Mutex action_mutex_;
+  model::RobotJointFeedbackAction action_internal_ ABSL_GUARDED_BY(action_mutex_);
 
   size_t time_step_micro_;
   size_t num_active_joints_;
   size_t num_actuators_;
-  std::vector<std::string> active_joint_names_;
-  std::vector<std::string> active_actuator_names_;
+
+  // Keeping tack of active joints/actuators to allow for the use of e.g passive or mimic joints
   std::vector<joint_index_t> active_robot_joint_indices_;
   std::vector<joint_index_t> active_robot_actuator_indices_;
 
-  mjModel* mj_model_ = NULL;
-  mjData* mj_data_ = NULL;
-  mjContact* mj_contact_ = NULL;
-  // mjfSensor mujocoSenor_;
+  // TODO: Move to non-blocking buffer in the future.
+  mutable absl::Mutex mj_mutex_;  // Used to access data accross simulation and render threads.
 
-  bool sim_initialized_;
-  const bool headless_;
-  const bool verbose_;
+  const mjModel* mj_model_ = NULL;
+  mjData* mj_data_ ABSL_GUARDED_BY(mj_mutex_) = NULL;
 
-  mutable std::mutex mj_mutex_;  // Used to access mujoco model and data
-                                 // accross simulation and render threads.
+  bool sim_initialized_{false};
+  bool reset_requested_{false};
+
   std::jthread simulate_thread_;
   std::unique_ptr<MujocoRenderer> renderer_;
 
@@ -138,11 +137,7 @@ class MujocoSimInterface : public hal::DriverBase {
   std::chrono::high_resolution_clock::time_point last_realtime_;
   Metrics metrics_{};
 
-  size_t right_foot_sensor_addr_;
-  size_t left_foot_sensor_addr_;
-
-  size_t right_foot_touch_sensor_addr_;
-  size_t left_foot_touch_sensor_addr_;
+  double drift_mean_sq_{0.0};
 };
 
 }  // namespace motorium::mujoco

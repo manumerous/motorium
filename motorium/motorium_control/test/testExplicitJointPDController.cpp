@@ -54,7 +54,7 @@ class ExplicitJointPDControllerTest : public ::testing::Test {
 };
 
 TEST_F(ExplicitJointPDControllerTest, InitializationValidConfig) {
-  JointPDControllerConfig config;
+  ExplicitJointPDController::Config config;
   config.joint_names = {"joint1"};
   vector_t kp(1);
   kp << 10.0;
@@ -67,7 +67,7 @@ TEST_F(ExplicitJointPDControllerTest, InitializationValidConfig) {
 }
 
 TEST_F(ExplicitJointPDControllerTest, InitializationInvalidConfigSize) {
-  JointPDControllerConfig config;
+  ExplicitJointPDController::Config config;
   config.joint_names = {"joint1"};
   vector_t kp(1);
   kp << 10.0;
@@ -78,7 +78,7 @@ TEST_F(ExplicitJointPDControllerTest, InitializationInvalidConfigSize) {
 }
 
 TEST_F(ExplicitJointPDControllerTest, InitializationMissingJoint) {
-  JointPDControllerConfig config;
+  ExplicitJointPDController::Config config;
   config.joint_names = {"missing_joint"};
   vector_t kp(1);
   kp << 10.0;
@@ -91,7 +91,7 @@ TEST_F(ExplicitJointPDControllerTest, InitializationMissingJoint) {
 }
 
 TEST_F(ExplicitJointPDControllerTest, PartialControl) {
-  JointPDControllerConfig config;
+  ExplicitJointPDController::Config config;
   config.joint_names = {"joint2"};  // Only control joint2
   vector_t kp(1);
   kp << 5.0;
@@ -147,7 +147,7 @@ TEST_F(ExplicitJointPDControllerTest, PartialControl) {
 }
 
 TEST_F(ExplicitJointPDControllerTest, ComputeAction) {
-  JointPDControllerConfig config;
+  ExplicitJointPDController::Config config;
   config.joint_names = {"joint1", "joint2"};
   vector_t kp(2);
   kp << 10.0, 20.0;

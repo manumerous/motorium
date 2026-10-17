@@ -13,6 +13,7 @@ find_package(mujoco_vendor REQUIRED)
 find_package(motorium_model REQUIRED)
 find_package(motorium_core REQUIRED)
 find_package(motorium_hal REQUIRED)
+find_package(magic_enum REQUIRED)
 
 
 find_package(GTest REQUIRED)
@@ -53,7 +54,7 @@ set(dependencies
 #############
 
 add_library(${PROJECT_NAME}
-  src/MujocoSimInterface.cpp
+  src/MujocoDriver.cpp
   src/MujocoRenderer.cpp
 )
 ament_target_dependencies(${PROJECT_NAME}
@@ -64,6 +65,11 @@ target_link_libraries(${PROJECT_NAME}
   absl::flat_hash_map
   glfw
   GLEW
+  magic_enum::magic_enum
+)
+target_include_directories(${PROJECT_NAME} PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
 )
 
 # ############
@@ -81,8 +87,9 @@ endif()
 ## Install ##
 #############
 
-install(TARGETS 
+install(TARGETS
   ${PROJECT_NAME}
+  EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
@@ -96,6 +103,7 @@ install(DIRECTORY include/${PROJECT_NAME}
   DESTINATION include/
 )
 
+ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_include_directories(include)
 ament_export_libraries(${PROJECT_NAME})
 ament_export_dependencies(${dependencies})

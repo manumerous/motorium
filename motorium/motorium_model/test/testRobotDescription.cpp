@@ -268,6 +268,8 @@ TEST_F(RobotDescriptionTest, GetJointIndicesVector) {
   EXPECT_EQ(indices[1], robotDesc.getJointIndex("wrist_joint"));
 }
 
+// ─── JointDescription validation ─────────────────────────────────────────────
+
 // Test JointDescription validation
 TEST_F(RobotDescriptionTest, JointDescriptionValidation) {
   JointDescription j;
