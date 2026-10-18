@@ -82,12 +82,12 @@ class MujocoDriver final : public hal::DriverBase {
 
  private:
   // DriverBase lifecycle hooks; DriverBase performs all state checks and transitions around them.
-  void startImpl() override;
-  void stopImpl() override;
+  hal::DriverResult<> startImpl() override;
+  hal::DriverResult<> stopImpl() override;
   // Todo Manu also reset environment
-  void resetImpl() override;
-  void updateStateImpl(model::RobotState& robot_state) override;
-  void setActionImpl(const model::RobotJointFeedbackAction& action) override;
+  hal::DriverResult<> resetImpl() override;
+  hal::DriverResult<> updateStateImpl(model::RobotState& robot_state) override;
+  hal::DriverResult<> setActionImpl(const model::RobotJointFeedbackAction& action) override;
 
   void stopSimulationThread();
 

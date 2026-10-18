@@ -29,9 +29,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
+#include <gtest/gtest.h>
 #include <motorium_hal/DriverBase.h>
 
+#include <optional>
+
 namespace motorium::hal {
+
+// gtest predicate for DriverResult: EXPECT_TRUE(IsOk(result)) prints the error if the call failed.
+inline ::testing::AssertionResult IsOk(const DriverResult<>& result) {
+  if (result) return ::testing::AssertionSuccess();
+  return ::testing::AssertionFailure() << "call failed: " << result.error();
+}
 
 // Minimal concrete driver for testing DriverBase. Counts lifecycle calls and exposes the protected
 // hooks a real driver would use internally.
@@ -62,27 +71,49 @@ class TestDriver : public DriverBase {
   int update_state_count_{0};
   int set_action_count_{0};
 
-  // When set, startImpl() reports a fault, mimicking hardware that fails to come up.
-  bool fault_on_start_{false};
-  // When set, updateStateImpl() reports a fault, mimicking a read that fails mid-tick.
-  bool fault_on_update_state_{false};
-  // When set, setActionImpl() reports a fault, mimicking a write that fails mid-tick.
-  bool fault_on_set_action_{false};
+  // When set, the hook returns an error with this code (and fail_joint_, if set), mimicking a call
+  // that fails in the driver itself.
+  std::optional<DriverErrorCode> fail_start_with_;
+  std::optional<DriverErrorCode> fail_stop_with_;
+  std::optional<DriverErrorCode> fail_reset_with_;
+  std::optional<DriverErrorCode> fail_update_state_with_;
+  std::optional<DriverErrorCode> fail_set_action_with_;
+  std::optional<joint_index_t> fail_joint_;
+
+  // When set, the hook reports a fault and then returns successfully, mimicking a fault reported from
+  // the driver's own thread while the call is running.
+  bool fault_during_start_{false};
+  bool fault_during_update_state_{false};
+  bool fault_during_set_action_{false};
 
  private:
-  void startImpl() override {
+  DriverResult<> result(const std::optional<DriverErrorCode>& fail_with) const {
+    if (fail_with) return driverError(*fail_with, "test failure", fail_joint_);
+    return {};
+  }
+
+  DriverResult<> startImpl() override {
     start_count_++;
-    if (fault_on_start_) reportFault("start failed");
+    if (fault_during_start_) reportFault("start failed");
+    return result(fail_start_with_);
   }
-  void stopImpl() override { stop_count_++; }
-  void resetImpl() override { reset_count_++; }
-  void updateStateImpl(motorium::model::RobotState&) override {
+  DriverResult<> stopImpl() override {
+    stop_count_++;
+    return result(fail_stop_with_);
+  }
+  DriverResult<> resetImpl() override {
+    reset_count_++;
+    return result(fail_reset_with_);
+  }
+  DriverResult<> updateStateImpl(motorium::model::RobotState&) override {
     update_state_count_++;
-    if (fault_on_update_state_) reportFault("read failed");
+    if (fault_during_update_state_) reportFault("read failed");
+    return result(fail_update_state_with_);
   }
-  void setActionImpl(const motorium::model::RobotJointFeedbackAction&) override {
+  DriverResult<> setActionImpl(const motorium::model::RobotJointFeedbackAction&) override {
     set_action_count_++;
-    if (fault_on_set_action_) reportFault("write failed");
+    if (fault_during_set_action_) reportFault("write failed");
+    return result(fail_set_action_with_);
   }
 };
 

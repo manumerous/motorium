@@ -126,7 +126,7 @@ MujocoDriver::~MujocoDriver() {
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoDriver::resetImpl() {
+hal::DriverResult<> MujocoDriver::resetImpl() {
   absl::MutexLock lock(&mj_mutex_);
   memcpy(mj_data_->qpos, qpos_init_.data(), mj_model_->nq * sizeof(mjtNum));
   memcpy(mj_data_->qvel, qvel_init_.data(), mj_model_->nv * sizeof(mjtNum));
@@ -139,6 +139,7 @@ void MujocoDriver::resetImpl() {
   updateMetrics();
   // Sleep to let controller update and adjust;
   std::this_thread::sleep_until(std::chrono::steady_clock::now() + std::chrono::microseconds(100000));
+  return {};
 }
 
 /******************************************************************************************************/
@@ -326,16 +327,17 @@ void MujocoDriver::setSimState(const model::RobotState& robot_state) {
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoDriver::setActionImpl(const model::RobotJointFeedbackAction& action) {
+hal::DriverResult<> MujocoDriver::setActionImpl(const model::RobotJointFeedbackAction& action) {
   absl::MutexLock lock(&action_mutex_);
   action_internal_ = action;
+  return {};
 }
 
 /******************************************************************************************************/
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoDriver::updateStateImpl(model::RobotState& robot_state) {
+hal::DriverResult<> MujocoDriver::updateStateImpl(model::RobotState& robot_state) {
   absl::ReaderMutexLock lock(&mj_mutex_);
   // Update mujoco joint angles
   for (size_t i = 0; i < num_active_joints_; ++i) {
@@ -365,6 +367,7 @@ void MujocoDriver::updateStateImpl(model::RobotState& robot_state) {
   }
 
   robot_state.setTime(mj_data_->time);  // Todo: should mujoco be the source of time?
+  return {};
 }
 
 /******************************************************************************************************/
@@ -413,7 +416,8 @@ void MujocoDriver::simulationStep() {
   }
   // Auto reset logic.
   if (reset_requested_) {
-    resetImpl();
+    // Runs on the simulation thread, outside any DriverBase call, so a failure is reported directly.
+    if (hal::DriverResult<> result = resetImpl(); !result) reportFault(result.error().detail);
   }
 }
 
@@ -452,14 +456,16 @@ void MujocoDriver::initSim() {
 }
 
 // DriverBase only calls this from READY, so the simulation thread is not running yet.
-void MujocoDriver::startImpl() {
+hal::DriverResult<> MujocoDriver::startImpl() {
   if (!sim_initialized_) initSim();
 
   simulate_thread_ = std::jthread([this](std::stop_token st) { this->simulationLoop(st); });
+  return {};
 }
 
-void MujocoDriver::stopImpl() {
+hal::DriverResult<> MujocoDriver::stopImpl() {
   stopSimulationThread();
+  return {};
 }
 
 void MujocoDriver::stopSimulationThread() {

@@ -21,7 +21,10 @@ cc_library(
     name = "test_driver",
     hdrs = ["test/TestDriver.h"],
     includes = ["test"],
-    deps = [":motorium_hal"],
+    deps = [
+        ":motorium_hal",
+        "@googletest//:gtest",
+    ],
 )
 
 cc_test(

@@ -47,8 +47,8 @@ class RobotInstance {
   RobotInstance(RobotInstance&&) = delete;
   RobotInstance& operator=(RobotInstance&&) = delete;
 
-  void start();
-  void stop();
+  [[nodiscard]] hal::DriverResult<> start();
+  [[nodiscard]] hal::DriverResult<> stop();
 
  private:
   hal::RobotHAL robot_hal_;
