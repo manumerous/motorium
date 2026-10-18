@@ -18,10 +18,7 @@ bazel_dep(name = "glfw", version = "3.4.0.bcr.1")
 bazel_dep(name = "glew", version = "2.3.1.bcr.1")
 bazel_dep(name = "pugixml", version = "1.15")
 bazel_dep(name = "urdfdom", version = "6.0.0-3.rcr.1")
-
-non_module_deps = use_extension("//:extensions.bzl", "non_module_deps")
-use_repo(non_module_deps, "mujoco")
-
+bazel_dep(name = "mujoco", version = "3.15.0")
 
 bazel_dep(name = "magic_enum", version = "0.9.8")
 
