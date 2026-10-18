@@ -40,49 +40,42 @@ enum class TestState { IDLE, ACTIVE, PAUSED, FAULT };
 
 // Accepts every transition so multiple threads can write concurrently without
 // hitting the MT_CHECK. Used to stress the locking logic in isolation.
-class StressMachine : public StateMachine<TestState> {
- public:
-  StressMachine() : StateMachine<TestState>(TestState::IDLE) {}
+bool allowAll(TestState, TestState) {
+  return true;
+}
 
- protected:
-  bool isLegalTransition(TestState, TestState) const override { return true; }
-};
-
-class TestMachine : public StateMachine<TestState> {
- public:
-  TestMachine() : StateMachine<TestState>(TestState::IDLE) {}
-
- protected:
-  bool isLegalTransition(TestState from, TestState to) const override {
-    if (to == TestState::FAULT) return from != TestState::FAULT;
-    switch (from) {
-      case TestState::IDLE:
-        return to == TestState::ACTIVE;
-      case TestState::ACTIVE:
-        return to == TestState::PAUSED || to == TestState::IDLE;
-      case TestState::PAUSED:
-        return to == TestState::ACTIVE;
-      case TestState::FAULT:
-        return to == TestState::IDLE;
-      default:
-        return false;
-    }
+bool isLegalTestTransition(TestState from, TestState to) {
+  if (to == TestState::FAULT) return from != TestState::FAULT;
+  switch (from) {
+    case TestState::IDLE:
+      return to == TestState::ACTIVE;
+    case TestState::ACTIVE:
+      return to == TestState::PAUSED || to == TestState::IDLE;
+    case TestState::PAUSED:
+      return to == TestState::ACTIVE;
+    case TestState::FAULT:
+      return to == TestState::IDLE;
+    default:
+      return false;
   }
-};
+}
+
+using StressMachine = StateMachine<TestState, allowAll>;
+using TestMachine = StateMachine<TestState, isLegalTestTransition>;
 
 TEST(StateMachineTest, InitialState) {
-  TestMachine m;
+  TestMachine m(TestState::IDLE);
   EXPECT_EQ(m.getState(), TestState::IDLE);
 }
 
 TEST(StateMachineTest, LegalTransition) {
-  TestMachine m;
+  TestMachine m(TestState::IDLE);
   m.requestTransitionTo(TestState::ACTIVE);
   EXPECT_EQ(m.getState(), TestState::ACTIVE);
 }
 
 TEST(StateMachineTest, LegalTransitionSequence) {
-  TestMachine m;
+  TestMachine m(TestState::IDLE);
   m.requestTransitionTo(TestState::ACTIVE);
   m.requestTransitionTo(TestState::PAUSED);
   m.requestTransitionTo(TestState::ACTIVE);
@@ -91,7 +84,7 @@ TEST(StateMachineTest, LegalTransitionSequence) {
 
 TEST(StateMachineTest, FaultReachableFromAnyNonFaultState) {
   for (TestState from : {TestState::IDLE, TestState::ACTIVE, TestState::PAUSED}) {
-    TestMachine m;
+    TestMachine m(TestState::IDLE);
     if (from != TestState::IDLE) m.requestTransitionTo(TestState::ACTIVE);
     if (from == TestState::PAUSED) m.requestTransitionTo(TestState::PAUSED);
     m.requestTransitionTo(TestState::FAULT);
@@ -100,19 +93,19 @@ TEST(StateMachineTest, FaultReachableFromAnyNonFaultState) {
 }
 
 TEST(StateMachineTest, IllegalTransitionKills) {
-  TestMachine m;
+  TestMachine m(TestState::IDLE);
   EXPECT_DEATH(m.requestTransitionTo(TestState::PAUSED), "Illegal state transition");
 }
 
 TEST(StateMachineTest, StateToString) {
-  TestMachine m;
+  TestMachine m(TestState::IDLE);
   EXPECT_EQ(m.stateToString(), "IDLE");
   m.requestTransitionTo(TestState::ACTIVE);
   EXPECT_EQ(m.stateToString(), "ACTIVE");
 }
 
 TEST(StateMachineTest, ConcurrentReadsAreSafe) {
-  TestMachine m;
+  TestMachine m(TestState::IDLE);
   m.requestTransitionTo(TestState::ACTIVE);
 
   std::vector<std::thread> threads;
@@ -124,5 +117,39 @@ TEST(StateMachineTest, ConcurrentReadsAreSafe) {
     });
   }
   for (auto& t : threads) t.join();
+  EXPECT_EQ(m.getState(), TestState::ACTIVE);
+}
+
+TEST(StateMachineTest, TryTransitionSucceedsFromExpectedState) {
+  TestMachine m(TestState::IDLE);
+  EXPECT_TRUE(m.tryTransition(TestState::IDLE, TestState::ACTIVE));
+  EXPECT_EQ(m.getState(), TestState::ACTIVE);
+}
+
+TEST(StateMachineTest, TryTransitionIsNoOpFromOtherState) {
+  TestMachine m(TestState::IDLE);
+  m.requestTransitionTo(TestState::FAULT);
+  // A FAULT that arrived in the meantime must not be overwritten.
+  EXPECT_FALSE(m.tryTransition(TestState::IDLE, TestState::ACTIVE));
+  EXPECT_EQ(m.getState(), TestState::FAULT);
+}
+
+TEST(StateMachineTest, TryTransitionKillsOnIllegalTransition) {
+  TestMachine m(TestState::IDLE);
+  EXPECT_DEATH(m.tryTransition(TestState::IDLE, TestState::PAUSED), "Illegal state transition");
+}
+
+TEST(StateMachineTest, ConcurrentTryTransitionsSucceedExactlyOnce) {
+  StressMachine m(TestState::IDLE);
+  std::atomic<int> successes{0};
+
+  std::vector<std::thread> threads;
+  for (int i = 0; i < 8; ++i) {
+    threads.emplace_back([&m, &successes]() {
+      if (m.tryTransition(TestState::IDLE, TestState::ACTIVE)) successes++;
+    });
+  }
+  for (auto& t : threads) t.join();
+  EXPECT_EQ(successes.load(), 1);
   EXPECT_EQ(m.getState(), TestState::ACTIVE);
 }

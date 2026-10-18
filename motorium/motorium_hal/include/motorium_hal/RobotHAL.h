@@ -29,6 +29,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -68,21 +69,36 @@ class RobotHAL {
 
   const model::RobotDescription& getRobotDescription() const;
 
-  // Reflects the most degraded driver state — always current, never stale.
+  // Reflects the most degraded driver state — always current, never stale. Reports FAULT while the
+  // HAL is latched in a safety stop, even though the stopped drivers themselves are READY again.
   DriverState getState() const;
 
-  // Collects the latest state from all running drivers.
+  // Safety policy: updateState() and setAction() require every driver to be RUNNING. If any driver
+  // is not, the HAL performs a safety stop: it stops all drivers (each brings its hardware to rest)
+  // and latches FAULT. While latched, updateState() and setAction() do nothing, startDrivers()
+  // aborts, and getState() reports FAULT until resetDrivers() is called.
+
+  // Collects the latest state from all drivers.
   void updateState(model::RobotState& robot_state);
-  // Sends the action to all running drivers.
+  // Sends the action to all drivers.
   void setAction(const model::RobotJointFeedbackAction& action);
 
-  // Validates joint coverage across all registered drivers, then starts them.
+  // Validates joint coverage across all registered drivers, then starts them. Aborts while the HAL is
+  // latched in FAULT; call resetDrivers() first.
   void startDrivers();
   void stopDrivers();
+  // Resets all drivers and clears a latched safety stop.
   void resetDrivers();
 
  private:
   void validateDriverCoverage();
+
+  // Returns true if every driver is RUNNING. Otherwise performs a safety stop (if not already
+  // latched) and returns false.
+  bool ensureAllDriversRunning();
+  void safetyStop(const std::string& reason);
+
+  std::atomic<bool> safety_stopped_{false};
 
   std::unique_ptr<model::RobotDescription> robot_description_;
   std::vector<std::unique_ptr<hal::DriverBase>> drivers_;

@@ -28,10 +28,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
 #include <algorithm>
+#include <iostream>
 #include <numeric>
 #include <unordered_set>
 
 #include <motorium_hal/RobotHAL.h>
+
+#include <magic_enum/magic_enum.hpp>
 
 namespace motorium::hal {
 
@@ -44,27 +47,48 @@ const model::RobotDescription& RobotHAL::getRobotDescription() const {
 }
 
 DriverState RobotHAL::getState() const {
+  if (safety_stopped_) return DriverState::FAULT;
   return std::accumulate(drivers_.begin(), drivers_.end(), DriverState::RUNNING,
                          [](DriverState worst, const std::unique_ptr<DriverBase>& driver) { return std::min(worst, driver->getState()); });
 }
 
 void RobotHAL::updateState(model::RobotState& robot_state) {
+  if (!ensureAllDriversRunning()) return;
   for (const auto& driver : drivers_) {
-    if (driver->getState() == DriverState::RUNNING) {
-      driver->updateState(HalKey{}, robot_state);
-    }
+    driver->updateState(HalKey{}, robot_state);
   }
+  // A driver may fault while being read, leaving its joints stale. Check again so the safety stop
+  // happens before an action computed from that state can be sent.
+  ensureAllDriversRunning();
 }
 
 void RobotHAL::setAction(const model::RobotJointFeedbackAction& action) {
+  if (!ensureAllDriversRunning()) return;
   for (const auto& driver : drivers_) {
-    if (driver->getState() == DriverState::RUNNING) {
-      driver->setAction(HalKey{}, action);
-    }
+    driver->setAction(HalKey{}, action);  // a driver faulting in this window skips its own action
   }
 }
 
+bool RobotHAL::ensureAllDriversRunning() {
+  if (safety_stopped_) return false;
+  for (const auto& driver : drivers_) {
+    const DriverState state = driver->getState();
+    if (state != DriverState::RUNNING) {
+      safetyStop("driver '" + driver->getName() + "' is " + std::string(magic_enum::enum_name(state)) + " instead of RUNNING");
+      return false;
+    }
+  }
+  return true;
+}
+
+void RobotHAL::safetyStop(const std::string& reason) {
+  safety_stopped_ = true;
+  std::cerr << "[RobotHAL] SAFETY STOP: " << reason << ". Stopping all drivers; call resetDrivers() to recover." << std::endl;
+  stopDrivers();
+}
+
 void RobotHAL::startDrivers() {
+  MT_CHECK(!safety_stopped_) << "[RobotHAL] Cannot start drivers while latched in FAULT after a safety stop; call resetDrivers() first.";
   validateDriverCoverage();
   for (const auto& driver : drivers_) {
     driver->start(HalKey{});
@@ -81,6 +105,7 @@ void RobotHAL::resetDrivers() {
   for (const auto& driver : drivers_) {
     driver->reset(HalKey{});
   }
+  safety_stopped_ = false;
 }
 
 void RobotHAL::validateDriverCoverage() {

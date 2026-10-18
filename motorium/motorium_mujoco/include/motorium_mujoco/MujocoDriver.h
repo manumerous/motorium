@@ -70,14 +70,7 @@ class MujocoDriver final : public hal::DriverBase {
   /** Destructor */
   ~MujocoDriver();
 
-  void startImpl() override;
-
-  void stopImpl() override;
-
   void simulationStep();
-
-  // Todo Manu also reset environment
-  void resetImpl() override;
 
   // Allows the renderer to make a thread safe copy of the state at it's own
   // frequency.
@@ -88,6 +81,16 @@ class MujocoDriver final : public hal::DriverBase {
   const MujocoSimConfig& getConfig() const { return config_; }
 
  private:
+  // DriverBase lifecycle hooks; DriverBase performs all state checks and transitions around them.
+  void startImpl() override;
+  void stopImpl() override;
+  // Todo Manu also reset environment
+  void resetImpl() override;
+  void updateStateImpl(model::RobotState& robot_state) override;
+  void setActionImpl(const model::RobotJointFeedbackAction& action) override;
+
+  void stopSimulationThread();
+
   void initSim();
 
   void setupJointIndexMaps(const model::RobotDescription& robot_description);
@@ -95,10 +98,6 @@ class MujocoDriver final : public hal::DriverBase {
   void setSimState(const model::RobotState& robot_state);
 
   void simulationLoop(std::stop_token st);
-
-  void updateStateImpl(model::RobotState& robot_state) override;
-
-  void setActionImpl(const model::RobotJointFeedbackAction& action) override;
 
   void printModelInfo();
 

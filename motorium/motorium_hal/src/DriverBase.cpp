@@ -27,21 +27,74 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
+#include <iostream>
 #include <stdexcept>
 #include <unordered_set>
 
 #include <motorium_hal/DriverBase.h>
 
+#include <magic_enum/magic_enum.hpp>
+
 namespace motorium::hal {
 
+void DriverBase::start(HalKey) {
+  absl::MutexLock lock(&lifecycle_mutex_);
+  const DriverState state = getState();
+  if (state == DriverState::RUNNING) return;
+  MT_CHECK(state == DriverState::READY) << "Driver " << name_ << " cannot be started from state " << magic_enum::enum_name(state);
+
+  startImpl();
+  // Only move to RUNNING if startImpl() did not report a fault in the meantime.
+  state_.tryTransition(DriverState::READY, DriverState::RUNNING);
+}
+
+void DriverBase::stop(HalKey) {
+  absl::MutexLock lock(&lifecycle_mutex_);
+  if (getState() == DriverState::FAULT) {
+    stopImpl();
+    return;
+  }
+  if (!state_.tryTransition(DriverState::RUNNING, DriverState::STOPPING)) return;
+
+  stopImpl();
+  // A fault reported while stopping must not be cleared by the transition back to READY.
+  state_.tryTransition(DriverState::STOPPING, DriverState::READY);
+}
+
+void DriverBase::reset(HalKey) {
+  absl::MutexLock lock(&lifecycle_mutex_);
+  const DriverState state = getState();
+  MT_CHECK(state == DriverState::READY || state == DriverState::RUNNING || state == DriverState::FAULT)
+      << "Driver " << name_ << " cannot be reset from state " << magic_enum::enum_name(state);
+
+  resetImpl();
+  state_.tryTransition(DriverState::FAULT, DriverState::READY);
+}
+
+// Skipped rather than checked: a driver may report a fault from its own thread at any time, so not
+// being RUNNING here is an expected race, not a caller bug. RobotHAL detects it and reacts.
 void DriverBase::updateState(HalKey, model::RobotState& robot_state) {
-  MT_CHECK(getState() == DriverState::RUNNING) << "Driver " << name_ << " is not in RUNNING state";
+  if (getState() != DriverState::RUNNING) return;
   updateStateImpl(robot_state);
 }
 
 void DriverBase::setAction(HalKey, const model::RobotJointFeedbackAction& action) {
-  MT_CHECK(getState() == DriverState::RUNNING) << "Driver " << name_ << " is not in RUNNING state";
+  if (getState() != DriverState::RUNNING) return;
   setActionImpl(action);
+}
+
+void DriverBase::markReady() {
+  MT_CHECK(state_.tryTransition(DriverState::INITIALIZING, DriverState::READY))
+      << "Driver " << name_ << " can only be marked ready while INITIALIZING, but is " << stateToString();
+}
+
+void DriverBase::reportFault(std::string_view reason) {
+  while (true) {
+    const DriverState state = getState();
+    if (state == DriverState::FAULT) return;
+    if (state_.tryTransition(state, DriverState::FAULT)) break;
+  }
+  std::cerr << "[" << name_ << "] FAULT: " << reason << std::endl;
 }
 
 void DriverBase::validateManagedJointNames(const model::RobotDescription& description) const {
