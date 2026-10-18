@@ -37,13 +37,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace motorium::core {
 
-// Thread-safe state machine base. Subclasses provide the transition table via
-// isLegalTransition() and drive transitions through the protected transitionTo().
-template <typename StateEnum>
-class StateMachine {
+// Thread-safe state machine. The transition table is a compile-time function
+// IsLegalTransition(from, to); illegal transitions abort via MT_CHECK.
+//
+// Meant to be held as a (private) member by the class whose lifecycle it tracks,
+// so that class alone decides who may trigger which transition.
+template <typename StateEnum, bool (*IsLegalTransition)(StateEnum, StateEnum)>
+class StateMachine final {
  public:
   explicit StateMachine(StateEnum initial_state) : state_(initial_state) {}
-  virtual ~StateMachine() = default;
 
   StateEnum getState() const {
     absl::ReaderMutexLock lock(&mu_);
@@ -53,19 +55,31 @@ class StateMachine {
   // Returns a view into static storage (magic_enum::enum_name guarantees program lifetime).
   std::string_view stateToString() const { return magic_enum::enum_name(getState()); }
 
+  // Transitions to `next`, aborting if the transition is illegal from the current state.
   void requestTransitionTo(StateEnum next) {
     absl::MutexLock lock(&mu_);
-    MT_CHECK(isLegalTransition(state_, next)) << "Illegal state transition: " << magic_enum::enum_name(state_) << " -> "
+    transitionLocked(next);
+  }
+
+  // Atomically transitions to `next` only if the current state is still `expected`, and returns
+  // whether it did. Use this when the state may change concurrently between reading and writing it,
+  // e.g. to avoid overwriting a FAULT reported from another thread.
+  bool tryTransition(StateEnum expected, StateEnum next) {
+    absl::MutexLock lock(&mu_);
+    if (state_ != expected) return false;
+    transitionLocked(next);
+    return true;
+  }
+
+ private:
+  void transitionLocked(StateEnum next) ABSL_EXCLUSIVE_LOCKS_REQUIRED(mu_) {
+    MT_CHECK(IsLegalTransition(state_, next)) << "Illegal state transition: " << magic_enum::enum_name(state_) << " -> "
                                               << magic_enum::enum_name(next);
     state_ = next;
   }
 
- protected:
-  virtual bool isLegalTransition(StateEnum from, StateEnum to) const = 0;
-
- private:
   mutable absl::Mutex mu_;
-  StateEnum state_ ABSL_GUARDED_BY(mu_);  // Clang ignores the ABSL_GUARDED_BY annotation in template classes -.-
+  StateEnum state_ ABSL_GUARDED_BY(mu_);
 };
 
 }  // namespace motorium::core

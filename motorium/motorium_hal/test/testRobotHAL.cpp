@@ -134,12 +134,12 @@ TEST_F(RobotHALTest, StateIsRunningAfterStartDrivers) {
   EXPECT_EQ(hal.getState(), DriverState::RUNNING);
 }
 
-TEST_F(RobotHALTest, StateIsStoppingAfterStopDrivers) {
+TEST_F(RobotHALTest, StateIsReadyAfterStopDrivers) {
   RobotHAL hal(xml_path_);
   hal.addDriver<TestDriver>("driver");
   hal.startDrivers();
   hal.stopDrivers();
-  EXPECT_EQ(hal.getState(), DriverState::STOPPING);
+  EXPECT_EQ(hal.getState(), DriverState::READY);
 }
 
 TEST_F(RobotHALTest, StateIsFaultWhenAnyDriverInFault) {
@@ -148,7 +148,7 @@ TEST_F(RobotHALTest, StateIsFaultWhenAnyDriverInFault) {
   TestDriver& d2 = hal.addDriver<TestDriver>("d2", std::vector<std::string>{"joint2"});
   hal.startDrivers();
 
-  d1.triggerTransition(DriverState::FAULT);
+  d1.triggerFault();
 
   EXPECT_EQ(hal.getState(), DriverState::FAULT);
   (void)d2;

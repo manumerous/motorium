@@ -30,6 +30,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <gtest/gtest.h>
 #include <motorium_hal/RobotHAL.h>
 #include <motorium_model/RobotDescription.h>
+#include <motorium_model/RobotJointFeedbackAction.h>
+#include <motorium_model/RobotState.h>
 
 #include <memory>
 #include <vector>
@@ -77,35 +79,140 @@ TEST_F(DriverBaseTest, ExplicitSubsetJointsManaged) {
   EXPECT_EQ(joints[0], "joint2");
 }
 
-TEST_F(DriverBaseTest, LegalTransitionSequence) {
-  TestDriver& driver = hal_->addDriver<TestDriver>("test_driver");
-  driver.requestTransitionTo(DriverState::RUNNING);
-  driver.requestTransitionTo(DriverState::STOPPING);
-  driver.requestTransitionTo(DriverState::READY);
-  EXPECT_EQ(driver.getState(), DriverState::READY);
-}
-
-TEST_F(DriverBaseTest, FaultTransitionFromRunning) {
-  TestDriver& driver = hal_->addDriver<TestDriver>("test_driver", std::vector<std::string>{"joint1", "joint2"});
-  driver.requestTransitionTo(DriverState::RUNNING);
-  driver.requestTransitionTo(DriverState::FAULT);
-  EXPECT_EQ(driver.getState(), DriverState::FAULT);
-}
-
-TEST_F(DriverBaseTest, FaultTransitionFromStopping) {
-  TestDriver& driver = hal_->addDriver<TestDriver>("test_driver");
-  driver.requestTransitionTo(DriverState::RUNNING);
-  driver.requestTransitionTo(DriverState::STOPPING);
-  driver.requestTransitionTo(DriverState::FAULT);
-  EXPECT_EQ(driver.getState(), DriverState::FAULT);
-}
-
 TEST_F(DriverBaseTest, AddDriverThrowsOnInvalidJointName) {
   EXPECT_THROW(hal_->addDriver<TestDriver>("test_driver", std::vector<std::string>{"nonexistent_joint"}), std::out_of_range);
 }
 
-TEST_F(DriverBaseTest, IllegalTransitionKills) {
+// ─── start ──────────────────────────────────────────────────────────────────
+
+TEST_F(DriverBaseTest, StartMovesReadyToRunning) {
   TestDriver& driver = hal_->addDriver<TestDriver>("test_driver");
-  // READY -> STOPPING is not a legal transition
-  EXPECT_DEATH(driver.requestTransitionTo(DriverState::STOPPING), "Illegal state transition");
+  hal_->startDrivers();
+  EXPECT_EQ(driver.getState(), DriverState::RUNNING);
+  EXPECT_EQ(driver.start_count_, 1);
+}
+
+TEST_F(DriverBaseTest, StartWhileRunningIsNoOp) {
+  TestDriver& driver = hal_->addDriver<TestDriver>("test_driver");
+  hal_->startDrivers();
+  hal_->startDrivers();
+  EXPECT_EQ(driver.getState(), DriverState::RUNNING);
+  EXPECT_EQ(driver.start_count_, 1);
+}
+
+TEST_F(DriverBaseTest, StartKillsWhileInitializing) {
+  hal_->addDriver<TestDriver>("test_driver", /*mark_ready=*/false);
+  EXPECT_DEATH(hal_->startDrivers(), "cannot be started from state INITIALIZING");
+}
+
+TEST_F(DriverBaseTest, StartKillsInFault) {
+  TestDriver& driver = hal_->addDriver<TestDriver>("test_driver");
+  driver.triggerFault();
+  EXPECT_DEATH(hal_->startDrivers(), "cannot be started from state FAULT");
+}
+
+TEST_F(DriverBaseTest, StartSucceedsAfterAsyncInitialization) {
+  TestDriver& driver = hal_->addDriver<TestDriver>("test_driver", /*mark_ready=*/false);
+  EXPECT_EQ(driver.getState(), DriverState::INITIALIZING);
+  driver.finishInitialization();
+  hal_->startDrivers();
+  EXPECT_EQ(driver.getState(), DriverState::RUNNING);
+}
+
+TEST_F(DriverBaseTest, FaultDuringStartIsNotOverwrittenByRunning) {
+  TestDriver& driver = hal_->addDriver<TestDriver>("test_driver");
+  driver.fault_on_start_ = true;
+  hal_->startDrivers();
+  EXPECT_EQ(driver.getState(), DriverState::FAULT);
+}
+
+// ─── stop ───────────────────────────────────────────────────────────────────
+
+TEST_F(DriverBaseTest, StopMovesRunningToReady) {
+  TestDriver& driver = hal_->addDriver<TestDriver>("test_driver");
+  hal_->startDrivers();
+  hal_->stopDrivers();
+  EXPECT_EQ(driver.getState(), DriverState::READY);
+  EXPECT_EQ(driver.stop_count_, 1);
+}
+
+TEST_F(DriverBaseTest, StopWhenNotRunningIsNoOp) {
+  TestDriver& driver = hal_->addDriver<TestDriver>("test_driver");
+  hal_->stopDrivers();
+  EXPECT_EQ(driver.getState(), DriverState::READY);
+  EXPECT_EQ(driver.stop_count_, 0);
+}
+
+TEST_F(DriverBaseTest, StopInFaultStillStopsHardwareButKeepsFault) {
+  TestDriver& driver = hal_->addDriver<TestDriver>("test_driver");
+  hal_->startDrivers();
+  driver.triggerFault();
+  hal_->stopDrivers();
+  EXPECT_EQ(driver.getState(), DriverState::FAULT);
+  EXPECT_EQ(driver.stop_count_, 1);
+}
+
+TEST_F(DriverBaseTest, DriverCanBeRestartedAfterStop) {
+  TestDriver& driver = hal_->addDriver<TestDriver>("test_driver");
+  hal_->startDrivers();
+  hal_->stopDrivers();
+  hal_->startDrivers();
+  EXPECT_EQ(driver.getState(), DriverState::RUNNING);
+  EXPECT_EQ(driver.start_count_, 2);
+}
+
+// ─── reset ──────────────────────────────────────────────────────────────────
+
+TEST_F(DriverBaseTest, ResetRecoversFromFault) {
+  TestDriver& driver = hal_->addDriver<TestDriver>("test_driver");
+  hal_->startDrivers();
+  driver.triggerFault();
+  hal_->resetDrivers();
+  EXPECT_EQ(driver.getState(), DriverState::READY);
+  EXPECT_EQ(driver.reset_count_, 1);
+}
+
+TEST_F(DriverBaseTest, ResetWhileRunningKeepsRunning) {
+  TestDriver& driver = hal_->addDriver<TestDriver>("test_driver");
+  hal_->startDrivers();
+  hal_->resetDrivers();
+  EXPECT_EQ(driver.getState(), DriverState::RUNNING);
+  EXPECT_EQ(driver.reset_count_, 1);
+}
+
+TEST_F(DriverBaseTest, ResetKillsWhileInitializing) {
+  hal_->addDriver<TestDriver>("test_driver", /*mark_ready=*/false);
+  EXPECT_DEATH(hal_->resetDrivers(), "cannot be reset from state INITIALIZING");
+}
+
+// ─── fault / markReady ──────────────────────────────────────────────────────
+
+TEST_F(DriverBaseTest, ReportFaultIsIdempotent) {
+  TestDriver& driver = hal_->addDriver<TestDriver>("test_driver");
+  driver.triggerFault();
+  driver.triggerFault();  // FAULT -> FAULT is illegal; reportFault must not attempt it
+  EXPECT_EQ(driver.getState(), DriverState::FAULT);
+}
+
+TEST_F(DriverBaseTest, MarkReadyTwiceKills) {
+  TestDriver& driver = hal_->addDriver<TestDriver>("test_driver");
+  EXPECT_DEATH(driver.finishInitialization(), "can only be marked ready while INITIALIZING");
+}
+
+TEST_F(DriverBaseTest, MarkReadyCannotClearAFault) {
+  TestDriver& driver = hal_->addDriver<TestDriver>("test_driver", /*mark_ready=*/false);
+  driver.triggerFault();
+  EXPECT_DEATH(driver.finishInitialization(), "can only be marked ready while INITIALIZING");
+}
+
+// ─── update ─────────────────────────────────────────────────────────────────
+
+TEST_F(DriverBaseTest, UpdateSkipsFaultedDriver) {
+  TestDriver& driver = hal_->addDriver<TestDriver>("test_driver");
+  RobotState state(hal_->getRobotDescription());
+  RobotJointFeedbackAction action(hal_->getRobotDescription());
+  hal_->startDrivers();
+  driver.triggerFault();
+  hal_->update(action, state);
+  EXPECT_EQ(driver.update_count_, 0);
 }

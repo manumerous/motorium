@@ -33,30 +33,45 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace motorium::hal {
 
-// Minimal concrete driver for testing DriverBase.
+// Minimal concrete driver for testing DriverBase. Counts lifecycle calls and exposes the protected
+// hooks a real driver would use internally.
 class TestDriver : public DriverBase {
  public:
-  TestDriver(HalKey key, const model::RobotDescription& description, std::string name) : DriverBase(key, description, std::move(name)) {
-    requestTransitionTo(DriverState::READY);
+  // With mark_ready = false the driver stays INITIALIZING until finishInitialization() is called,
+  // mimicking a driver with asynchronous initialization.
+  TestDriver(HalKey key, const model::RobotDescription& description, std::string name, bool mark_ready = true)
+      : DriverBase(key, description, std::move(name)) {
+    if (mark_ready) markReady();
   }
 
-  TestDriver(HalKey key, const model::RobotDescription& description, std::string name, std::vector<std::string> managed_joints)
+  TestDriver(HalKey key,
+             const model::RobotDescription& description,
+             std::string name,
+             std::vector<std::string> managed_joints,
+             bool mark_ready = true)
       : DriverBase(key, description, std::move(name), std::move(managed_joints)) {
-    requestTransitionTo(DriverState::READY);
+    if (mark_ready) markReady();
   }
 
-  void startImpl() override {
-    if (getState() == DriverState::READY) requestTransitionTo(DriverState::RUNNING);
-  }
-  void stopImpl() override {
-    if (getState() == DriverState::RUNNING) requestTransitionTo(DriverState::STOPPING);
-  }
-  void updateImpl(const motorium::model::RobotJointFeedbackAction&, motorium::model::RobotState&) override { update_count_++; }
-  void resetImpl() override {}
+  void finishInitialization() { markReady(); }
+  void triggerFault(std::string_view reason = "test fault") { reportFault(reason); }
 
-  void triggerTransition(DriverState next) { requestTransitionTo(next); }
-
+  int start_count_{0};
+  int stop_count_{0};
+  int reset_count_{0};
   int update_count_{0};
+
+  // When set, startImpl() reports a fault, mimicking hardware that fails to come up.
+  bool fault_on_start_{false};
+
+ private:
+  void startImpl() override {
+    start_count_++;
+    if (fault_on_start_) reportFault("start failed");
+  }
+  void stopImpl() override { stop_count_++; }
+  void resetImpl() override { reset_count_++; }
+  void updateImpl(const motorium::model::RobotJointFeedbackAction&, motorium::model::RobotState&) override { update_count_++; }
 };
 
 }  // namespace motorium::hal

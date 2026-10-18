@@ -108,7 +108,7 @@ MujocoDriver::MujocoDriver(hal::HalKey key, const model::RobotDescription& robot
   memcpy(qpos_init_.data(), mj_data_->qpos, mj_model_->nq * sizeof(mjtNum));
   memcpy(qvel_init_.data(), mj_data_->qvel, mj_model_->nv * sizeof(mjtNum));
 
-  this->requestTransitionTo(hal::DriverState::READY);
+  markReady();
 }
 
 /******************************************************************************************************/
@@ -116,7 +116,7 @@ MujocoDriver::MujocoDriver(hal::HalKey key, const model::RobotDescription& robot
 /******************************************************************************************************/
 
 MujocoDriver::~MujocoDriver() {
-  stopImpl();
+  stopSimulationThread();
   absl::MutexLock lock(&mj_mutex_);
   mj_deleteData(mj_data_);
   mj_deleteModel(const_cast<mjModel*>(mj_model_));
@@ -446,31 +446,24 @@ void MujocoDriver::initSim() {
   }
 }
 
+// DriverBase only calls this from READY, so the simulation thread is not running yet.
 void MujocoDriver::startImpl() {
-  if (getState() != hal::DriverState::READY || simulate_thread_.joinable()) {
-    std::cerr << "WARNING: Tried to start simulation thread, but it is already running." << std::endl;
-    return;
-  }
-
   if (!sim_initialized_) initSim();
 
-  this->requestTransitionTo(hal::DriverState::RUNNING);
   simulate_thread_ = std::jthread([this](std::stop_token st) { this->simulationLoop(st); });
 }
 
 void MujocoDriver::stopImpl() {
-  if (getState() != hal::DriverState::RUNNING) {
-    return;
-  }
+  stopSimulationThread();
+}
 
-  this->requestTransitionTo(hal::DriverState::STOPPING);
+void MujocoDriver::stopSimulationThread() {
   if (simulate_thread_.joinable()) {
     simulate_thread_.request_stop();
     if (simulate_thread_.get_id() != std::this_thread::get_id()) {
       simulate_thread_.join();
     }
   }
-  this->requestTransitionTo(hal::DriverState::READY);
 }
 
 }  // namespace motorium::mujoco

@@ -30,9 +30,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
+#include <absl/synchronization/mutex.h>
 #include <motorium_core/StateMachine.h>
 #include <motorium_model/RobotDescription.h>
 #include <motorium_model/RobotJointFeedbackAction.h>
@@ -50,6 +52,15 @@ struct HalKey {
   HalKey() = default;
 };
 
+// Lifecycle of a driver. Transitions are owned by DriverBase (see start/stop/reset below); a
+// concrete driver can only signal markReady() once initialized and reportFault() on errors.
+//
+//   INITIALIZING --markReady()--> READY --start()--> RUNNING --stop()--> STOPPING --> READY
+//   any state except FAULT --reportFault()--> FAULT --reset()--> READY
+//
+// IMPORTANT: The declaration order is load-bearing. States are ordered from most degraded to most
+// operational, and RobotHAL::getState() reports the minimum (std::min) across all drivers. Reordering
+// these values silently changes what the HAL reports.
 // ToDO update to logic required by HW
 enum class DriverState {
   FAULT,
@@ -77,37 +88,55 @@ inline bool isLegalDriverTransition(DriverState from, DriverState to) {
   }
 }
 
-class DriverBase : public motorium::core::StateMachine<DriverState> {
+// Base class for all drivers. It owns the driver's lifecycle state: start(), stop() and reset() check
+// and perform the state transitions, while subclasses only implement the hardware/sim work in the
+// *Impl() hooks. The state machine is a private member, so nothing else can change the state.
+class DriverBase {
  public:
   // Manages all joints in the HAL's description.
   DriverBase(HalKey, const model::RobotDescription& description, std::string name)
-      : motorium::core::StateMachine<DriverState>(DriverState::INITIALIZING),
-        name_(std::move(name)),
-        managed_joint_names_(description.getJointNames()) {}
+      : name_(std::move(name)), managed_joint_names_(description.getJointNames()) {}
 
   // Manages an explicit subset; validates names exist in description and are unique.
   DriverBase(HalKey, const model::RobotDescription& description, std::string name, std::vector<std::string> managed_joint_names)
-      : motorium::core::StateMachine<DriverState>(DriverState::INITIALIZING),
-        name_(std::move(name)),
-        managed_joint_names_(std::move(managed_joint_names)) {
+      : name_(std::move(name)), managed_joint_names_(std::move(managed_joint_names)) {
     validateManagedJointNames(description);
   }
 
   virtual ~DriverBase() = default;
 
+  DriverState getState() const { return state_.getState(); }
+  std::string_view stateToString() const { return state_.stateToString(); }
+
   // Callable only by RobotHAL — HalKey enforces this at compile time.
-  void start(HalKey) { startImpl(); }
-  void stop(HalKey) { stopImpl(); }
+
+  // READY -> RUNNING. A no-op when already RUNNING; aborts from any other state, since starting a
+  // driver that is not ready is a bug in the caller.
+  void start(HalKey);
+
+  // RUNNING -> STOPPING -> READY. Stopping must always be safe to call during shutdown, so it never
+  // aborts: it is a no-op when not running, and on a FAULTed driver it still calls stopImpl() to
+  // bring the hardware to rest, but stays in FAULT.
+  void stop(HalKey);
+
+  // Allowed from READY, RUNNING and FAULT (FAULT -> READY); aborts from INITIALIZING and STOPPING.
+  void reset(HalKey);
+
+  // Calls updateImpl() if RUNNING, otherwise does nothing.
   void update(HalKey, const model::RobotJointFeedbackAction& action, model::RobotState& robot_state);
-  void reset(HalKey) { resetImpl(); }
 
   const std::string& getName() const { return name_; }
   const std::vector<std::string>& getManagedJointNames() const { return managed_joint_names_; }
 
  protected:
-  bool isLegalTransition(DriverState from, DriverState to) const override { return isLegalDriverTransition(from, to); }
+  // INITIALIZING -> READY. Call once the driver is ready to be started, e.g. at the end of the
+  // constructor or when asynchronous initialization completes.
+  void markReady();
 
-  // Subclasses implement these; also callable internally (e.g. from destructors).
+  // Moves the driver to FAULT (no-op if it already is). Safe to call from any thread.
+  void reportFault(std::string_view reason);
+
+  // Hardware/sim work only; DriverBase performs all state checks and transitions around these.
   virtual void startImpl() = 0;
   virtual void stopImpl() = 0;
   virtual void resetImpl() = 0;
@@ -118,6 +147,11 @@ class DriverBase : public motorium::core::StateMachine<DriverState> {
 
  private:
   void validateManagedJointNames(const model::RobotDescription& description) const;
+
+  core::StateMachine<DriverState, isLegalDriverTransition> state_{DriverState::INITIALIZING};
+
+  // Serializes start/stop/reset so concurrent lifecycle calls cannot interleave.
+  absl::Mutex lifecycle_mutex_;
 };
 
 }  // namespace motorium::hal
