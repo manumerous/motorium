@@ -215,8 +215,8 @@ TEST_F(RobotHALSafetyTest, UpdateStateWithFaultedDriverStopsAllDriversAndLatches
 
   hal_->updateState(*state_);
 
-  // Nothing was read, every driver was stopped, and the healthy one is back at rest.
-  EXPECT_EQ(d1_->update_state_count_, 0);
+  // d1 comes first and is still read; d2 refuses, every driver is stopped, and d1 is back at rest.
+  EXPECT_EQ(d1_->update_state_count_, 1);
   EXPECT_EQ(d2_->update_state_count_, 0);
   EXPECT_EQ(d1_->stop_count_, 1);
   EXPECT_EQ(d2_->stop_count_, 1);
@@ -274,9 +274,9 @@ TEST_F(RobotHALSafetyTest, LatchedHalIgnoresFurtherCalls) {
   hal_->updateState(*state_);
   hal_->setAction(*action_);
 
-  // Stopped exactly once; no further reads or writes.
+  // Stopped exactly once; no further reads or writes after the first (pre-stop) read of d1.
   EXPECT_EQ(d1_->stop_count_, 1);
-  EXPECT_EQ(d1_->update_state_count_, 0);
+  EXPECT_EQ(d1_->update_state_count_, 1);
   EXPECT_EQ(d1_->set_action_count_, 0);
 }
 
@@ -296,12 +296,26 @@ TEST_F(RobotHALSafetyTest, ResetClearsTheLatchAndAllowsRestart) {
   hal_->resetDrivers();
   EXPECT_EQ(hal_->getState(), DriverState::READY);
 
+  const int d1_reads_before_restart = d1_->update_state_count_;
   hal_->startDrivers();
   hal_->updateState(*state_);
   hal_->setAction(*action_);
   EXPECT_EQ(hal_->getState(), DriverState::RUNNING);
-  EXPECT_EQ(d1_->update_state_count_, 1);
+  EXPECT_EQ(d1_->update_state_count_, d1_reads_before_restart + 1);
   EXPECT_EQ(d2_->set_action_count_, 1);
+}
+
+TEST_F(RobotHALSafetyTest, DriverFaultingOnStartStopsAllDrivers) {
+  d1_->fault_on_start_ = true;
+
+  hal_->startDrivers();
+
+  EXPECT_EQ(hal_->getState(), DriverState::FAULT);
+  EXPECT_EQ(d1_->getState(), DriverState::FAULT);
+  // d2 started fine but must not keep running on its own.
+  EXPECT_EQ(d2_->start_count_, 1);
+  EXPECT_EQ(d2_->stop_count_, 1);
+  EXPECT_EQ(d2_->getState(), DriverState::READY);
 }
 
 TEST_F(RobotHALSafetyTest, UpdateStateBeforeStartTriggersSafetyStop) {

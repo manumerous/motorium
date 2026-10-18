@@ -50,26 +50,25 @@ DriverState RobotHAL::getState() const {
                          [](DriverState worst, const std::unique_ptr<DriverBase>& driver) { return std::min(worst, driver->getState()); });
 }
 
-// Both calls first check all drivers, so a known fault means nothing is read or sent at all. A driver
-// can still fault during the loop (from its own thread, or inside its *Impl()); its call then returns
-// false and the safety stop happens immediately, before any remaining driver is read or commanded.
-// A driver that faults after its own read has returned is caught by setAction()'s check, before any
-// action computed from the stale state is sent.
+// Each driver checks its own state before and after the call and returns false if it is not RUNNING,
+// so its *Impl() never runs on a non-running driver. The first false triggers the safety stop, before
+// any remaining driver is read or commanded. Drivers earlier in the loop may already have been read
+// or commanded on that tick; they are brought to rest by the stop right after.
 void RobotHAL::updateState(model::RobotState& robot_state) {
-  if (!ensureAllDriversRunning()) return;
+  if (safety_stopped_) return;
   for (const auto& driver : drivers_) {
     if (!driver->updateState(HalKey{}, robot_state)) {
-      safetyStop(*driver);
+      safetyStopAllDrivers(*driver);
       return;
     }
   }
 }
 
 void RobotHAL::setAction(const model::RobotJointFeedbackAction& action) {
-  if (!ensureAllDriversRunning()) return;
+  if (safety_stopped_) return;
   for (const auto& driver : drivers_) {
     if (!driver->setAction(HalKey{}, action)) {
-      safetyStop(*driver);
+      safetyStopAllDrivers(*driver);
       return;
     }
   }
@@ -79,16 +78,16 @@ bool RobotHAL::ensureAllDriversRunning() {
   if (safety_stopped_) return false;
   for (const auto& driver : drivers_) {
     if (driver->getState() != DriverState::RUNNING) {
-      safetyStop(*driver);
+      safetyStopAllDrivers(*driver);
       return false;
     }
   }
   return true;
 }
 
-void RobotHAL::safetyStop(const DriverBase& cause) {
+void RobotHAL::safetyStopAllDrivers(const DriverBase& triggering_driver) {
   safety_stopped_ = true;
-  std::cerr << "[RobotHAL] SAFETY STOP: driver '" << cause.getName() << "' is " << cause.stateToString()
+  std::cerr << "[RobotHAL] SAFETY STOP: driver '" << triggering_driver.getName() << "' is " << triggering_driver.stateToString()
             << " instead of RUNNING. Stopping all drivers; call resetDrivers() to recover." << std::endl;
   stopDrivers();
 }
@@ -99,6 +98,9 @@ void RobotHAL::startDrivers() {
   for (const auto& driver : drivers_) {
     driver->start(HalKey{});
   }
+  // A driver that failed to come up (reported a fault during startImpl()) must not leave the others
+  // running on their own.
+  ensureAllDriversRunning();
 }
 
 void RobotHAL::stopDrivers() {
