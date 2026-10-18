@@ -153,3 +153,17 @@ TEST(StateMachineTest, ConcurrentTryTransitionsSucceedExactlyOnce) {
   EXPECT_EQ(successes.load(), 1);
   EXPECT_EQ(m.getState(), TestState::ACTIVE);
 }
+
+TEST(StateMachineTest, ConcurrentRequestTransitionsAreAllApplied) {
+  StressMachine m(TestState::IDLE);
+  std::vector<std::thread> threads;
+  for (int i = 0; i < 8; ++i) {
+    threads.emplace_back([&m, i]() {
+      const TestState target = (i % 2 == 0) ? TestState::ACTIVE : TestState::PAUSED;
+      for (int j = 0; j < 10000; ++j) m.requestTransitionTo(target);
+    });
+  }
+  for (auto& t : threads) t.join();
+  const TestState final_state = m.getState();
+  EXPECT_TRUE(final_state == TestState::ACTIVE || final_state == TestState::PAUSED);
+}

@@ -246,8 +246,24 @@ TEST_F(RobotHALSafetyTest, FaultDuringReadStopsBeforeTheActionIsSent) {
 
   EXPECT_EQ(hal_->getState(), DriverState::FAULT);
   EXPECT_EQ(d2_->getState(), DriverState::READY);
+  // Stopped right after d1's read failed, so d2 was never read and nothing was sent.
+  EXPECT_EQ(d2_->update_state_count_, 0);
   EXPECT_EQ(d1_->set_action_count_, 0);
   EXPECT_EQ(d2_->set_action_count_, 0);
+}
+
+TEST_F(RobotHALSafetyTest, FaultDuringSendStopsBeforeRemainingDriversAreCommanded) {
+  hal_->startDrivers();
+  d1_->fault_on_set_action_ = true;
+
+  hal_->setAction(*action_);
+
+  // Caught on the same tick: d2 never receives the action and is brought to rest.
+  EXPECT_EQ(hal_->getState(), DriverState::FAULT);
+  EXPECT_EQ(d1_->set_action_count_, 1);
+  EXPECT_EQ(d2_->set_action_count_, 0);
+  EXPECT_EQ(d2_->stop_count_, 1);
+  EXPECT_EQ(d2_->getState(), DriverState::READY);
 }
 
 TEST_F(RobotHALSafetyTest, LatchedHalIgnoresFurtherCalls) {

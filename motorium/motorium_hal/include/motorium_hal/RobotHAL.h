@@ -96,7 +96,8 @@ class RobotHAL {
   // Returns true if every driver is RUNNING. Otherwise performs a safety stop (if not already
   // latched) and returns false.
   bool ensureAllDriversRunning();
-  void safetyStop(const std::string& reason);
+  // Stops all drivers and latches FAULT. `cause` is the driver found not RUNNING.
+  void safetyStop(const DriverBase& cause);
 
   std::atomic<bool> safety_stopped_{false};
 

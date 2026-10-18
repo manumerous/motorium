@@ -123,12 +123,13 @@ class DriverBase {
   void reset(HalKey);
 
   // Writes the latest measured state of the managed joints into robot_state. Does nothing unless
-  // RUNNING (RobotHAL reacts to non-running drivers before calling this).
-  void updateState(HalKey, model::RobotState& robot_state);
+  // RUNNING. Returns whether the driver is still RUNNING afterwards, i.e. false if it was not
+  // running or faulted during the call; RobotHAL reacts to that with a safety stop.
+  [[nodiscard]] bool updateState(HalKey, model::RobotState& robot_state);
 
-  // Forwards the commanded action for the managed joints to the hardware/sim. Does nothing unless
-  // RUNNING (RobotHAL reacts to non-running drivers before calling this).
-  void setAction(HalKey, const model::RobotJointFeedbackAction& action);
+  // Forwards the commanded action for the managed joints to the hardware/sim. Same RUNNING check and
+  // return value as updateState().
+  [[nodiscard]] bool setAction(HalKey, const model::RobotJointFeedbackAction& action);
 
   const std::string& getName() const { return name_; }
   const std::vector<std::string>& getManagedJointNames() const { return managed_joint_names_; }

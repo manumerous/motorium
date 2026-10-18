@@ -29,7 +29,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include <absl/synchronization/mutex.h>
+#include <atomic>
 #include <string_view>
 
 #include <motorium_core/Check.h>
@@ -37,49 +37,53 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace motorium::core {
 
-// Thread-safe state machine. The transition table is a compile-time function
+// Thread-safe, lock-free state machine. The transition table is a compile-time function
 // IsLegalTransition(from, to); illegal transitions abort via MT_CHECK.
+//
+// The state is a single std::atomic, so reads are plain atomic loads and transitions are
+// compare-and-swap operations: no thread can ever block another, which keeps getState() safe to
+// call from real-time loops. If the state ever has to be updated together with other data (e.g. a
+// fault reason), this needs to become a mutex again.
 //
 // Meant to be held as a (private) member by the class whose lifecycle it tracks,
 // so that class alone decides who may trigger which transition.
 template <typename StateEnum, bool (*IsLegalTransition)(StateEnum, StateEnum)>
 class StateMachine final {
+  static_assert(std::atomic<StateEnum>::is_always_lock_free, "StateMachine requires a lock-free atomic state");
+
  public:
   explicit StateMachine(StateEnum initial_state) : state_(initial_state) {}
 
-  StateEnum getState() const {
-    absl::ReaderMutexLock lock(&mu_);
-    return state_;
-  }
+  StateEnum getState() const { return state_.load(); }
 
   // Returns a view into static storage (magic_enum::enum_name guarantees program lifetime).
   std::string_view stateToString() const { return magic_enum::enum_name(getState()); }
 
-  // Transitions to `next`, aborting if the transition is illegal from the current state.
+  // Transitions to `next`, aborting if the transition is illegal from the current state. If another
+  // thread changes the state concurrently, legality is re-checked against the new state.
   void requestTransitionTo(StateEnum next) {
-    absl::MutexLock lock(&mu_);
-    transitionLocked(next);
+    StateEnum current = state_.load();
+    do {
+      checkLegal(current, next);
+    } while (!state_.compare_exchange_weak(current, next));  // on failure, `current` is refreshed
   }
 
   // Atomically transitions to `next` only if the current state is still `expected`, and returns
   // whether it did. Use this when the state may change concurrently between reading and writing it,
-  // e.g. to avoid overwriting a FAULT reported from another thread.
+  // e.g. to avoid overwriting a FAULT reported from another thread. Aborts if expected -> next is
+  // illegal, regardless of the current state, since that is a bug in the caller.
   bool tryTransition(StateEnum expected, StateEnum next) {
-    absl::MutexLock lock(&mu_);
-    if (state_ != expected) return false;
-    transitionLocked(next);
-    return true;
+    checkLegal(expected, next);
+    return state_.compare_exchange_strong(expected, next);
   }
 
  private:
-  void transitionLocked(StateEnum next) ABSL_EXCLUSIVE_LOCKS_REQUIRED(mu_) {
-    MT_CHECK(IsLegalTransition(state_, next)) << "Illegal state transition: " << magic_enum::enum_name(state_) << " -> "
-                                              << magic_enum::enum_name(next);
-    state_ = next;
+  static void checkLegal(StateEnum from, StateEnum to) {
+    MT_CHECK(IsLegalTransition(from, to)) << "Illegal state transition: " << magic_enum::enum_name(from) << " -> "
+                                          << magic_enum::enum_name(to);
   }
 
-  mutable absl::Mutex mu_;
-  StateEnum state_ ABSL_GUARDED_BY(mu_);
+  std::atomic<StateEnum> state_;
 };
 
 }  // namespace motorium::core
