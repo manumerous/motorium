@@ -28,6 +28,8 @@ include_directories(
         include
         ${EIGEN3_INCLUDE_DIRS}
         ${GTEST_INCLUDE_DIRS}
+        ${URDFDOM_INCLUDE_DIRS}
+        ${PUGIXML_INCLUDE_DIRS}
 )
 
 set(dependencies
