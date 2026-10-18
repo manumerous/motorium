@@ -156,7 +156,39 @@ TEST_F(RobotHALTest, StateIsFaultWhenAnyDriverInFault) {
 
 // ─── update ─────────────────────────────────────────────────────────────────
 
-TEST_F(RobotHALTest, UpdateCallsAllRunningDrivers) {
+TEST_F(RobotHALTest, UpdateStateCallsAllRunningDrivers) {
+  RobotHAL hal(xml_path_);
+  TestDriver& d1 = hal.addDriver<TestDriver>("d1", std::vector<std::string>{"joint1"});
+  TestDriver& d2 = hal.addDriver<TestDriver>("d2", std::vector<std::string>{"joint2"});
+
+  RobotState state(hal.getRobotDescription());
+
+  hal.startDrivers();
+  hal.updateState(state);
+
+  EXPECT_EQ(d1.update_state_count_, 1);
+  EXPECT_EQ(d2.update_state_count_, 1);
+  EXPECT_EQ(d1.set_action_count_, 0);
+  EXPECT_EQ(d2.set_action_count_, 0);
+}
+
+TEST_F(RobotHALTest, SetActionCallsAllRunningDrivers) {
+  RobotHAL hal(xml_path_);
+  TestDriver& d1 = hal.addDriver<TestDriver>("d1", std::vector<std::string>{"joint1"});
+  TestDriver& d2 = hal.addDriver<TestDriver>("d2", std::vector<std::string>{"joint2"});
+
+  RobotJointFeedbackAction action(hal.getRobotDescription());
+
+  hal.startDrivers();
+  hal.setAction(action);
+
+  EXPECT_EQ(d1.set_action_count_, 1);
+  EXPECT_EQ(d2.set_action_count_, 1);
+  EXPECT_EQ(d1.update_state_count_, 0);
+  EXPECT_EQ(d2.update_state_count_, 0);
+}
+
+TEST_F(RobotHALTest, UpdateStateAndSetActionSkipNonRunningDrivers) {
   RobotHAL hal(xml_path_);
   TestDriver& d1 = hal.addDriver<TestDriver>("d1", std::vector<std::string>{"joint1"});
   TestDriver& d2 = hal.addDriver<TestDriver>("d2", std::vector<std::string>{"joint2"});
@@ -165,8 +197,12 @@ TEST_F(RobotHALTest, UpdateCallsAllRunningDrivers) {
   RobotJointFeedbackAction action(hal.getRobotDescription());
 
   hal.startDrivers();
-  hal.update(action, state);
+  d2.triggerTransition(DriverState::FAULT);
+  hal.updateState(state);
+  hal.setAction(action);
 
-  EXPECT_EQ(d1.update_count_, 1);
-  EXPECT_EQ(d2.update_count_, 1);
+  EXPECT_EQ(d1.update_state_count_, 1);
+  EXPECT_EQ(d1.set_action_count_, 1);
+  EXPECT_EQ(d2.update_state_count_, 0);
+  EXPECT_EQ(d2.set_action_count_, 0);
 }

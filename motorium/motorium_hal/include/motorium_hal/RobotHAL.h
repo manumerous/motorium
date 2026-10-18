@@ -71,7 +71,10 @@ class RobotHAL {
   // Reflects the most degraded driver state — always current, never stale.
   DriverState getState() const;
 
-  void update(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state);
+  // Collects the latest state from all running drivers.
+  void updateState(model::RobotState& robot_state);
+  // Sends the action to all running drivers.
+  void setAction(const model::RobotJointFeedbackAction& action);
 
   // Validates joint coverage across all registered drivers, then starts them.
   void startDrivers();

@@ -96,7 +96,9 @@ class MujocoDriver final : public hal::DriverBase {
 
   void simulationLoop(std::stop_token st);
 
-  void updateImpl(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) override;
+  void updateStateImpl(model::RobotState& robot_state) override;
+
+  void setActionImpl(const model::RobotJointFeedbackAction& action) override;
 
   void printModelInfo();
 

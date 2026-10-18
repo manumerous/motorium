@@ -34,9 +34,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace motorium::hal {
 
-void DriverBase::update(HalKey, const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) {
+void DriverBase::updateState(HalKey, model::RobotState& robot_state) {
   MT_CHECK(getState() == DriverState::RUNNING) << "Driver " << name_ << " is not in RUNNING state";
-  updateImpl(action, robot_state);
+  updateStateImpl(robot_state);
+}
+
+void DriverBase::setAction(HalKey, const model::RobotJointFeedbackAction& action) {
+  MT_CHECK(getState() == DriverState::RUNNING) << "Driver " << name_ << " is not in RUNNING state";
+  setActionImpl(action);
 }
 
 void DriverBase::validateManagedJointNames(const model::RobotDescription& description) const {

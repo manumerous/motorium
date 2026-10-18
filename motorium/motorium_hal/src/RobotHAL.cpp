@@ -48,10 +48,18 @@ DriverState RobotHAL::getState() const {
                          [](DriverState worst, const std::unique_ptr<DriverBase>& driver) { return std::min(worst, driver->getState()); });
 }
 
-void RobotHAL::update(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) {
+void RobotHAL::updateState(model::RobotState& robot_state) {
   for (const auto& driver : drivers_) {
     if (driver->getState() == DriverState::RUNNING) {
-      driver->update(HalKey{}, action, robot_state);
+      driver->updateState(HalKey{}, robot_state);
+    }
+  }
+}
+
+void RobotHAL::setAction(const model::RobotJointFeedbackAction& action) {
+  for (const auto& driver : drivers_) {
+    if (driver->getState() == DriverState::RUNNING) {
+      driver->setAction(HalKey{}, action);
     }
   }
 }

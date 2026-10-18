@@ -51,12 +51,14 @@ class TestDriver : public DriverBase {
   void stopImpl() override {
     if (getState() == DriverState::RUNNING) requestTransitionTo(DriverState::STOPPING);
   }
-  void updateImpl(const motorium::model::RobotJointFeedbackAction&, motorium::model::RobotState&) override { update_count_++; }
+  void updateStateImpl(motorium::model::RobotState&) override { update_state_count_++; }
+  void setActionImpl(const motorium::model::RobotJointFeedbackAction&) override { set_action_count_++; }
   void resetImpl() override {}
 
   void triggerTransition(DriverState next) { requestTransitionTo(next); }
 
-  int update_count_{0};
+  int update_state_count_{0};
+  int set_action_count_{0};
 };
 
 }  // namespace motorium::hal

@@ -98,7 +98,10 @@ class DriverBase : public motorium::core::StateMachine<DriverState> {
   // Callable only by RobotHAL — HalKey enforces this at compile time.
   void start(HalKey) { startImpl(); }
   void stop(HalKey) { stopImpl(); }
-  void update(HalKey, const model::RobotJointFeedbackAction& action, model::RobotState& robot_state);
+  // Writes the latest measured state of the managed joints into robot_state.
+  void updateState(HalKey, model::RobotState& robot_state);
+  // Forwards the commanded action for the managed joints to the hardware/sim.
+  void setAction(HalKey, const model::RobotJointFeedbackAction& action);
   void reset(HalKey) { resetImpl(); }
 
   const std::string& getName() const { return name_; }
@@ -111,7 +114,8 @@ class DriverBase : public motorium::core::StateMachine<DriverState> {
   virtual void startImpl() = 0;
   virtual void stopImpl() = 0;
   virtual void resetImpl() = 0;
-  virtual void updateImpl(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) = 0;
+  virtual void updateStateImpl(model::RobotState& robot_state) = 0;
+  virtual void setActionImpl(const model::RobotJointFeedbackAction& action) = 0;
 
   const std::string name_;
   const std::vector<std::string> managed_joint_names_;
