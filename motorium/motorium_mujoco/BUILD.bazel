@@ -13,7 +13,6 @@ cc_library(
         "//motorium/motorium_core",
         "//motorium/motorium_model",
         "//motorium/motorium_hal",
-        "//:urdfdom",
         "@glfw//:glfw",
         "@glew//:glew",
         "@mujoco//:mujoco",

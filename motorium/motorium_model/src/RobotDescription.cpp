@@ -29,7 +29,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "motorium_model/RobotDescription.h"
 
-#include <urdfdom/urdf_parser/urdf_parser.h>
+#include <urdf_parser/urdf_parser.h>
 
 #include <algorithm>
 #include <cmath>

@@ -16,6 +16,8 @@ bazel_dep(name = "abseil-cpp", version = "20250814.1", repo_name = "com_google_a
 bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
 bazel_dep(name = "glfw", version = "3.4.0.bcr.1")
 bazel_dep(name = "glew", version = "2.3.1.bcr.1")
+bazel_dep(name = "pugixml", version = "1.15")
+bazel_dep(name = "urdfdom", version = "6.0.0-3.rcr.1")
 
 non_module_deps = use_extension("//:extensions.bzl", "non_module_deps")
 use_repo(non_module_deps, "mujoco")

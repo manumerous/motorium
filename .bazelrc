@@ -1,4 +1,7 @@
 common --enable_bzlmod
+# RCR first so its ROS modules (e.g. urdfdom) take precedence over BCR.
+common --registry=https://openrobotics.github.io/ros-central-registry
+common --registry=https://bcr.bazel.build
 build --output_filter=^//
 build --copt=-DGLEW_NO_GLU
 build --cxxopt=-std=c++23
