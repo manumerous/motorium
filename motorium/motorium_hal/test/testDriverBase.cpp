@@ -204,15 +204,3 @@ TEST_F(DriverBaseTest, MarkReadyCannotClearAFault) {
   driver.triggerFault();
   EXPECT_DEATH(driver.finishInitialization(), "can only be marked ready while INITIALIZING");
 }
-
-// ─── update ─────────────────────────────────────────────────────────────────
-
-TEST_F(DriverBaseTest, UpdateSkipsFaultedDriver) {
-  TestDriver& driver = hal_->addDriver<TestDriver>("test_driver");
-  RobotState state(hal_->getRobotDescription());
-  RobotJointFeedbackAction action(hal_->getRobotDescription());
-  hal_->startDrivers();
-  driver.triggerFault();
-  hal_->update(action, state);
-  EXPECT_EQ(driver.update_count_, 0);
-}

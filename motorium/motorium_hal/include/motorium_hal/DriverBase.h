@@ -122,8 +122,14 @@ class DriverBase {
   // Allowed from READY, RUNNING and FAULT (FAULT -> READY); aborts from INITIALIZING and STOPPING.
   void reset(HalKey);
 
-  // Calls updateImpl() if RUNNING, otherwise does nothing.
-  void update(HalKey, const model::RobotJointFeedbackAction& action, model::RobotState& robot_state);
+  // Writes the latest measured state of the managed joints into robot_state. Does nothing unless
+  // RUNNING. Returns whether the driver is still RUNNING afterwards, i.e. false if it was not
+  // running or faulted during the call; RobotHAL reacts to that with a safety stop.
+  [[nodiscard]] bool updateState(HalKey, model::RobotState& robot_state);
+
+  // Forwards the commanded action for the managed joints to the hardware/sim. Same RUNNING check and
+  // return value as updateState().
+  [[nodiscard]] bool setAction(HalKey, const model::RobotJointFeedbackAction& action);
 
   const std::string& getName() const { return name_; }
   const std::vector<std::string>& getManagedJointNames() const { return managed_joint_names_; }
@@ -140,7 +146,8 @@ class DriverBase {
   virtual void startImpl() = 0;
   virtual void stopImpl() = 0;
   virtual void resetImpl() = 0;
-  virtual void updateImpl(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) = 0;
+  virtual void updateStateImpl(model::RobotState& robot_state) = 0;
+  virtual void setActionImpl(const model::RobotJointFeedbackAction& action) = 0;
 
   const std::string name_;
   const std::vector<std::string> managed_joint_names_;

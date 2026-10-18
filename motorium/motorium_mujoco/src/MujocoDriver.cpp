@@ -326,11 +326,16 @@ void MujocoDriver::setSimState(const model::RobotState& robot_state) {
 /******************************************************************************************************/
 /******************************************************************************************************/
 
-void MujocoDriver::updateImpl(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) {
-  {
-    absl::MutexLock lock(&action_mutex_);
-    action_internal_ = action;
-  }
+void MujocoDriver::setActionImpl(const model::RobotJointFeedbackAction& action) {
+  absl::MutexLock lock(&action_mutex_);
+  action_internal_ = action;
+}
+
+/******************************************************************************************************/
+/******************************************************************************************************/
+/******************************************************************************************************/
+
+void MujocoDriver::updateStateImpl(model::RobotState& robot_state) {
   absl::ReaderMutexLock lock(&mj_mutex_);
   // Update mujoco joint angles
   for (size_t i = 0; i < num_active_joints_; ++i) {

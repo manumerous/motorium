@@ -59,10 +59,15 @@ class TestDriver : public DriverBase {
   int start_count_{0};
   int stop_count_{0};
   int reset_count_{0};
-  int update_count_{0};
+  int update_state_count_{0};
+  int set_action_count_{0};
 
   // When set, startImpl() reports a fault, mimicking hardware that fails to come up.
   bool fault_on_start_{false};
+  // When set, updateStateImpl() reports a fault, mimicking a read that fails mid-tick.
+  bool fault_on_update_state_{false};
+  // When set, setActionImpl() reports a fault, mimicking a write that fails mid-tick.
+  bool fault_on_set_action_{false};
 
  private:
   void startImpl() override {
@@ -71,7 +76,14 @@ class TestDriver : public DriverBase {
   }
   void stopImpl() override { stop_count_++; }
   void resetImpl() override { reset_count_++; }
-  void updateImpl(const motorium::model::RobotJointFeedbackAction&, motorium::model::RobotState&) override { update_count_++; }
+  void updateStateImpl(motorium::model::RobotState&) override {
+    update_state_count_++;
+    if (fault_on_update_state_) reportFault("read failed");
+  }
+  void setActionImpl(const motorium::model::RobotJointFeedbackAction&) override {
+    set_action_count_++;
+    if (fault_on_set_action_) reportFault("write failed");
+  }
 };
 
 }  // namespace motorium::hal

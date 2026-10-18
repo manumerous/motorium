@@ -71,11 +71,18 @@ void DriverBase::reset(HalKey) {
   state_.tryTransition(DriverState::FAULT, DriverState::READY);
 }
 
-void DriverBase::update(HalKey, const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) {
-  // Skipped rather than checked: a driver may report a fault from its own thread at any time, so not
-  // being RUNNING here is an expected race, not a caller bug.
-  if (getState() != DriverState::RUNNING) return;
-  updateImpl(action, robot_state);
+// Skipped rather than checked: a driver may report a fault from its own thread at any time, so not
+// being RUNNING here is an expected race, not a caller bug. The return value lets RobotHAL react.
+bool DriverBase::updateState(HalKey, model::RobotState& robot_state) {
+  if (getState() != DriverState::RUNNING) return false;
+  updateStateImpl(robot_state);
+  return getState() == DriverState::RUNNING;
+}
+
+bool DriverBase::setAction(HalKey, const model::RobotJointFeedbackAction& action) {
+  if (getState() != DriverState::RUNNING) return false;
+  setActionImpl(action);
+  return getState() == DriverState::RUNNING;
 }
 
 void DriverBase::markReady() {

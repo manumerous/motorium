@@ -35,6 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <filesystem>
 #include <fstream>
+#include <memory>
 #include <vector>
 
 #include "TestDriver.h"
@@ -156,17 +157,182 @@ TEST_F(RobotHALTest, StateIsFaultWhenAnyDriverInFault) {
 
 // ─── update ─────────────────────────────────────────────────────────────────
 
-TEST_F(RobotHALTest, UpdateCallsAllRunningDrivers) {
+TEST_F(RobotHALTest, UpdateStateCallsAllRunningDrivers) {
   RobotHAL hal(xml_path_);
   TestDriver& d1 = hal.addDriver<TestDriver>("d1", std::vector<std::string>{"joint1"});
   TestDriver& d2 = hal.addDriver<TestDriver>("d2", std::vector<std::string>{"joint2"});
 
   RobotState state(hal.getRobotDescription());
+
+  hal.startDrivers();
+  hal.updateState(state);
+
+  EXPECT_EQ(d1.update_state_count_, 1);
+  EXPECT_EQ(d2.update_state_count_, 1);
+  EXPECT_EQ(d1.set_action_count_, 0);
+  EXPECT_EQ(d2.set_action_count_, 0);
+}
+
+TEST_F(RobotHALTest, SetActionCallsAllRunningDrivers) {
+  RobotHAL hal(xml_path_);
+  TestDriver& d1 = hal.addDriver<TestDriver>("d1", std::vector<std::string>{"joint1"});
+  TestDriver& d2 = hal.addDriver<TestDriver>("d2", std::vector<std::string>{"joint2"});
+
   RobotJointFeedbackAction action(hal.getRobotDescription());
 
   hal.startDrivers();
-  hal.update(action, state);
+  hal.setAction(action);
 
-  EXPECT_EQ(d1.update_count_, 1);
-  EXPECT_EQ(d2.update_count_, 1);
+  EXPECT_EQ(d1.set_action_count_, 1);
+  EXPECT_EQ(d2.set_action_count_, 1);
+  EXPECT_EQ(d1.update_state_count_, 0);
+  EXPECT_EQ(d2.update_state_count_, 0);
+}
+
+// ─── safety stop ────────────────────────────────────────────────────────────
+
+class RobotHALSafetyTest : public RobotHALTest {
+ protected:
+  void SetUp() override {
+    RobotHALTest::SetUp();
+    hal_ = std::make_unique<RobotHAL>(xml_path_);
+    d1_ = &hal_->addDriver<TestDriver>("d1", std::vector<std::string>{"joint1"});
+    d2_ = &hal_->addDriver<TestDriver>("d2", std::vector<std::string>{"joint2"});
+    state_ = std::make_unique<RobotState>(hal_->getRobotDescription());
+    action_ = std::make_unique<RobotJointFeedbackAction>(hal_->getRobotDescription());
+  }
+
+  std::unique_ptr<RobotHAL> hal_;
+  TestDriver* d1_{nullptr};
+  TestDriver* d2_{nullptr};
+  std::unique_ptr<RobotState> state_;
+  std::unique_ptr<RobotJointFeedbackAction> action_;
+};
+
+TEST_F(RobotHALSafetyTest, UpdateStateWithFaultedDriverStopsAllDriversAndLatchesFault) {
+  hal_->startDrivers();
+  d2_->triggerFault();
+
+  hal_->updateState(*state_);
+
+  // d1 comes first and is still read; d2 refuses, every driver is stopped, and d1 is back at rest.
+  EXPECT_EQ(d1_->update_state_count_, 1);
+  EXPECT_EQ(d2_->update_state_count_, 0);
+  EXPECT_EQ(d1_->stop_count_, 1);
+  EXPECT_EQ(d2_->stop_count_, 1);
+  EXPECT_EQ(d1_->getState(), DriverState::READY);
+  EXPECT_EQ(d2_->getState(), DriverState::FAULT);
+  EXPECT_EQ(hal_->getState(), DriverState::FAULT);
+}
+
+TEST_F(RobotHALSafetyTest, SetActionWithFaultedDriverSendsNothing) {
+  hal_->startDrivers();
+  d1_->triggerFault();
+
+  hal_->setAction(*action_);
+
+  EXPECT_EQ(d1_->set_action_count_, 0);
+  EXPECT_EQ(d2_->set_action_count_, 0);
+  EXPECT_EQ(d2_->getState(), DriverState::READY);
+  EXPECT_EQ(hal_->getState(), DriverState::FAULT);
+}
+
+TEST_F(RobotHALSafetyTest, FaultDuringReadStopsBeforeTheActionIsSent) {
+  hal_->startDrivers();
+  d1_->fault_on_update_state_ = true;
+
+  hal_->updateState(*state_);
+  hal_->setAction(*action_);
+
+  EXPECT_EQ(hal_->getState(), DriverState::FAULT);
+  EXPECT_EQ(d2_->getState(), DriverState::READY);
+  // Stopped right after d1's read failed, so d2 was never read and nothing was sent.
+  EXPECT_EQ(d2_->update_state_count_, 0);
+  EXPECT_EQ(d1_->set_action_count_, 0);
+  EXPECT_EQ(d2_->set_action_count_, 0);
+}
+
+TEST_F(RobotHALSafetyTest, FaultDuringSendStopsBeforeRemainingDriversAreCommanded) {
+  hal_->startDrivers();
+  d1_->fault_on_set_action_ = true;
+
+  hal_->setAction(*action_);
+
+  // Caught on the same tick: d2 never receives the action and is brought to rest.
+  EXPECT_EQ(hal_->getState(), DriverState::FAULT);
+  EXPECT_EQ(d1_->set_action_count_, 1);
+  EXPECT_EQ(d2_->set_action_count_, 0);
+  EXPECT_EQ(d2_->stop_count_, 1);
+  EXPECT_EQ(d2_->getState(), DriverState::READY);
+}
+
+TEST_F(RobotHALSafetyTest, LatchedHalIgnoresFurtherCalls) {
+  hal_->startDrivers();
+  d2_->triggerFault();
+  hal_->updateState(*state_);
+
+  hal_->updateState(*state_);
+  hal_->setAction(*action_);
+
+  // Stopped exactly once; no further reads or writes after the first (pre-stop) read of d1.
+  EXPECT_EQ(d1_->stop_count_, 1);
+  EXPECT_EQ(d1_->update_state_count_, 1);
+  EXPECT_EQ(d1_->set_action_count_, 0);
+}
+
+TEST_F(RobotHALSafetyTest, StartDriversKillsWhileLatched) {
+  hal_->startDrivers();
+  d2_->triggerFault();
+  hal_->updateState(*state_);
+
+  EXPECT_DEATH(hal_->startDrivers(), "call resetDrivers\\(\\) first");
+}
+
+TEST_F(RobotHALSafetyTest, ResetClearsTheLatchAndAllowsRestart) {
+  hal_->startDrivers();
+  d2_->triggerFault();
+  hal_->updateState(*state_);
+
+  hal_->resetDrivers();
+  EXPECT_EQ(hal_->getState(), DriverState::READY);
+
+  const int d1_reads_before_restart = d1_->update_state_count_;
+  hal_->startDrivers();
+  hal_->updateState(*state_);
+  hal_->setAction(*action_);
+  EXPECT_EQ(hal_->getState(), DriverState::RUNNING);
+  EXPECT_EQ(d1_->update_state_count_, d1_reads_before_restart + 1);
+  EXPECT_EQ(d2_->set_action_count_, 1);
+}
+
+TEST_F(RobotHALSafetyTest, DriverFaultingOnStartStopsAllDrivers) {
+  d1_->fault_on_start_ = true;
+
+  hal_->startDrivers();
+
+  EXPECT_EQ(hal_->getState(), DriverState::FAULT);
+  EXPECT_EQ(d1_->getState(), DriverState::FAULT);
+  // d2 started fine but must not keep running on its own.
+  EXPECT_EQ(d2_->start_count_, 1);
+  EXPECT_EQ(d2_->stop_count_, 1);
+  EXPECT_EQ(d2_->getState(), DriverState::READY);
+}
+
+TEST_F(RobotHALSafetyTest, UpdateStateBeforeStartTriggersSafetyStop) {
+  hal_->updateState(*state_);
+
+  EXPECT_EQ(hal_->getState(), DriverState::FAULT);
+  EXPECT_EQ(d1_->update_state_count_, 0);
+}
+
+TEST_F(RobotHALSafetyTest, HealthyLoopNeverTriggersSafetyStop) {
+  hal_->startDrivers();
+  for (int i = 0; i < 10; ++i) {
+    hal_->updateState(*state_);
+    hal_->setAction(*action_);
+  }
+  EXPECT_EQ(hal_->getState(), DriverState::RUNNING);
+  EXPECT_EQ(d1_->stop_count_, 0);
+  EXPECT_EQ(d1_->update_state_count_, 10);
+  EXPECT_EQ(d2_->set_action_count_, 10);
 }

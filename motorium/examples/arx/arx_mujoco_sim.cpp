@@ -84,11 +84,12 @@ int main(int argc, char** argv) {
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   std::cout << "[arx_mujoco_sim] Simulation running. Close the viewer window to exit.\n";
 
-  while (true) {
-    hal.update(action, state);
+  while (hal.getState() != hal::DriverState::FAULT) {
+    hal.updateState(state);
     desired_state.setJointPosition(1, std::sin(2 * M_PI * state.getTime()) * 0.5 + 0.5);
     desired_state.setJointPosition(2, std::sin(2 * M_PI * state.getTime()) * 0.5 + 0.5);
     controller.computeJointControlAction(state.getTime(), state, desired_state, action);
+    hal.setAction(action);
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
 

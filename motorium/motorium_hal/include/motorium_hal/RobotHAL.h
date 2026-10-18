@@ -29,6 +29,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -68,18 +69,40 @@ class RobotHAL {
 
   const model::RobotDescription& getRobotDescription() const;
 
-  // Reflects the most degraded driver state — always current, never stale.
+  // Reflects the most degraded driver state — always current, never stale. Reports FAULT while the
+  // HAL is latched in a safety stop, even though the stopped drivers themselves are READY again.
   DriverState getState() const;
 
-  void update(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state);
+  // Safety policy: startDrivers(), updateState() and setAction() require every driver to be RUNNING.
+  // If any driver is not (or faults during the call), the HAL performs a safety stop: it stops all
+  // drivers (each brings its hardware to rest) and latches FAULT. While latched, updateState() and
+  // setAction() do nothing, startDrivers() aborts, and getState() reports FAULT until resetDrivers()
+  // is called.
 
-  // Validates joint coverage across all registered drivers, then starts them.
+  // Collects the latest state from all drivers.
+  void updateState(model::RobotState& robot_state);
+  // Sends the action to all drivers.
+  void setAction(const model::RobotJointFeedbackAction& action);
+
+  // Validates joint coverage across all registered drivers, then starts them. If any driver does not
+  // reach RUNNING, performs a safety stop. Aborts while the HAL is latched in FAULT; call
+  // resetDrivers() first.
   void startDrivers();
   void stopDrivers();
+  // Resets all drivers and clears a latched safety stop.
   void resetDrivers();
 
  private:
   void validateDriverCoverage();
+
+  // Returns true if every driver is RUNNING. Otherwise performs a safety stop (if not already
+  // latched) and returns false.
+  bool ensureAllDriversRunning();
+  // Stops *all* drivers (not just the triggering one) and latches FAULT. `triggering_driver` is the
+  // driver found not RUNNING; it is only used to report why the stop happened.
+  void safetyStopAllDrivers(const DriverBase& triggering_driver);
+
+  std::atomic<bool> safety_stopped_{false};
 
   std::unique_ptr<model::RobotDescription> robot_description_;
   std::vector<std::unique_ptr<hal::DriverBase>> drivers_;
