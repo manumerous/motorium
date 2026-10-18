@@ -37,52 +37,66 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace motorium::hal {
 
-void DriverBase::start(HalKey) {
+DriverResult<> DriverBase::start(HalKey) {
   absl::MutexLock lock(&lifecycle_mutex_);
   const DriverState state = getState();
-  if (state == DriverState::RUNNING) return;
+  if (state == DriverState::RUNNING) return {};
   MT_CHECK(state == DriverState::READY) << "Driver " << name_ << " cannot be started from state " << magic_enum::enum_name(state);
 
-  startImpl();
-  // Only move to RUNNING if startImpl() did not report a fault in the meantime.
-  state_.tryTransition(DriverState::READY, DriverState::RUNNING);
+  if (DriverResult<> result = startImpl(); !result) return faultWith(result.error());
+  // Only move to RUNNING if no fault was reported in the meantime.
+  if (!state_.tryTransition(DriverState::READY, DriverState::RUNNING)) {
+    return withName({.code = DriverErrorCode::FaultedDuringCall, .detail = "faulted while starting"});
+  }
+  return {};
 }
 
-void DriverBase::stop(HalKey) {
+DriverResult<> DriverBase::stop(HalKey) {
   absl::MutexLock lock(&lifecycle_mutex_);
   if (getState() == DriverState::FAULT) {
-    stopImpl();
-    return;
+    // Still bring the hardware to rest; the driver stays in FAULT either way.
+    if (DriverResult<> result = stopImpl(); !result) return faultWith(result.error());
+    return {};
   }
-  if (!state_.tryTransition(DriverState::RUNNING, DriverState::STOPPING)) return;
+  if (!state_.tryTransition(DriverState::RUNNING, DriverState::STOPPING)) return {};
 
-  stopImpl();
+  if (DriverResult<> result = stopImpl(); !result) return faultWith(result.error());
   // A fault reported while stopping must not be cleared by the transition back to READY.
-  state_.tryTransition(DriverState::STOPPING, DriverState::READY);
+  if (!state_.tryTransition(DriverState::STOPPING, DriverState::READY)) {
+    return withName({.code = DriverErrorCode::FaultedDuringCall, .detail = "faulted while stopping"});
+  }
+  return {};
 }
 
-void DriverBase::reset(HalKey) {
+DriverResult<> DriverBase::reset(HalKey) {
   absl::MutexLock lock(&lifecycle_mutex_);
   const DriverState state = getState();
   MT_CHECK(state == DriverState::READY || state == DriverState::RUNNING || state == DriverState::FAULT)
       << "Driver " << name_ << " cannot be reset from state " << magic_enum::enum_name(state);
 
-  resetImpl();
+  if (DriverResult<> result = resetImpl(); !result) return faultWith(result.error());
   state_.tryTransition(DriverState::FAULT, DriverState::READY);
+  return {};
 }
 
-// Skipped rather than checked: a driver may report a fault from its own thread at any time, so not
-// being RUNNING here is an expected race, not a caller bug. The return value lets RobotHAL react.
-bool DriverBase::updateState(HalKey, model::RobotState& robot_state) {
-  if (getState() != DriverState::RUNNING) return false;
-  updateStateImpl(robot_state);
-  return getState() == DriverState::RUNNING;
+// Not being RUNNING here is reported, not checked: a driver may report a fault from its own thread at
+// any time, so it is an expected race rather than a caller bug. RobotHAL reacts to the error.
+DriverResult<> DriverBase::updateState(HalKey, model::RobotState& robot_state) {
+  if (getState() != DriverState::RUNNING) return withName({.code = DriverErrorCode::NotRunning, .detail = stateToString()});
+  if (DriverResult<> result = updateStateImpl(robot_state); !result) return faultWith(result.error());
+  if (getState() != DriverState::RUNNING) {
+    return withName({.code = DriverErrorCode::FaultedDuringCall, .detail = "faulted during updateState"});
+  }
+  return {};
 }
 
-bool DriverBase::setAction(HalKey, const model::RobotJointFeedbackAction& action) {
-  if (getState() != DriverState::RUNNING) return false;
-  setActionImpl(action);
-  return getState() == DriverState::RUNNING;
+DriverResult<> DriverBase::setAction(HalKey, const model::RobotJointFeedbackAction& action) {
+  if (getState() != DriverState::RUNNING) return withName({.code = DriverErrorCode::NotRunning, .detail = stateToString()});
+  if (DriverResult<> result = setActionImpl(action); !result) return faultWith(result.error());
+  if (getState() != DriverState::RUNNING) {
+    return withName({.code = DriverErrorCode::FaultedDuringCall, .detail = "faulted during setAction"});
+  }
+  return {};
 }
 
 void DriverBase::markReady() {
@@ -91,12 +105,27 @@ void DriverBase::markReady() {
 }
 
 void DriverBase::reportFault(std::string_view reason) {
+  if (enterFault()) std::cerr << "[" << name_ << "] FAULT: " << reason << std::endl;
+}
+
+std::unexpected<DriverError> DriverBase::withName(DriverError error) const {
+  error.driver = name_;
+  return std::unexpected(error);
+}
+
+std::unexpected<DriverError> DriverBase::faultWith(DriverError error) {
+  std::unexpected<DriverError> named = withName(error);
+  enterFault();
+  std::cerr << "[" << name_ << "] FAULT: " << named.error() << std::endl;
+  return named;
+}
+
+bool DriverBase::enterFault() {
   while (true) {
     const DriverState state = getState();
-    if (state == DriverState::FAULT) return;
-    if (state_.tryTransition(state, DriverState::FAULT)) break;
+    if (state == DriverState::FAULT) return false;
+    if (state_.tryTransition(state, DriverState::FAULT)) return true;
   }
-  std::cerr << "[" << name_ << "] FAULT: " << reason << std::endl;
 }
 
 void DriverBase::validateManagedJointNames(const model::RobotDescription& description) const {

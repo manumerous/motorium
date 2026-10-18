@@ -74,33 +74,35 @@ class RobotHAL {
   DriverState getState() const;
 
   // Safety policy: startDrivers(), updateState() and setAction() require every driver to be RUNNING.
-  // If any driver is not (or faults during the call), the HAL performs a safety stop: it stops all
-  // drivers (each brings its hardware to rest) and latches FAULT. While latched, updateState() and
-  // setAction() do nothing, startDrivers() aborts, and getState() reports FAULT until resetDrivers()
-  // is called.
+  // If any driver is not (or fails during the call), the HAL performs a safety stop: it stops all
+  // drivers (each brings its hardware to rest), latches FAULT and returns the driver's error
+  // unchanged. While latched, updateState() and setAction() return HalLatched without touching any
+  // driver, startDrivers() aborts, and getState() reports FAULT until resetDrivers() succeeds.
 
   // Collects the latest state from all drivers.
-  void updateState(model::RobotState& robot_state);
+  [[nodiscard]] DriverResult<> updateState(model::RobotState& robot_state);
   // Sends the action to all drivers.
-  void setAction(const model::RobotJointFeedbackAction& action);
+  [[nodiscard]] DriverResult<> setAction(const model::RobotJointFeedbackAction& action);
 
-  // Validates joint coverage across all registered drivers, then starts them. If any driver does not
-  // reach RUNNING, performs a safety stop. Aborts while the HAL is latched in FAULT; call
-  // resetDrivers() first.
-  void startDrivers();
-  void stopDrivers();
-  // Resets all drivers and clears a latched safety stop.
-  void resetDrivers();
+  // Validates joint coverage across all registered drivers (aborting on a bad configuration), then
+  // starts them. If a driver fails to start or does not reach RUNNING, performs a safety stop and
+  // returns its error. Aborts while the HAL is latched in FAULT; call resetDrivers() first.
+  [[nodiscard]] DriverResult<> startDrivers();
+  // Stops every driver, even if some fail, and returns the first error.
+  [[nodiscard]] DriverResult<> stopDrivers();
+  // Resets every driver, even if some fail, and returns the first error. Clears a latched safety
+  // stop only if every reset succeeded.
+  [[nodiscard]] DriverResult<> resetDrivers();
 
  private:
   void validateDriverCoverage();
 
-  // Returns true if every driver is RUNNING. Otherwise performs a safety stop (if not already
-  // latched) and returns false.
-  bool ensureAllDriversRunning();
-  // Stops *all* drivers (not just the triggering one) and latches FAULT. `triggering_driver` is the
-  // driver found not RUNNING; it is only used to report why the stop happened.
-  void safetyStopAllDrivers(const DriverBase& triggering_driver);
+  // Succeeds if every driver is RUNNING. Otherwise performs a safety stop and returns NotRunning for
+  // the first driver found not RUNNING.
+  DriverResult<> ensureAllDriversRunning();
+  // Stops *all* drivers (not just the one that failed) and latches FAULT. `cause` is the error that
+  // triggered the stop; it is only used to report why the stop happened.
+  void safetyStopAllDrivers(const DriverError& cause);
 
   std::atomic<bool> safety_stopped_{false};
 

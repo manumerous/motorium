@@ -34,12 +34,12 @@ namespace motorium::runtime {
 RobotInstance::RobotInstance(const std::string& model_path, std::vector<std::shared_ptr<control::ControllerBase>> controllers)
     : robot_hal_(model_path), controllers_(std::move(controllers)) {}
 
-void RobotInstance::start() {
-  robot_hal_.startDrivers();
+hal::DriverResult<> RobotInstance::start() {
+  return robot_hal_.startDrivers();
 }
 
-void RobotInstance::stop() {
-  robot_hal_.stopDrivers();
+hal::DriverResult<> RobotInstance::stop() {
+  return robot_hal_.stopDrivers();
 }
 
 }  // namespace motorium::runtime

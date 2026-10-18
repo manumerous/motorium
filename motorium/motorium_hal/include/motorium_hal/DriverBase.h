@@ -36,6 +36,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <absl/synchronization/mutex.h>
 #include <motorium_core/StateMachine.h>
+#include <motorium_hal/DriverError.h>
 #include <motorium_model/RobotDescription.h>
 #include <motorium_model/RobotJointFeedbackAction.h>
 #include <motorium_model/RobotState.h>
@@ -109,27 +110,30 @@ class DriverBase {
   std::string_view stateToString() const { return state_.stateToString(); }
 
   // Callable only by RobotHAL — HalKey enforces this at compile time.
+  //
+  // All of these return a DriverResult. If an *Impl() hook returns an error, the driver moves to
+  // FAULT and the error is returned with the driver's name filled in. Errors from the driver's own
+  // thread (reportFault()) during a call are returned as FaultedDuringCall.
 
   // READY -> RUNNING. A no-op when already RUNNING; aborts from any other state, since starting a
   // driver that is not ready is a bug in the caller.
-  void start(HalKey);
+  [[nodiscard]] DriverResult<> start(HalKey);
 
   // RUNNING -> STOPPING -> READY. Stopping must always be safe to call during shutdown, so it never
   // aborts: it is a no-op when not running, and on a FAULTed driver it still calls stopImpl() to
   // bring the hardware to rest, but stays in FAULT.
-  void stop(HalKey);
+  [[nodiscard]] DriverResult<> stop(HalKey);
 
   // Allowed from READY, RUNNING and FAULT (FAULT -> READY); aborts from INITIALIZING and STOPPING.
-  void reset(HalKey);
+  [[nodiscard]] DriverResult<> reset(HalKey);
 
-  // Writes the latest measured state of the managed joints into robot_state. Does nothing unless
-  // RUNNING. Returns whether the driver is still RUNNING afterwards, i.e. false if it was not
-  // running or faulted during the call; RobotHAL reacts to that with a safety stop.
-  [[nodiscard]] bool updateState(HalKey, model::RobotState& robot_state);
+  // Writes the latest measured state of the managed joints into robot_state. Returns NotRunning
+  // without calling updateStateImpl() unless the driver is RUNNING.
+  [[nodiscard]] DriverResult<> updateState(HalKey, model::RobotState& robot_state);
 
-  // Forwards the commanded action for the managed joints to the hardware/sim. Same RUNNING check and
-  // return value as updateState().
-  [[nodiscard]] bool setAction(HalKey, const model::RobotJointFeedbackAction& action);
+  // Forwards the commanded action for the managed joints to the hardware/sim. Returns NotRunning
+  // without calling setActionImpl() unless the driver is RUNNING.
+  [[nodiscard]] DriverResult<> setAction(HalKey, const model::RobotJointFeedbackAction& action);
 
   const std::string& getName() const { return name_; }
   const std::vector<std::string>& getManagedJointNames() const { return managed_joint_names_; }
@@ -139,21 +143,32 @@ class DriverBase {
   // constructor or when asynchronous initialization completes.
   void markReady();
 
-  // Moves the driver to FAULT (no-op if it already is). Safe to call from any thread.
+  // Moves the driver to FAULT (no-op if it already is). Safe to call from any thread. Use this for
+  // faults detected outside a call, e.g. on the driver's own communication thread; inside an *Impl()
+  // hook, return an error instead.
   void reportFault(std::string_view reason);
 
   // Hardware/sim work only; DriverBase performs all state checks and transitions around these.
-  virtual void startImpl() = 0;
-  virtual void stopImpl() = 0;
-  virtual void resetImpl() = 0;
-  virtual void updateStateImpl(model::RobotState& robot_state) = 0;
-  virtual void setActionImpl(const model::RobotJointFeedbackAction& action) = 0;
+  // Return an error (see driverError()) if the work failed; DriverBase then moves the driver to
+  // FAULT. Leave DriverError::driver empty, DriverBase fills it in.
+  virtual DriverResult<> startImpl() = 0;
+  virtual DriverResult<> stopImpl() = 0;
+  virtual DriverResult<> resetImpl() = 0;
+  virtual DriverResult<> updateStateImpl(model::RobotState& robot_state) = 0;
+  virtual DriverResult<> setActionImpl(const model::RobotJointFeedbackAction& action) = 0;
 
   const std::string name_;
   const std::vector<std::string> managed_joint_names_;
 
  private:
   void validateManagedJointNames(const model::RobotDescription& description) const;
+
+  // Returns `error` as a failed result with this driver's name filled in.
+  std::unexpected<DriverError> withName(DriverError error) const;
+  // Moves the driver to FAULT, logs `error` and returns it with this driver's name filled in.
+  std::unexpected<DriverError> faultWith(DriverError error);
+  // Moves the driver to FAULT unless it already is. Returns whether this call caused the transition.
+  bool enterFault();
 
   core::StateMachine<DriverState, isLegalDriverTransition> state_{DriverState::INITIALIZING};
 

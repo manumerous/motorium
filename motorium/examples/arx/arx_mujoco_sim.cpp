@@ -80,19 +80,26 @@ int main(int argc, char** argv) {
   model::RobotState state(hal.getRobotDescription());
   model::RobotState desired_state(hal.getRobotDescription());
 
-  hal.startDrivers();
+  if (hal::DriverResult<> result = hal.startDrivers(); !result) {
+    std::cerr << "[arx_mujoco_sim] Failed to start: " << result.error() << "\n";
+    return 1;
+  }
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   std::cout << "[arx_mujoco_sim] Simulation running. Close the viewer window to exit.\n";
 
-  while (hal.getState() != hal::DriverState::FAULT) {
-    hal.updateState(state);
+  // On any error the HAL has already safety-stopped all drivers, so the loop only reports and exits.
+  while (true) {
+    if (hal::DriverResult<> result = hal.updateState(state); !result) {
+      std::cerr << "[arx_mujoco_sim] Reading the robot state failed: " << result.error() << "\n";
+      return 1;
+    }
     desired_state.setJointPosition(1, std::sin(2 * M_PI * state.getTime()) * 0.5 + 0.5);
     desired_state.setJointPosition(2, std::sin(2 * M_PI * state.getTime()) * 0.5 + 0.5);
     controller.computeJointControlAction(state.getTime(), state, desired_state, action);
-    hal.setAction(action);
+    if (hal::DriverResult<> result = hal.setAction(action); !result) {
+      std::cerr << "[arx_mujoco_sim] Sending the action failed: " << result.error() << "\n";
+      return 1;
+    }
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
-
-  hal.stopDrivers();
-  return 0;
 }
