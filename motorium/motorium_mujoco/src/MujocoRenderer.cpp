@@ -143,14 +143,14 @@ void MujocoRenderer::mouse_move(GLFWwindow* window, double xpos, double ypos) {
     action = mjMOUSE_ZOOM;
 
   // move camera
-  mjv_moveCamera(renderer->simInterface_->getModel(), action, dx / width, dy / height, &renderer->mujoco_scene_, &renderer->mujoco_cam_);
+  mjv_moveCamera(renderer->simInterface_->getModel(), action, dx / width, dy / height, &renderer->mujoco_cam_);
 }
 
 // scroll callback
 void MujocoRenderer::scroll(GLFWwindow* window, double, double yoffset) {
   auto* renderer = static_cast<MujocoRenderer*>(glfwGetWindowUserPointer(window));
   // emulate vertical mouse motion = 5% of window height
-  mjv_moveCamera(renderer->simInterface_->getModel(), mjMOUSE_ZOOM, 0, -0.05 * yoffset, &renderer->mujoco_scene_, &renderer->mujoco_cam_);
+  mjv_moveCamera(renderer->simInterface_->getModel(), mjMOUSE_ZOOM, 0, -0.05 * yoffset, &renderer->mujoco_cam_);
 }
 
 //// Public
