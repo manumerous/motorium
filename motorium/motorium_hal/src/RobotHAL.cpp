@@ -50,9 +50,7 @@ DriverState RobotHAL::getState() const {
 
 void RobotHAL::update(const model::RobotJointFeedbackAction& action, model::RobotState& robot_state) {
   for (const auto& driver : drivers_) {
-    if (driver->getState() == DriverState::RUNNING) {
-      driver->update(HalKey{}, action, robot_state);
-    }
+    driver->update(HalKey{}, action, robot_state);  // no-op for drivers that are not RUNNING
   }
 }
 
