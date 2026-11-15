@@ -5,6 +5,7 @@
 ![Style Check](https://github.com/manumerous/motorium/actions/workflows/format_test.yml/badge.svg)
 [![Coverage Status](https://codecov.io/gh/manumerous/motorium/branch/main/graph/badge.svg)](https://codecov.io/gh/manumerous/motorium)
 
+<img width="3584" height="1184" alt="Gemini_Generated_Image_94lf4u94lf4u94lf" src="https://github.com/user-attachments/assets/59ecbc8b-38bd-456c-934e-164601542cbb" />
 
 Motorium is a high-performance, realtime-safe framework for robot control, designed to allows the rapid development, testing and deployment of controllers (RL, IL, Model Based, ect.) across hardware and simulators. It prioritizes deterministic execution, cache locality, and type safety.
 
