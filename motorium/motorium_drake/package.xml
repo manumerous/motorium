@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>motorium_drake</name>
+  <version>0.0.0</version>
+  <description>Drake simulator driver for the motorium HAL</description>
+
+  <maintainer email="manuel.galliker@gmx.ch">Manuel Yves Galliker</maintainer>
+
+  <license>BSD</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>drake_vendor</depend>
+  <depend>motorium_core</depend>
+  <depend>motorium_model</depend>
+  <depend>motorium_hal</depend>
+  <depend>absl_vendor</depend>
+  <depend>eigen</depend>
+
+  <test_depend>ament_cmake_gtest</test_depend>
+  <test_depend>motorium_control</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+
+</package>

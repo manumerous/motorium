@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<!-- Fixed-base pendulum: 1 kg point-like mass 0.5 m below a hinge about y. Small-angle period
+     T = 2*pi*sqrt(0.5 / 9.81) = 1.4185 s. Torque limit 5 Nm. -->
+<robot name="pendulum">
+  <link name="world"/>
+
+  <link name="base">
+    <inertial>
+      <mass value="1.0"/>
+      <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001"/>
+    </inertial>
+  </link>
+  <joint name="world_to_base" type="fixed">
+    <parent link="world"/>
+    <child link="base"/>
+    <origin xyz="0 0 1.0" rpy="0 0 0"/>
+  </joint>
+
+  <link name="arm">
+    <inertial>
+      <origin xyz="0 0 -0.5" rpy="0 0 0"/>
+      <mass value="1.0"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 -0.5" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.05"/>
+      </geometry>
+    </visual>
+  </link>
+  <joint name="hinge" type="revolute">
+    <parent link="base"/>
+    <child link="arm"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-10" upper="10" effort="5" velocity="100"/>
+  </joint>
+</robot>
