@@ -72,7 +72,7 @@ Until the first `setAction()`, the driver applies `config.initialActionPtr` (or 
 | controller (`updateState()`, `setAction()`) | copies the snapshot / stores the action | `snapshot_mutex_` / `action_mutex_` for the copy only |
 | Meshcat (optional) | reads the snapshot at `visualizationRateHz` | `snapshot_mutex_` for the copy only |
 
-The controller never waits for a physics step (300–450 µs for the G1). The physics thread wakes every `dt` of real time. If it falls more than one step behind, it resynchronizes instead of catching up in a burst, and counts an overrun in `getMetrics()`.
+The controller never waits for a physics step (about 300 µs for the 29-DoF Unitree G1). The physics thread wakes every `dt` of real time. If it falls more than one step behind, it resynchronizes instead of catching up in a burst, and counts an overrun in `getMetrics()`.
 
 ### Lifecycle and faults
 
@@ -102,9 +102,9 @@ A Drake error, a non-finite state, or the floating base dropping below `faultBel
 | `headless` | true | false = start the Meshcat visualizer |
 | `visualizationRateHz` | 30 | Meshcat update rate |
 | `meshcatHost` / `meshcatPort` | `localhost` / first free from 7000 | Meshcat server address |
-| `verbose` | false | print the loaded model's size |
+| `verbose` | false | print the loaded model's size, and every 5 s the real-time factor and step-time metrics |
 
-The ground and damping defaults are the values the Unitree G1 walked with in the legacy wb_humanoid_mpc Drake simulation. The damping is high for light robots: a 1 kg, 0.5 m pendulum is heavily overdamped.
+The ground and damping defaults are the values the Unitree G1 walks with in wb_humanoid_mpc's Drake simulation. The damping is high for light robots: a 1 kg, 0.5 m pendulum is heavily overdamped.
 
 ## Conventions
 
@@ -125,12 +125,12 @@ The driver fills `RobotState` exactly like `MujocoDriver`:
 Drake comes from [`drake_vendor`](../../lib/drake_vendor), which downloads the prebuilt Drake release for Ubuntu 24.04 (x86_64 or arm64) and puts it on `CMAKE_PREFIX_PATH` and `LD_LIBRARY_PATH` once `install/setup.bash` is sourced. Its system packages (Eigen, fmt, spdlog, BLAS, LAPACK) are listed in the vendor's README.
 
 ```bash
-# from wb_humanoid_mpc
+# from the motorium repository root (or from wb_humanoid_mpc, which includes motorium)
 make build-motorium_drake
 make test-motorium_drake
 ```
 
-Tested with Drake v1.59.0 (`drake_vendor`) and GCC 13.3 / C++20. Earlier development also used a Drake v1.52 source build and clang 19 / C++23 with `-Werror=thread-safety-analysis`. Don't also keep a local Drake install on `CMAKE_PREFIX_PATH` / `LD_LIBRARY_PATH`: it can shadow the vendored one.
+Tested with Drake v1.59.0 (`drake_vendor`) using clang 19 / C++23 with `-Werror=thread-safety-analysis` (motorium's CI flags) and GCC 13.3 / C++20. Don't also keep a local Drake install on `CMAKE_PREFIX_PATH` / `LD_LIBRARY_PATH`: it can shadow the vendored one.
 
 The tests (`test/`) use two small primitive-geometry robots: a fixed-base pendulum (`pendulum_fixed_base.urdf`) and a floating-base four-legged table (`floating_base_quadruped.urdf`). Most tests use `manualStepping`, so they are deterministic and run faster than real time.
 
@@ -146,6 +146,4 @@ The tests (`test/`) use two small primitive-geometry robots: a fixed-base pendul
 
 - **Compiler mismatch with a prebuilt Drake.** Drake passes the alias template `Link = RigidBody` as a template argument, which GCC and clang mangle differently. Code compiled with clang that calls `MultibodyPlant::get_body(BodyIndex)` does not link against a GCC-built Drake (such as a default source build on Ubuntu; check how a prebuilt Drake was compiled). This package reaches bodies through joints instead (`src/DrakeModelLoading.h`); keep it that way when adding code.
 - **Meshcat is single-threaded.** Drake requires every Meshcat call from the thread that created the instance; the visualizer therefore builds everything on its own thread.
-- **Real-time budget.** A Drake step for the 29-DoF G1 takes 300–450 µs of the 500 µs budget, against 50–80 µs for MuJoCo. Watch `getMetrics().overrunCount`; keep other heavy threads (e.g. an MPC solver) on other CPU cores.
-
-See [INTEGRATION_PLAN.md](INTEGRATION_PLAN.md) for the remaining work (example, Bazel, wb_humanoid_mpc integration) and the design history.
+- **Real-time budget.** A Drake step for the 29-DoF G1 takes about 300 µs (mean) of the 500 µs budget, against 50–80 µs for MuJoCo. Watch `getMetrics().overrunCount`; keep other heavy threads (e.g. an MPC solver) on other CPU cores.
